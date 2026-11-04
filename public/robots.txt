@@ -1,0 +1,3 @@
+# Disallow all search engine indexing on the Admin Dashboard
+User-agent: *
+Disallow: /

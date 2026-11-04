@@ -1,0 +1,38 @@
+{
+  "name": "jabel-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "test": "node --test ../tests/dashboardApi.test.js ../tests/dashboardSeniorQA.test.js ../tests/adminCatalogDomain.test.js ../tests/adminCatalogQA.test.js",
+    "check": "npm run lint && npm run test && npm run build"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.3.1",
+    "axios": "^1.13.6",
+    "chart.js": "^4.5.1",
+    "cors": "^2.8.6",
+    "dompurify": "^3.4.15",
+    "express": "^5.2.1",
+    "firebase": "^13.1.0",
+    "vue": "^3.5.25",
+    "vue-i18n": "^9.14.5",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@tailwindcss/postcss": "^4.2.1",
+    "@vitejs/plugin-vue": "^6.0.2",
+    "autoprefixer": "^10.4.27",
+    "eslint": "^9.39.5",
+    "eslint-plugin-vue": "^10.11.1",
+    "globals": "^16.5.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.2.1",
+    "vite": "^7.3.1"
+  }
+}

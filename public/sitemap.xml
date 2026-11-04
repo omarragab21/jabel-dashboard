@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  
+  <!-- Home Page / الصفحة الرئيسية -->
+  <url>
+    <loc>https://mastergas.sa/</loc>
+    <lastmod>2026-09-08</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://mastergas.sa/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://mastergas.sa/" />
+  </url>
+
+  <!-- Products & Categories / المنتجات والأجهزة الإيطالية -->
+  <url>
+    <loc>https://mastergas.sa/products</loc>
+    <lastmod>2026-09-08</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://mastergas.sa/products" />
+  </url>
+
+  <!-- Special Offers / العروض المميزة -->
+  <url>
+    <loc>https://mastergas.sa/offers</loc>
+    <lastmod>2026-09-08</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://mastergas.sa/offers" />
+  </url>
+
+  <!-- About Us / من نحن -->
+  <url>
+    <loc>https://mastergas.sa/about</loc>
+    <lastmod>2026-09-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://mastergas.sa/about" />
+  </url>
+
+  <!-- Contact Us / اتصل بنا -->
+  <url>
+    <loc>https://mastergas.sa/contact</loc>
+    <lastmod>2026-09-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://mastergas.sa/contact" />
+  </url>
+
+</urlset>
