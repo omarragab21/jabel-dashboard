@@ -8,9 +8,9 @@ export const defaultSettings = {
   logo: '/brand/tijara-logo-full.png',
   footer_logo: '/brand/tijara-logo-full.png',
   favicon: '/brand/tijara-logo.png',
-  currency: 'SAR',
-  currency_ar: 'ر.س',
-  currency_en: 'SAR',
+  currency: 'JOD',
+  currency_ar: 'د.أ',
+  currency_en: 'JOD',
   free_delivery_threshold: 500,
   shipping_cost: 25,
   tax_rate: 15,
@@ -89,8 +89,8 @@ export function useSettings() {
   };
 
   const currency = computed(() => {
-    // Follows the dashboard language: «ر.س» in Arabic, «SAR» in English.
-    return locale.value === 'en' ? 'SAR' : 'ر.س';
+    // Follows the dashboard language: «د.أ» in Arabic, «JOD» in English.
+    return locale.value === 'en' ? 'JOD' : 'د.أ';
   });
 
   const getSetting = (key, defaultValue = null) => settings.value?.[key] ?? defaultSettings[key] ?? defaultValue;

@@ -182,8 +182,8 @@
           <fieldset class="form-fieldset" :disabled="isView">
             <div class="form-group">
               <label class="form-label" for="dc-desc">{{ tx('وصف الكود', 'Code description') }}</label>
-              <input v-show="activeLang === 'ar'" id="dc-desc" type="text" v-model="form.description_ar" class="form-control" placeholder="مثال: خصم 25% على الطلبات فوق 100 ر.س" />
-              <input v-show="activeLang === 'en'" type="text" v-model="form.description_en" class="form-control" placeholder="e.g. 25% off on orders over 100 SAR" dir="ltr" />
+              <input v-show="activeLang === 'ar'" id="dc-desc" type="text" v-model="form.description_ar" class="form-control" placeholder="مثال: خصم 25% على الطلبات فوق 100 د.أ" />
+              <input v-show="activeLang === 'en'" type="text" v-model="form.description_en" class="form-control" placeholder="e.g. 25% off on orders over 100 JOD" dir="ltr" />
             </div>
           </fieldset>
 

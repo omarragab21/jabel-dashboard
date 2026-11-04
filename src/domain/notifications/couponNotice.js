@@ -10,7 +10,7 @@ const discountText = (type, value, lang) => {
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount <= 0) return '';
   const shown = amount.toLocaleString('en-US', { maximumFractionDigits: 2 });
-  if (type === 'fixed') return lang === 'ar' ? `${shown} ر.س` : `${shown} SAR`;
+  if (type === 'fixed') return lang === 'ar' ? `${shown} د.أ` : `${shown} JOD`;
   return `${shown}%`;
 };
 

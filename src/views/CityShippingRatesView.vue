@@ -147,7 +147,7 @@ const selectedCountry = ref('');
 const showEditModal = ref(false);
 const showBulkModal = ref(false);
 const bulkOption = ref('all');
-const currency = ref('SAR');
+const currency = ref('JOD');
 const editingRate = ref(null);
 const editForm = ref({
   shipping_cost: 0,

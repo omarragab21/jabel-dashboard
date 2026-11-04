@@ -441,7 +441,7 @@ export const offerUsage = (offer = {}, orders = []) => {
   return { orders: used, units, customers: customers.size };
 };
 
-export const promotionDiscountLabel = (offer, currency = 'SAR') => (offer.type === 'fixed'
+export const promotionDiscountLabel = (offer, currency = 'JOD') => (offer.type === 'fixed'
   ? `${Number(offer.value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })} ${currency}`
   : `${Number(offer.value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}%`);
 

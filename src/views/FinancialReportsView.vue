@@ -254,7 +254,7 @@ const formatDay = (day) => new Intl.DateTimeFormat(dateLocale.value, { day: 'num
 // Inputs show the day first: «02/11/2026» = day / month / year, read from the left.
 const formatInputDay = (day) => (isValidDay(day) ? day.split('-').reverse().join('/') : 'dd/mm/yyyy');
 const openPicker = (event) => { try { event.target.showPicker?.(); } catch { /* picker already open */ } };
-// Amounts read like Arabic text: the number, then «ر.س» to its left.
+// Amounts read like Arabic text: the number, then «د.أ» to its left.
 const moneyDir = computed(() => (locale.value === 'ar' ? 'rtl' : 'ltr'));
 const formatDateTime = (value) => new Intl.DateTimeFormat(dateLocale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 const periodText = computed(() => {

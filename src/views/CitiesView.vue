@@ -116,7 +116,7 @@ const selectedCountry = ref('');
 const showModal = ref(false);
 const isEdit = ref(false);
 const editingId = ref(null);
-const currency = ref('SAR');
+const currency = ref('JOD');
 const form = ref({
   country_id: '',
   name: '',

@@ -1,5 +1,5 @@
 <template>
-  <!-- The single currency label of the dashboard: «ر.س» (SAR in English). Every amount renders it through this component. -->
+  <!-- The single currency label of the dashboard: «د.أ» (JOD in English). Every amount renders it through this component. -->
   <span class="riyal-icon">{{ CURRENCY_LABEL }}</span>
 </template>
 

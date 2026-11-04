@@ -31,8 +31,8 @@ export const toOrderAlert = (order = {}, lang = 'ar') => {
     key: `order-${order.id}`,
     title: en ? 'New order' : 'طلب جديد',
     body: en
-      ? `${number}${customer ? ` from ${customer}` : ''} — ${total} SAR`
-      : `طلب \u2066${number}\u2069${customer ? ` من ${customer}` : ''} بقيمة ${total} ر.س`,
+      ? `${number}${customer ? ` from ${customer}` : ''} — ${total} JOD`
+      : `طلب \u2066${number}\u2069${customer ? ` من ${customer}` : ''} بقيمة ${total} د.أ`,
     link: `/admin/orders?search=${encodeURIComponent(order.order_number || order.id)}`,
   };
 };
