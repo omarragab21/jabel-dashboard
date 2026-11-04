@@ -108,7 +108,7 @@ const openEditModal = (admin) => {
 
 const closeForm = () => { if (!isSubmitting.value) showFormModal.value = false; };
 
-const cropOptions = () => ({ maxSizeMB: 2, defaultRatio: '1:1', fileName: 'avatar', title: tx('قص وضبط الصورة الشخصية (Crop & Resize)', 'Crop & resize profile image') });
+const cropOptions = () => ({ defaultRatio: '1:1', fileName: 'avatar', title: tx('قص وضبط الصورة الشخصية (Crop & Resize)', 'Crop & resize profile image') });
 
 const handleAvatarChange = async (e) => {
   const picked = e.target.files?.[0];

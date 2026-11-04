@@ -224,7 +224,7 @@
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 5h6"/><path d="M19 2v6"/><path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/><circle cx="9" cy="9" r="2"/></svg>
                 </span>
                 <span class="cm-upload-text">{{ isSubForm ? tx('اضغط لرفع صورة القسم الفرعي', 'Click to upload the sub-category image') : tx('اضغط لرفع صورة القسم', 'Click to upload the category image') }}</span>
-                <span class="cm-upload-hint">PNG, JPG, WEBP ({{ tx('حد أقصى 25MB', 'max 25MB') }})</span>
+                <span class="cm-upload-hint">PNG, JPG, WEBP</span>
               </template>
             </div>
           </div>
@@ -649,7 +649,7 @@ const triggerFileInput = () => {
   fileInput.value.click();
 };
 
-const cropOptions = () => ({ maxSizeMB: 1, defaultRatio: '2:3', fileName: 'category', outputType: 'image/jpeg', title: tx('قص وضبط أبعاد صورة القسم (Crop & Resize)', 'Crop & resize category image') });
+const cropOptions = () => ({ defaultRatio: '2:3', fileName: 'category', outputType: 'image/jpeg', title: tx('قص وضبط أبعاد صورة القسم (Crop & Resize)', 'Crop & resize category image') });
 
 // Every picked image goes through the crop modal before it is staged for upload.
 const handleFileChange = async (e) => {

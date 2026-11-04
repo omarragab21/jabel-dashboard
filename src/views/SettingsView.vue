@@ -290,13 +290,12 @@ onMounted(() => {
 // Logos keep their own proportions (and PNG transparency); the favicon is square.
 const settingsImageCropOptions = (key) => {
     if (key === 'favicon') {
-        return { maxSizeMB: 1, allowIco: true, defaultRatio: '1:1', fileName: 'favicon', title: tx('قص وضبط أيقونة الموقع (Crop & Resize)', 'Crop & resize favicon') };
+        return { allowIco: true, defaultRatio: '1:1', fileName: 'favicon', title: tx('قص وضبط أيقونة الموقع (Crop & Resize)', 'Crop & resize favicon') };
     }
     if (key === 'logo' || key === 'footer_logo') {
-        return { maxSizeMB: 2, defaultRatio: 'free', fileName: key, title: tx('قص وضبط الشعار (Crop & Resize)', 'Crop & resize logo') };
+        return { defaultRatio: 'free', fileName: key, title: tx('قص وضبط الشعار (Crop & Resize)', 'Crop & resize logo') };
     }
     return {
-        maxSizeMB: 2,
         defaultRatio: key === aboutHeroField.key ? '16:9' : '4:3',
         fileName: key,
         title: tx('قص وضبط صورة صفحة «من نحن» (Crop & Resize)', 'Crop & resize About page image'),

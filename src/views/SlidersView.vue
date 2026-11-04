@@ -219,7 +219,7 @@ const openViewModal = (slider) => {
     showViewModal.value = true;
 };
 
-const cropOptions = () => ({ maxSizeMB: 1, defaultRatio: '2:1', fileName: 'slider', title: tx('قص وضبط مقاسات صورة الشريحة (Crop & Resize)', 'Crop & resize slider image') });
+const cropOptions = () => ({ defaultRatio: '2:1', fileName: 'slider', title: tx('قص وضبط مقاسات صورة الشريحة (Crop & Resize)', 'Crop & resize slider image') });
 
 // Every picked image goes through the crop modal before it is staged for upload.
 const handleImageChange = async (e) => {
@@ -509,7 +509,7 @@ const copyLink = (text) => {
                  <div class="upload-placeholder" v-else>
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     <span>{{ tx('اسحب الصورة هنا أو اضغط للاختيار', 'Drag an image here or click to choose') }}</span>
-                    <small>{{ tx('يفضل مقاس كبير (مثلاً 1920x800) - الحد الأقصى 1 ميجابايت', 'Large size recommended (e.g. 1920x800) - maximum 1MB') }}</small>
+                    <small>{{ tx('يفضل مقاس كبير (مثلاً 1920x800)', 'Large size recommended (e.g. 1920x800)') }}</small>
                  </div>
               </div>
               <div v-if="previewImage" style="margin-top: 0.625rem; text-align: center;"><ImageCropButton @crop="recropCurrentImage" /></div>

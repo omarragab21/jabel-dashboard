@@ -2,19 +2,15 @@ import { reactive } from 'vue';
 import { validateAdminImageFile } from '../utils/adminSecurity';
 import { cropOutputType, isCroppableFile } from '../utils/imageCrop';
 
-// A picked photo may be larger than the upload limit: the crop exports a
-// resized copy, and only that copy has to fit the limit.
-const MAX_SOURCE_MB = 25;
-
 /**
  * Wires components/ImageCropModal.vue into a form.
  *
  *   const { cropModal, closeCrop, finishCrop, prepareImage, recropImage } = useImageCrop();
  *   <ImageCropModal v-bind="cropModal" @close="closeCrop" @cropped="finishCrop" />
  *
- * prepareImage(file, options) validates a picked file, opens the crop and
- * resolves { file } (the cropped copy, or the original if the crop was
- * cancelled and it fits the limit) or { error }.
+ * prepareImage(file, options) validates a picked file (type only, any size),
+ * opens the crop and resolves { file } (the cropped copy, or the original if
+ * the crop was cancelled) or { error }.
  */
 export function useImageCrop() {
   const cropModal = reactive({
@@ -60,35 +56,24 @@ export function useImageCrop() {
     finish(file);
   };
 
-  const prepareImage = async (file, { maxSizeMB = 2, allowIco = false, ...cropOptions } = {}) => {
-    const typeCheck = validateAdminImageFile(file, { maxSizeMB: MAX_SOURCE_MB, allowIco });
+  const prepareImage = async (file, { allowIco = false, ...cropOptions } = {}) => {
+    const typeCheck = validateAdminImageFile(file, { allowIco });
     if (!typeCheck.valid) return { error: typeCheck.error };
-
-    if (!isCroppableFile(file)) {
-      const check = validateAdminImageFile(file, { maxSizeMB, allowIco });
-      return check.valid ? { file } : { error: check.error };
-    }
+    if (!isCroppableFile(file)) return { file };
 
     const cropped = await requestCrop(file, cropOptions);
     const result = cropped || file;
-    const check = validateAdminImageFile(result, { maxSizeMB, allowIco });
-    if (!check.valid) {
-      return {
-        error: cropped
-          ? check.error
-          : `${check.error}. استخدم "قص وضبط الحجم" لتصغير الصورة تلقائياً`,
-      };
-    }
-    return { file: result };
+    const check = validateAdminImageFile(result, { allowIco });
+    return check.valid ? { file: result } : { error: check.error };
   };
 
   // Re-crops an image already in the form (a File or a backend URL).
   // Resolves { file }, { error } or {} when cancelled.
-  const recropImage = async (source, { maxSizeMB = 2, ...cropOptions } = {}) => {
+  const recropImage = async (source, cropOptions = {}) => {
     if (!source) return {};
     const cropped = await requestCrop(source, cropOptions);
     if (!cropped) return {};
-    const check = validateAdminImageFile(cropped, { maxSizeMB });
+    const check = validateAdminImageFile(cropped);
     return check.valid ? { file: cropped } : { error: check.error };
   };
 

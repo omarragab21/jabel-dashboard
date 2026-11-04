@@ -57,10 +57,11 @@ const stripLeadingControlChars = (str) => {
 
 /**
  * Validates an uploaded image file in the Admin Dashboard.
- * Blocks SVG/HTML/script uploads (Stored XSS vector), double extensions, and oversized files.
+ * Blocks SVG/HTML/script uploads (Stored XSS vector), double extensions, and empty files.
+ * There is no size limit here: any size is accepted.
  */
 export function validateAdminImageFile(file, options = {}) {
-  const { maxSizeMB = 2, allowIco = false } = options;
+  const { allowIco = false } = options;
 
   if (!file || typeof file !== 'object') {
     return { valid: false, error: 'الملف المختار غير صالح' };
@@ -102,14 +103,6 @@ export function validateAdminImageFile(file, options = {}) {
 
   if (!Number.isFinite(size) || size <= 0) {
     return { valid: false, error: 'ملف الصورة فارغ أو تالف' };
-  }
-
-  const maxBytes = maxSizeMB * 1024 * 1024;
-  if (size > maxBytes) {
-    return {
-      valid: false,
-      error: `حجم الصورة يجب أن لا يتجاوز ${maxSizeMB} ميجابايت`,
-    };
   }
 
   return { valid: true, error: null };

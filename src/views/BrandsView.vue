@@ -364,7 +364,7 @@ const triggerFileInput = () => {
   fileInput.value.click();
 };
 
-const cropOptions = () => ({ maxSizeMB: 2, defaultRatio: '1:1', fileName: 'brand_logo', title: tx('قص وضبط أبعاد شعار البراند (Crop & Resize)', 'Crop & resize brand logo') });
+const cropOptions = () => ({ defaultRatio: '1:1', fileName: 'brand_logo', title: tx('قص وضبط أبعاد شعار البراند (Crop & Resize)', 'Crop & resize brand logo') });
 
 // Every picked image goes through the crop modal before it is staged for upload.
 const handleFileChange = async (e) => {

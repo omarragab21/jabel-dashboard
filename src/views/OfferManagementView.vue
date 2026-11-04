@@ -234,7 +234,7 @@
                 <div v-else class="upload-placeholder">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   <p>{{ tx('انقر لرفع صورة العرض', 'Click to upload the offer image') }}</p>
-                  <span>{{ tx('الحد الأقصى 1 ميجابايت', 'Maximum 1 MB') }}</span>
+                  <span>PNG, JPG, WEBP</span>
                 </div>
               </div>
             </div>
@@ -427,7 +427,7 @@ const resolveImage = (value) => {
 };
 const offerImage = (offer) => resolveImage(offer.image_url || offer.image);
 
-const cropOptions = () => ({ maxSizeMB: 1, defaultRatio: '16:9', fileName: 'offer', title: tx('قص وضبط مقاسات صورة العرض (Crop & Resize)', 'Crop & resize offer image') });
+const cropOptions = () => ({ defaultRatio: '16:9', fileName: 'offer', title: tx('قص وضبط مقاسات صورة العرض (Crop & Resize)', 'Crop & resize offer image') });
 
 // Every picked image goes through the crop modal before it is staged for upload.
 const handleImageUpload = async (event) => {

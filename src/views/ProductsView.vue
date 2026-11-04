@@ -1731,7 +1731,6 @@ const triggerFileInput = () => {
 };
 
 const productCropOptions = (position, total) => ({
-  maxSizeMB: 5,
   defaultRatio: '1:1',
   fileName: 'product',
   title: total > 1
