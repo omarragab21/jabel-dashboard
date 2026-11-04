@@ -109,6 +109,7 @@ const EXACT = {
   'يرجى كتابة اسم اللون': 'Type the colour name',
   'يرجى كتابة قيمة المواصفة': 'Type the specification value',
   'أضف صورة واحدة على الأقل للمنتج المنسوخ': 'Add at least one image to the duplicated product',
+  'أضف صورة واحدة على الأقل للمنتج': 'Add at least one image to the product',
   'انتظر حتى ينتهي نسخ صور المنتج': 'Wait until the product images finish copying',
   'اسم القسم بالإنجليزية مطلوب': 'The category name in English is required',
   'اسم القسم بالعربي مطلوب': 'The category name in Arabic is required',

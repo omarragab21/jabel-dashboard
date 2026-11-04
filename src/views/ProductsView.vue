@@ -207,7 +207,7 @@
                   {{ form.existing_images.length + form.new_images.length }} / {{ maxImages }} {{ tx('صور', 'images') }}
                 </span>
               </div>
-              <div class="image-uploader">
+              <div class="image-uploader" :class="{ 'is-missing': imageMissing && form.existing_images.length + form.new_images.length === 0 }" data-testid="product-image-uploader">
                 <!-- Dropzone -->
                 <div class="upload-box" @click="triggerFileInput" v-if="(form.existing_images.length + form.new_images.length) < maxImages">
                   <input type="file" ref="fileInput" @change="handleFileChange" accept="image/*" multiple class="hidden-input" />
@@ -852,11 +852,11 @@
 import { localizeMessage } from '../utils/uiMessages';
 import { useCurrencyLabel } from '../composables/useCurrencyLabel';
 import { apiErrorMessage } from '../utils/apiMessage';
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import PointListInput from '../components/PointListInput.vue';
 import { useAdminText } from '../composables/useAdminText';
 import adminCatalogService from '../application/adminCatalogService';
-import { productCategoryName, toLines, toProductPayload } from '../domain/catalog/adminCatalog';
+import { productCategoryName, toLines, toProductPayload, validateProductImages } from '../domain/catalog/adminCatalog';
 import { loadSavedCoreIds, resolveCoreIds, splitByCoreIds } from '../services/coreAttributes';
 import { loadSavedProductTabs } from '../services/productTabs';
 import { sourceTitle } from '../domain/productTabs';
@@ -1149,6 +1149,8 @@ const removeSpec = (idx) => {
 
 // Modals
 const showFormModal = ref(false);
+// Set when a save was refused for lack of an image; the uploader turns red until one is added.
+const imageMissing = ref(false);
 const showViewModal = ref(false);
 const isEdit = ref(false);
 // Duplicating: the product being copied, and the state of copying its images.
@@ -1164,6 +1166,7 @@ const currentImageIdx = ref(0);
 
 const fileInput = ref(null);
 const imagePreviews = ref([]); // new uploads
+watch(showFormModal, (open) => { if (open) imageMissing.value = false; });
 // The form opens on the dashboard's language; Arabic tab sits on the right, English on the left.
 const formLang = () => (locale.value === 'en' ? 'en' : 'ar');
 const activeLang = ref(formLang());
@@ -1824,6 +1827,24 @@ const submitForm = async () => {
     return;
   }
 
+  if (duplicateSource.value) {
+    if (duplicateLoading.value > 0) {
+      triggerAlert('انتظر حتى ينتهي نسخ صور المنتج', 'error');
+      return;
+    }
+  }
+
+  // Every new product needs at least one image (a copy keeps its own, so it counts too).
+  const imageError = validateProductImages(form.value, { isEdit: isEdit.value });
+  if (imageError) {
+    currentTab.value = 'info';
+    imageMissing.value = true;
+    triggerAlert(imageError, 'error');
+    await nextTick();
+    document.querySelector('.image-uploader')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
   const attrName = (attribute) => attribute.label || attribute.name;
   const missingCore = coreAttributeRows.value.find(({ attribute }) => !coreRowDone(attribute));
   if (missingCore) {
@@ -1838,18 +1859,6 @@ const submitForm = async () => {
     currentTab.value = 'attributes';
     triggerAlert(`اختر قيمة واحدة فقط لـ «${attrName(multiValued)}»`, 'error');
     return;
-  }
-
-  if (duplicateSource.value) {
-    if (duplicateLoading.value > 0) {
-      triggerAlert('انتظر حتى ينتهي نسخ صور المنتج', 'error');
-      return;
-    }
-    if (!form.value.new_images.length) {
-      currentTab.value = 'info';
-      triggerAlert('أضف صورة واحدة على الأقل للمنتج المنسوخ', 'error');
-      return;
-    }
   }
 
   isSubmitting.value = true;
@@ -2125,6 +2134,8 @@ const confirmDelete = async (prod) => {
 }
 .upload-box:hover { border-color: #660033; background: #f3f4f6; }
 .hidden-input { display: none; }
+.image-uploader.is-missing .upload-box { border-color: #dc2626; background: #fef2f2; }
+.image-uploader.is-missing .upload-box p { color: #b91c1c; }
 .upload-box p { font-size: 0.85rem; font-weight: 600; color: #374151; margin: 0.5rem 0 0; }
 .upload-box span { font-size: 0.75rem; color: #9ca3af; }
 .preview-grid { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.5rem; }

@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node --test ../tests/dashboardApi.test.js ../tests/dashboardSeniorQA.test.js ../tests/adminCatalogDomain.test.js ../tests/adminCatalogQA.test.js",
+    "test": "node --test ../tests/dashboardApi.test.js ../tests/dashboardSeniorQA.test.js ../tests/adminCatalogDomain.test.js ../tests/adminCatalogQA.test.js ../tests/productImageRequired.test.js",
     "check": "npm run lint && npm run test && npm run build"
   },
   "dependencies": {

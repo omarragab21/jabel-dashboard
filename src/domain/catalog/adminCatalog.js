@@ -272,6 +272,17 @@ export const toCategoryPayload = (form) => ({
   sort_order: Number.isFinite(Number(form.sort_order)) ? Number(form.sort_order) : 0,
 });
 
+export const PRODUCT_IMAGE_REQUIRED_MESSAGE = 'أضف صورة واحدة على الأقل للمنتج';
+
+// A new product must have at least one image. Images already saved on the product (edit) and
+// freshly staged uploads (add / duplicate) both count. Returns an error message, or '' when fine.
+export const validateProductImages = (form = {}, { isEdit = false } = {}) => {
+  if (isEdit) return '';
+  const staged = Array.isArray(form.new_images) ? form.new_images.filter(Boolean).length : 0;
+  const saved = Array.isArray(form.existing_images) ? form.existing_images.filter(Boolean).length : 0;
+  return staged + saved > 0 ? '' : PRODUCT_IMAGE_REQUIRED_MESSAGE;
+};
+
 export const toProductPayload = (form) => ({
   name_en: String(form.name_en || '').trim(),
   name_ar: String(form.name_ar || '').trim(),
