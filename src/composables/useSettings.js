@@ -3,21 +3,12 @@ import { useI18n } from 'vue-i18n';
 import { settingsService } from '../services/settingsService';
 import { API_TTL } from '../services/apiClient';
 
+// Only technical defaults (the currency label). Anything the dashboard owns (name, contact details, address,
+// prices, rates) is never made up here: a value that is not in the settings API is simply absent.
 export const defaultSettings = {
-  site_name: 'ماسترجاز | Mastergas',
-  logo: '/brand/tijara-logo-full.png',
-  footer_logo: '/brand/tijara-logo-full.png',
-  favicon: '/brand/tijara-logo.png',
   currency: 'JOD',
   currency_ar: 'د.أ',
   currency_en: 'JOD',
-  free_delivery_threshold: 500,
-  shipping_cost: 25,
-  tax_rate: 15,
-  support_phone: '+966500000000',
-  support_email: 'info@mastergas.com.sa',
-  address_ar: 'المملكة العربية السعودية',
-  address_en: 'Saudi Arabia',
 };
 
 const settings = ref(null);
@@ -41,7 +32,7 @@ const normalizeSettings = (data) => {
     if (!setting?.key) return;
     let value = setting.value;
     if (['logo', 'footer_logo', 'favicon', 'site_name', 'site_title'].includes(setting.key) && isIrisAsset(value)) {
-      value = setting.key === 'footer_logo' ? defaultSettings.footer_logo : setting.key === 'site_name' || setting.key === 'site_title' ? defaultSettings.site_name : defaultSettings.logo;
+      value = '';
     }
     settingsObj[setting.key] = value;
   });

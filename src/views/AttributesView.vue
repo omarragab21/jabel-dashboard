@@ -21,8 +21,8 @@
         <button class="modal-close" @click="closeAttributeModal">×</button>
         <div class="form-header"><div class="modal-heading-row"><div v-if="!editingAttributeId" class="header-icon-main"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><h3 class="modal-title-main">{{ editingAttributeId ? tx('تعديل خاصية منتج', 'Edit Product Attribute') : tx('إضافة خاصية منتج', 'Add Product Attribute') }}</h3></div><p class="modal-subtitle-main">{{ editingAttributeId ? tx('عدّل اسم الخاصية — القيم تُدار من زر إدارة القيم', 'Edit the attribute name; values are managed separately') : tx('أضف الخاصية ثم أضف قيمها من زر إدارة القيم. أي قيمة بكود لون تظهر كدائرة لون تلقائياً', 'Add the attribute, then add its values. Any value with a color code shows as a color circle automatically') }}</p></div>
         <form class="value-form" @submit.prevent="submitAttribute">
-          <div class="form-group"><label class="form-label">{{ tx('الاسم بالعربي', 'Name (Arabic)') }} *</label><input v-model="attributeForm.name_ar" class="form-control" required :placeholder="tx('مثال: اللون', 'Example: Color')" /></div>
-          <div class="form-group"><label class="form-label">{{ tx('الاسم بالإنجليزية', 'Name (English)') }} *</label><input v-model="attributeForm.name_en" class="form-control" required placeholder="Example: Color" /></div>
+          <div class="form-group"><label class="form-label">{{ tx('الاسم بالعربي', 'Name (Arabic)') }} *</label><input v-model="attributeForm.name_ar" v-lang-only="'ar'" class="form-control" required :placeholder="tx('مثال: اللون', 'Example: Color')" /></div>
+          <div class="form-group"><label class="form-label">{{ tx('الاسم بالإنجليزية', 'Name (English)') }} *</label><input v-model="attributeForm.name_en" v-lang-only="'en'" class="form-control" required placeholder="Example: Color" /></div>
           <label class="core-toggle" data-testid="attribute-core-toggle">
             <input type="checkbox" v-model="attributeForm.is_core" />
             <span class="core-toggle-text">
@@ -62,7 +62,6 @@
                 <div class="attr-name-cell">
                   <div class="attr-text">
                     <span class="attr-title">{{ attributeName(attr) }} <span v-if="isCore(attr)" class="core-badge" data-testid="core-badge">{{ tx('أساسية', 'Core') }}</span></span>
-                    <span v-if="!isEnglish" class="attr-desc">{{ secondaryAttributeName(attr) }}</span>
                   </div>
                 </div>
               </td>
@@ -71,7 +70,7 @@
                   <!-- Show up to 5 values -->
                   <span v-for="val in attr.values.slice(0, 5)" :key="val.id" class="value-chip" :class="{ 'inactive-chip': !val.is_active }">
                     <span v-if="colorOf(val)" class="color-dot" :style="{ background: colorOf(val) }"></span>
-                    <span class="value-chip-labels"><span>{{ valueName(val) }}</span><small v-if="!isEnglish && secondaryValueName(val)">{{ secondaryValueName(val) }}</small></span>
+                    <span class="value-chip-labels"><span>{{ valueName(val) }}</span></span>
                   </span>
                   <span v-if="attr.values.length > 5" class="value-chip more-chip">
                     +{{ attr.values.length - 5 }}
@@ -130,7 +129,7 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
               </svg>
-              <span>{{ attributeName(selectedAttribute) }}<template v-if="!isEnglish"> ({{ secondaryAttributeName(selectedAttribute) }})</template></span>
+              <span>{{ attributeName(selectedAttribute) }}</span>
             </div>
           </div>
 
@@ -148,11 +147,11 @@
           <!-- Bilingual Value Names -->
           <div class="form-group">
             <label class="form-label">{{ tx('اسم القيمة بالعربي', 'Value name (Arabic)') }} <span class="req">*</span></label>
-            <input type="text" v-model="valueForm.name_ar" class="form-control" :placeholder="tx('مثال: أسود ملكي أو 90 سم', 'Example: Royal Black or 90 cm')" required />
+            <input type="text" v-model="valueForm.name_ar" v-lang-only="'ar'" class="form-control" :placeholder="tx('مثال: أسود ملكي أو 90 سم', 'Example: Royal Black or 90 cm')" required />
           </div>
           <div class="form-group">
             <label class="form-label">{{ tx('اسم القيمة بالإنجليزية', 'Value name (English)') }} <span class="req">*</span></label>
-            <input type="text" v-model="valueForm.name_en" class="form-control" placeholder="Example: Royal Black or 90 cm" dir="ltr" required />
+            <input type="text" v-model="valueForm.name_en" v-lang-only="'en'" class="form-control" placeholder="Example: Royal Black or 90 cm" dir="ltr" required />
           </div>
 
           <!-- Status -->
@@ -194,7 +193,7 @@
           <div v-for="val in selectedAttribute?.values" :key="val.id" class="manage-item">
             <div class="manage-item-info">
               <span class="status-dot" :class="val.is_active ? 'active-dot' : 'inactive-dot'"></span>
-              <span class="manage-item-labels"><span class="manage-item-label">{{ valueName(val) }}</span><small v-if="!isEnglish && secondaryValueName(val)">{{ secondaryValueName(val) }}</small></span>
+              <span class="manage-item-labels"><span class="manage-item-label">{{ valueName(val) }}</span></span>
               <div v-if="colorOf(val)" class="manage-item-color" :style="{ background: colorOf(val) }"></div>
             </div>
             
@@ -231,6 +230,7 @@
 </template>
 
 <script setup>
+import { vLangOnly } from '../directives/langOnly';
 import { localizeMessage } from '../utils/uiMessages';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { computed, ref, onMounted } from 'vue';
@@ -251,25 +251,11 @@ const attributeName = (attribute) => {
     : attribute.translations?.ar?.name || attribute.name_ar || attribute.label || attribute.name;
 };
 
-const secondaryAttributeName = (attribute) => {
-  if (!attribute) return '';
-  return isEnglish.value
-    ? attribute.translations?.ar?.name || attribute.name_ar || attribute.label || ''
-    : attribute.translations?.en?.name || attribute.name_en || attribute.name || '';
-};
-
 const valueName = (value) => {
   if (!value) return '';
   return isEnglish.value
     ? value.name_en || value.translations?.en?.name || value.label || value.name_ar
     : value.name_ar || value.translations?.ar?.name || value.label || value.name_en;
-};
-
-const secondaryValueName = (value) => {
-  if (!value) return '';
-  return isEnglish.value
-    ? value.name_ar || value.translations?.ar?.name || value.label || ''
-    : value.name_en || value.translations?.en?.name || value.label || '';
 };
 
 const attributes = ref([]);

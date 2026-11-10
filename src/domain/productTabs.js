@@ -21,10 +21,8 @@ export const DEFAULT_TAB_TITLES = Object.freeze({
   shipping: { ar: 'الشحن والإرجاع', en: 'Shipping & Returns' },
 });
 
-// Until something is saved the page keeps its original four tabs.
-export const DEFAULT_PRODUCT_TABS = Object.freeze(
-  ['overview', 'specs', 'installation', 'shipping'].map((source) => ({ id: source, source, title_ar: '', title_en: '' })),
-);
+// With no tabs saved the product page has no tabs of its own (only the reviews tab): nothing is made up.
+export const DEFAULT_PRODUCT_TABS = Object.freeze([]);
 
 const parse = (value) => {
   if (typeof value !== 'string') return value;

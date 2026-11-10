@@ -126,6 +126,10 @@ export const toProduct = (raw = {}) => {
     images: Array.isArray(raw.images)
       ? raw.images.map((image) => typeof image === 'string' ? image : (image.image_url || image.url || image.image)).filter(Boolean)
       : [],
+    // url -> image id, so the form can ask the API to delete an image the admin removed
+    image_ids: Array.isArray(raw.images)
+      ? Object.fromEntries(raw.images.filter((image) => image && typeof image === 'object' && image.id != null).map((image) => [image.image_url || image.url || image.image, image.id]))
+      : {},
   };
 };
 
@@ -290,6 +294,7 @@ export const toProductPayload = (form) => ({
   price: form.price,
   number: form.quantity,
   is_active: form.is_active === false ? 0 : 1,
+  is_featured: form.is_featured ? 1 : 0,
   // Products carry no discount of their own any more: discounts come from bundles (الباقات). Always sent
   // blank, which clears any discount a product still has.
   discount_percentage: '',

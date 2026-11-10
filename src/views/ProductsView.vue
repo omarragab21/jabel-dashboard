@@ -197,7 +197,7 @@
           <button class="tab-btn" :class="{ active: currentTab === 'attributes' }" @click.prevent="currentTab = 'attributes'">{{ tx('خصائص المنتج', 'Product Attributes') }}</button>
         </div>
         
-        <form @submit.prevent="submitForm" class="prod-form">
+        <form @submit.prevent="submitForm" class="prod-form" novalidate>
           <div v-show="currentTab === 'info'" class="tab-pane">
             <!-- Images Upload -->
             <div class="form-group">
@@ -313,6 +313,15 @@
                   <svg class="select-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
               </div>
+            </div>
+
+            <!-- Featured: the product joins the website's «featured products» lists -->
+            <div class="form-group featured-box">
+              <label class="featured-check">
+                <input type="checkbox" v-model="form.is_featured" data-testid="product-featured" />
+                <span>{{ tx('منتج مميز', 'Featured product') }}</span>
+              </label>
+              <small class="featured-hint">{{ tx('يظهر المنتج في قوائم «المنتجات المميزة» بالموقع.', 'The product shows in the website’s “Featured products” lists.') }}</small>
             </div>
 
             <!-- Basic fields -->
@@ -586,7 +595,7 @@
               <div class="core-attrs-list">
                 <div v-for="row in coreAttributeRows" :key="row.attribute.id" class="core-attr-row" :class="{ 'is-missing': !coreRowDone(row.attribute) }" :data-core-attribute="row.attribute.id">
                   <div class="core-attr-title">
-                    <span>{{ row.attribute.label || row.attribute.name }} <span class="req">*</span></span>
+                    <span>{{ attrTitle(row.attribute) }} <span class="req">*</span></span>
                     <span class="core-attr-count" :class="{ complete: coreRowDone(row.attribute) }">
                       {{ coreRowStatus(row.attribute) }}
                     </span>
@@ -602,7 +611,7 @@
                       @click="toggleApiAttribute(row.attribute.name, val.label)"
                     >
                       <span v-if="val.color" class="api-attribute-color-dot" :style="{ background: val.color }"></span>
-                      <span class="val-text">{{ val.label }}</span>
+                      <span class="val-text">{{ valTitle(val) }}</span>
                     </button>
                     <span v-if="!row.attribute.values || !row.attribute.values.length" class="text-muted-xs">{{ tx('لا توجد قيم مسجلة لهذه الخاصية.', 'No values are registered for this attribute.') }}</span>
                   </div>
@@ -626,7 +635,7 @@
               </div>
               <div class="other-attrs-list">
                   <div v-for="attr in otherAttributesList" :key="attr.id" class="other-attr-row">
-                    <label class="other-attr-label">{{ attr.label }} ({{ attr.name }})</label>
+                    <label class="other-attr-label">{{ locale === 'en' ? attrTitle(attr) : (attr.label === attr.name ? attr.label : `${attr.label} (${attr.name})`) }}</label>
                     <div class="attr-values-list" v-if="attr.values && attr.values.length > 0">
                       <button
                         v-for="val in attr.values"
@@ -638,7 +647,7 @@
                       >
                         <span class="checkmark" :class="{ active: isApiAttributeSelected(attr.name, val.label) }"></span>
                         <span v-if="val.color" class="api-attribute-color-dot" :style="{ background: val.color }"></span>
-                        <span class="val-text">{{ val.label }}</span>
+                        <span class="val-text">{{ valTitle(val) }}</span>
                       </button>
                   </div>
                   <div v-else class="attr-no-vals">
@@ -861,6 +870,7 @@ import { loadSavedCoreIds, resolveCoreIds, splitByCoreIds } from '../services/co
 import { loadSavedProductTabs } from '../services/productTabs';
 import { sourceTitle } from '../domain/productTabs';
 import { dedupeColorOptions, isColorAttribute, normalizeProductAttributes } from '../utils/productAttributes';
+import { useDialog } from '../composables/useDialog';
 import { isTestProduct, visibleCategories, visibleProducts } from '../utils/catalogVisibility';
 import { safeObjectUrl } from '../utils/adminSecurity';
 import ImageCropModal from '../components/ImageCropModal.vue';
@@ -868,6 +878,7 @@ import ImageCropButton from '../components/ImageCropButton.vue';
 import { useImageCrop } from '../composables/useImageCrop';
 
 const { tx, locale } = useAdminText();
+const dialog = useDialog();
 const { cur } = useCurrencyLabel();
 const { cropModal, closeCrop, finishCrop, prepareImage, recropImage } = useImageCrop();
 const localizedName = (item, fallback = '') => {
@@ -1058,7 +1069,7 @@ const addCustomColor = () => {
   const name = customColorName.value.trim();
   const hex = customColorHex.value.trim() || '#111827';
   if (!name) {
-    triggerAlert('يرجى كتابة اسم اللون', 'error');
+    triggerAlert(tx('يرجى كتابة اسم اللون', 'Enter the color name'), 'error');
     return;
   }
   const exists = form.value.colors.some(c => c.label.toLowerCase() === name.toLowerCase());
@@ -1068,7 +1079,7 @@ const addCustomColor = () => {
     customColorName.value = '';
     customColorHex.value = '#111827';
   } else {
-    triggerAlert('هذا اللون مضاف بالفعل للمنتج', 'error');
+    triggerAlert(tx('هذا اللون مضاف بالفعل للمنتج', 'This color is already added to the product'), 'error');
   }
 };
 
@@ -1096,7 +1107,7 @@ const addCustomSize = () => {
     form.value.sizes.push(s);
     customSizeInput.value = '';
   } else {
-    triggerAlert('هذا المقاس مضاف بالفعل للمنتج', 'error');
+    triggerAlert(tx('هذا المقاس مضاف بالفعل للمنتج', 'This size is already added to the product'), 'error');
   }
 };
 
@@ -1121,11 +1132,11 @@ const addCustomSpec = () => {
   const k = newSpecKey.value.trim();
   const v = newSpecVal.value.trim();
   if (!k) {
-    triggerAlert('يرجى تحديد أو كتابة اسم المواصفة', 'error');
+    triggerAlert(tx('يرجى تحديد أو كتابة اسم المواصفة', 'Select or enter the specification name'), 'error');
     return;
   }
   if (!v) {
-    triggerAlert('يرجى كتابة قيمة المواصفة', 'error');
+    triggerAlert(tx('يرجى كتابة قيمة المواصفة', 'Enter the specification value'), 'error');
     return;
   }
   if (!Array.isArray(form.value.specs)) {
@@ -1168,6 +1179,14 @@ const fileInput = ref(null);
 const imagePreviews = ref([]); // new uploads
 watch(showFormModal, (open) => { if (open) imageMissing.value = false; });
 // The form opens on the dashboard's language; Arabic tab sits on the right, English on the left.
+// Attribute and option names follow the dashboard language (the API labels are Arabic-first).
+const attrTitle = (attribute = {}) => (locale.value === 'en'
+  ? (attribute.translations?.en?.name || attribute.name_en || attribute.name || attribute.label)
+  : (attribute.label || attribute.name));
+const valTitle = (value = {}) => (locale.value === 'en'
+  ? (value.name_en || value.translations?.en?.name || value.label)
+  : (value.name_ar || value.label));
+
 const formLang = () => (locale.value === 'en' ? 'en' : 'ar');
 const activeLang = ref(formLang());
 
@@ -1180,6 +1199,7 @@ const form = ref({
   discount: '',
   quantity: '',
   is_active: true,
+  is_featured: false,
   category_id: '',
   subcategory_id: '',
   features_ar: '',
@@ -1458,7 +1478,7 @@ const openAddModal = () => {
   customInputs.value = cInputs;
 
   form.value = {
-    name_ar: '', name_en: '', description_ar: '', description_en: '', price: '', discount: '', quantity: '', is_active: true,
+    name_ar: '', name_en: '', description_ar: '', description_en: '', price: '', discount: '', quantity: '', is_active: true, is_featured: false,
     category_id: '', subcategory_id: '',
     features_ar: '', features_en: '',
     tips_ar: '', tips_en: '',
@@ -1511,9 +1531,14 @@ const openEditModal = (prod) => {
       ? rawValues.map(value => typeof value === 'object' ? (value.label || value.name || '') : value)
       : [];
     const predefinedLabels = a.values ? a.values.map(v => v.label) : [];
-    
-    selAttr[key] = values.filter(v => predefinedLabels.includes(v));
-    custAttr[key] = values.filter(v => !predefinedLabels.includes(v));
+    // The product comes back in the admin's UI language while the option labels are Arabic-first,
+    // so also match the saved options by id (language independent).
+    const savedIds = new Set(Object.values(existingAttrs).flatMap(list => (Array.isArray(list) ? list : []))
+      .map(value => (value && typeof value === 'object' ? value.id : null)).filter(id => id != null).map(String));
+    const byId = (a.values || []).filter(v => v.id != null && savedIds.has(String(v.id))).map(v => v.label);
+
+    selAttr[key] = Array.from(new Set([...values.filter(v => predefinedLabels.includes(v)), ...byId]));
+    custAttr[key] = values.filter(v => !predefinedLabels.includes(v) && !byId.length);
     cInputs[key] = '';
   });
 
@@ -1587,6 +1612,7 @@ const openEditModal = (prod) => {
     discount: normalizeDiscountPercent(prod.discount, prod.price) || '',
     quantity: prod.stock,
     is_active: prod.status === 'active',
+    is_featured: [true, 1, '1', 'true'].includes(prod.is_featured),
     category_id: catId,
     subcategory_id: subcatId,
     features_ar: (prod.features_i18n && typeof prod.features_i18n === 'object' ? (prod.features_i18n.ar ?? prod.features) : prod.features) || '',
@@ -1596,6 +1622,8 @@ const openEditModal = (prod) => {
     shipping_info_ar: (prod.shipping_info_i18n && typeof prod.shipping_info_i18n === 'object' ? (prod.shipping_info_i18n.ar ?? prod.shipping_info) : prod.shipping_info) || '',
     shipping_info_en: (prod.shipping_info_i18n && typeof prod.shipping_info_i18n === 'object' ? (prod.shipping_info_i18n.en ?? '') : ''),
     existing_images: [...(prod.images || [])],
+    image_ids: { ...(prod.image_ids || {}) },
+    deleted_image_ids: [],
     new_images: [],
     colors: dedupeColorOptions(extractedColors),
     sizes: extractedSizes,
@@ -1721,6 +1749,7 @@ const openDuplicateModal = (prod) => {
   form.value.name_en = copyName(form.value.name_en, '(Copy)');
   // A copy stays hidden from the website until it is reviewed and activated.
   form.value.is_active = false;
+  form.value.is_featured = false;
   form.value.quantity = Number.isInteger(Number(form.value.quantity)) && Number(form.value.quantity) >= 0 ? form.value.quantity : 0;
   const urls = (form.value.existing_images || []).filter(Boolean).slice(0, maxImages);
   form.value.existing_images = [];
@@ -1749,7 +1778,7 @@ const handleFileChange = async (e) => {
 
   const room = maxImages - form.value.existing_images.length - form.value.new_images.length;
   if (rawFiles.length > room) {
-    triggerAlert(`يُسمح بـ ${maxImages} صورة كحد أقصى للمنتج الواحد`, 'error');
+    triggerAlert(tx(`يُسمح بـ ${maxImages} صورة كحد أقصى للمنتج الواحد`, `A product can have at most ${maxImages} images`), 'error');
   }
   const filesToAdd = rawFiles.slice(0, Math.max(0, room));
 
@@ -1775,7 +1804,9 @@ const recropNewImage = async (idx) => {
 };
 
 const removeExistingImage = (idx) => {
-  form.value.existing_images.splice(idx, 1);
+  const [removedUrl] = form.value.existing_images.splice(idx, 1);
+  const removedId = form.value.image_ids?.[removedUrl];
+  if (removedId != null) form.value.deleted_image_ids = [...(form.value.deleted_image_ids || []), removedId];
 };
 const removeNewImage = (idx) => {
   const removed = imagePreviews.value.splice(idx, 1)[0];
@@ -1802,22 +1833,22 @@ const setPrimaryNewImage = (idx) => {
 
 // Form Submission
 const validateProductForm = (f, { isEdit = false } = {}) => {
-  if (!f.category_id && !f.subcategory_id) return 'القسم الرئيسي مطلوب';
-  if (f.price === '' || f.price == null || !(Number(f.price) >= 0)) return 'السعر يجب أن يكون رقماً صحيحاً (0 أو أكبر)';
+  if (!f.category_id && !f.subcategory_id) return tx('القسم الرئيسي مطلوب', 'Main category is required');
+  if (f.price === '' || f.price == null || !(Number(f.price) >= 0)) return tx('السعر يجب أن يكون رقماً صحيحاً (0 أو أكبر)', 'Price must be a valid number (0 or more)');
   // The stock is entered once, when the product is added; it is locked (and not sent) when editing.
-  if (!isEdit && (f.quantity === '' || f.quantity == null || !Number.isInteger(Number(f.quantity)) || Number(f.quantity) < 0)) return 'المخزون يجب أن يكون عدداً صحيحاً (0 أو أكبر)';
+  if (!isEdit && (f.quantity === '' || f.quantity == null || !Number.isInteger(Number(f.quantity)) || Number(f.quantity) < 0)) return tx('المخزون يجب أن يكون عدداً صحيحاً (0 أو أكبر)', 'Stock must be a whole number (0 or more)');
   return '';
 };
 
 const submitForm = async () => {
   if (!String(form.value.name_ar || '').trim()) {
     activeLang.value = 'ar';
-    triggerAlert('اسم المنتج بالعربي مطلوب', 'error');
+    triggerAlert(tx('اسم المنتج بالعربي مطلوب', 'Arabic product name is required'), 'error');
     return;
   }
   if (!String(form.value.name_en || '').trim()) {
     activeLang.value = 'en';
-    triggerAlert('اسم المنتج بالإنجليزية مطلوب', 'error');
+    triggerAlert(tx('اسم المنتج بالإنجليزية مطلوب', 'English product name is required'), 'error');
     return;
   }
   const productError = validateProductForm(form.value, { isEdit: isEdit.value });
@@ -1845,19 +1876,19 @@ const submitForm = async () => {
     return;
   }
 
-  const attrName = (attribute) => attribute.label || attribute.name;
+  const attrName = attrTitle;
   const missingCore = coreAttributeRows.value.find(({ attribute }) => !coreRowDone(attribute));
   if (missingCore) {
     currentTab.value = 'attributes';
     triggerAlert(selectedCount(missingCore.attribute.name) > 1
-      ? `اختر قيمة واحدة فقط لـ «${attrName(missingCore.attribute)}»`
-      : `اختر قيمة لـ «${attrName(missingCore.attribute)}» أو «غير متوفر»`, 'error');
+      ? tx(`اختر قيمة واحدة فقط لـ «${attrName(missingCore.attribute)}»`, `Choose only one value for "${attrName(missingCore.attribute)}"`)
+      : tx(`اختر قيمة لـ «${attrName(missingCore.attribute)}» أو «غير متوفر»`, `Choose a value for "${attrName(missingCore.attribute)}" or "Not available"`), 'error');
     return;
   }
   const multiValued = otherAttributesList.value.find((attribute) => selectedCount(attribute.name) > 1);
   if (multiValued) {
     currentTab.value = 'attributes';
-    triggerAlert(`اختر قيمة واحدة فقط لـ «${attrName(multiValued)}»`, 'error');
+    triggerAlert(tx(`اختر قيمة واحدة فقط لـ «${attrName(multiValued)}»`, `Choose only one value for "${attrName(multiValued)}"`), 'error');
     return;
   }
 
@@ -1908,6 +1939,7 @@ const submitForm = async () => {
   });
   const payload = toProductPayload(form.value);
   if (isEdit.value) delete payload.number;
+  if (isEdit.value && form.value.deleted_image_ids?.length) payload.delete_image_ids = form.value.deleted_image_ids;
   payload.attributes = JSON.stringify(finalAttributes);
   payload.color_options = JSON.stringify(payloadColors);
   payload.size_options = JSON.stringify(form.value.sizes || []);
@@ -1920,10 +1952,10 @@ const submitForm = async () => {
   try {
     if (isEdit.value) {
       await adminCatalogService.updateProduct(editingId.value, payload, form.value.new_images);
-      triggerAlert('تم تحديث المنتج بنجاح');
+      triggerAlert(tx('تم تحديث المنتج بنجاح', 'Product updated successfully'));
     } else {
       await adminCatalogService.createProduct(payload, form.value.new_images);
-      triggerAlert(duplicateSource.value ? 'تم نسخ المنتج وإضافته كمنتج جديد (غير نشط)' : 'تم إضافة المنتج بنجاح');
+      triggerAlert(duplicateSource.value ? tx('تم نسخ المنتج وإضافته كمنتج جديد (غير نشط)', 'Product copied and added as a new inactive product') : tx('تم إضافة المنتج بنجاح', 'Product added successfully'));
     }
     closeModal();
     fetchProducts();
@@ -1945,7 +1977,12 @@ const getDeleteErrorMessage = (error) => {
 };
 
 const confirmDelete = async (prod) => {
-  if (confirm(`تأكيد حذف المنتج "${prod.name_i18n?.ar || prod.name}"؟`)) {
+  const name = locale.value === 'en' ? (prod.name_i18n?.en || prod.name) : (prod.name_i18n?.ar || prod.name);
+  const ok = await dialog.confirm(
+    tx(`سيتم حذف المنتج «${name}» نهائيًا.`, `The product "${name}" will be deleted permanently.`),
+    { type: 'error', title: tx('حذف المنتج؟', 'Delete this product?'), confirmText: tx('حذف المنتج', 'Delete product') },
+  );
+  if (ok) {
     try {
       await adminCatalogService.deleteProduct(prod.id);
       triggerAlert('تم الحذف بنجاح');
@@ -2046,6 +2083,10 @@ const confirmDelete = async (prod) => {
 .current-price { font-weight: 800; color: #059669; }
 .old-price { font-size: 0.7rem; color: #9ca3af; text-decoration: line-through; }
 
+.featured-box { display: flex; flex-direction: column; gap: 0.45rem; padding: 0.85rem 1rem; margin: 0.25rem 0 1.1rem; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; }
+.featured-check { display: inline-flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.92rem; font-weight: 700; color: #1f2937; line-height: 1.4; }
+.featured-check input { width: 18px; height: 18px; flex-shrink: 0; margin: 0; accent-color: #660033; cursor: pointer; }
+.featured-hint { display: block; margin: 0; padding-inline-start: calc(18px + 0.6rem); font-size: 0.78rem; line-height: 1.6; color: #6b7280; }
 .stock-manage-link { font-size: 0.75rem; font-weight: 700; color: #660033; margin-top: 0.3rem; display: inline-block; }
 .form-control:disabled { background: #f3f4f6; color: #6b7280; cursor: not-allowed; }
 .stock-badge { padding: 0.2rem 0.6rem; border-radius: 20px; font-weight: 700; font-size: 0.75rem; }

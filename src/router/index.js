@@ -54,7 +54,7 @@ const routes = [
       { path: 'activity-log', name: 'ActivityLog', component: () => import('../views/ActivityLogsView.vue') },
       { path: 'settings', redirect: '/admin/settings/general' },
       // Each settings page edits one group of settings; SettingsView reads the group from the route.
-      ...['general', 'homepage', 'producttabs', 'commerce', 'contact', 'location', 'branding', 'about', 'preview'].map((section) => ({
+      ...['general', 'homepage', 'producttabs', 'commerce', 'contact', 'location', 'branding', 'newsbar', 'about', 'preview'].map((section) => ({
         path: `settings/${section}`,
         name: `Settings-${section}`,
         component: () => import('../views/SettingsView.vue'),

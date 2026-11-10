@@ -4,7 +4,7 @@ import { encodePathSegment } from '../../utils/adminSecurity';
 // An emptied point list must reach the API as a blank value: an empty array sends nothing, so the old
 // points would stay on the product (the API clears a field only when it receives it blank). The product
 // discount is cleared the same way.
-const CLEARABLE_POINT_FIELDS = ['key_features', 'tips', 'shipping_info'].flatMap((field) => [`${field}_en`, `${field}_ar`]);
+const CLEARABLE_POINT_FIELDS = ['product_description', 'key_features', 'tips', 'shipping_info'].flatMap((field) => [`${field}_en`, `${field}_ar`]);
 const CLEARABLE_FIELDS = [...CLEARABLE_POINT_FIELDS, 'discount_percentage'];
 const withClearedPoints = (payload) => {
   const next = { ...payload };

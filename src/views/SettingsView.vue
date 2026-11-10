@@ -10,21 +10,23 @@ import settingsService from '../services/settingsService';
 import { safeObjectUrl, sanitizeAssetUrl } from '../utils/adminSecurity';
 import { useAdminText } from '../composables/useAdminText';
 import ImageCropModal from '../components/ImageCropModal.vue';
+import SettingsSkeleton from '../components/SettingsSkeleton.vue';
 import ImageCropButton from '../components/ImageCropButton.vue';
 import { useImageCrop } from '../composables/useImageCrop';
 import { useDialog } from '../composables/useDialog';
 // The colours the website ships with (website/src/style.css: --color-brand-primary and --color-surface-dark-elevated).
 import { DEFAULT_TAB_TITLES, PRODUCT_TABS_KEY, normalizeTab, parseProductTabs, resolveProductTabs } from '../domain/productTabs';
 import { SOCIAL_KEYS, normalizeSocialLink } from '../domain/socialLinks';
+import { NEWS_BAR_KEY, newNewsId, normalizeNewsItem, parseNewsItems, seedNewsItems } from '../domain/newsBar';
 import { HOME_SECTIONS_KEY, SECTION_LIMITS, newSectionId, normalizeHomeSection, parseHomeSections, seedHomeSections, sectionProblem } from '../domain/homeSections';
 
+// Only what the colour picker shows while no colour is chosen (nothing is saved from it).
 const BRAND_DEFAULTS = Object.freeze({ primary_color: '#000000', secondary_color: '#111827' });
 
 const { t } = useI18n();
 const route = useRoute();
 const { tx } = useAdminText();
 const { setPreviewUrl } = useSitePreview();
-const ABOUT_TEXT_KEYS = new Set(Object.keys(aboutPageDefaults()));
 const { cropModal, closeCrop, finishCrop, prepareImage, recropImage } = useImageCrop();
 const dialog = useDialog();
 
@@ -37,23 +39,26 @@ const sectionMeta = computed(() => ({
     commerce: { title: tx('الأسعار والشحن', 'Pricing & shipping'), subtitle: tx('حد الشحن المجاني وتكلفة الشحن ونسبة الضريبة', 'Free shipping threshold, shipping cost and tax rate') },
     contact: { title: tx('التواصل والبريد', 'Contact & email'), subtitle: tx('البريد الرئيسي وبريد الدعم ومواقع التواصل', 'Main and support email, and social links') },
     location: { title: tx('العنوان وساعات العمل', 'Address & working hours'), subtitle: tx('عنوان المتجر ومواعيد العمل', 'Store address and opening hours') },
+    newsbar: { title: tx('شريط الأخبار', 'News bar'), subtitle: tx('الأخبار التي تظهر في الشريط الأزرق تحت قائمة الموقع، بالعربي والإنجليزي', 'The news shown in the blue bar under the website menu, in Arabic and English') },
     branding: { title: tx('الهوية البصرية', 'Visual identity'), subtitle: tx('الشعارات وأيقونة المتصفح والألوان الأساسية', 'Logos, browser icon and brand colours') },
     about: { title: tx('من نحن', 'About us'), subtitle: tx('محتوى صفحة «من نحن» في الموقع', 'Content of the website About page') },
     preview: { title: tx('معاينة الموقع', 'Site preview'), subtitle: tx('رابط الموقع الحقيقي الذي يفتحه زر «معاينة الموقع» أعلى لوحة التحكم', 'The live website link opened by the «Preview site» button at the top of the dashboard') },
 }[section.value]));
-const loading = ref(false);
+// True from the first paint: every Site setup page shows a shimmer until the API answers.
+const loading = ref(true);
 const isSaving = ref(false);
 const settings = ref({
-    site_name: 'Mastergas',
+    // Nothing here is made up: every field starts empty and is filled only from the settings API.
+    site_name: '',
     // Shown in the browser tab: the Arabic name on the Arabic site, the English name on the English site.
-    site_name_ar: 'ماسترجاز | Mastergas',
-    site_name_en: 'Mastergas',
+    site_name_ar: '',
+    site_name_en: '',
     // Shown in the website footer, in the language being shown.
     site_description_ar: '',
     site_description_en: '',
-    free_delivery_threshold: '500',
-    shipping_cost: '15',
-    tax_rate: '0',
+    free_delivery_threshold: '',
+    shipping_cost: '',
+    tax_rate: '',
     default_shipping_cost: null,
     vat_percentage: null,
     site_contact_phone: '',
@@ -61,22 +66,21 @@ const settings = ref({
     enable_city_shipping: '0',
     use_city_specific_rates: '0',
     default_city_shipping_rate: '0',
-    // Defaults mirror the contact details already published on the storefront (Contact page and i18n).
-    support_phone: '8001240198',
-    support_email: 'info@mastergas.com.sa',
-    email: 'info@saudietqaan.com.sa',
-    address_ar: 'المملكة العربية السعودية - الرياض، مجمع صالات العرض لشركة إتقان السعودية',
-    address_en: 'Kingdom of Saudi Arabia - Riyadh, Itqan Saudi Showroom Complex',
-    working_hours_ar: 'السبت - الخميس: 9:00 ص - 10:00 م',
-    working_hours_en: 'Saturday - Thursday: 9:00 AM - 10:00 PM',
-    friday_hours_ar: 'الجمعة: 4:00 م - 10:00 م',
-    friday_hours_en: 'Friday: 4:00 PM - 10:00 PM',
+    support_phone: '',
+    support_email: '',
+    email: '',
+    address_ar: '',
+    address_en: '',
+    working_hours_ar: '',
+    working_hours_en: '',
+    friday_hours_ar: '',
+    friday_hours_en: '',
     logo: null,
     favicon: null,
     footer_logo: null,
     // Brand colours applied on the website (empty = the website's built-in colours). Stored in the site settings API.
-    primary_color: BRAND_DEFAULTS.primary_color,
-    secondary_color: BRAND_DEFAULTS.secondary_color,
+    primary_color: '',
+    secondary_color: '',
     // Social links start empty: no made-up link is ever filled in or saved. An empty field hides the icon.
     whatsapp: '',
     facebook: '',
@@ -90,10 +94,10 @@ const settings = ref({
     product_tabs: null,
     home_category_1: null,
     home_category_2: null,
-    home_section_category_title_ar: 'تسوّق حسب الفئة',
-    home_section_category_title_en: 'Shop by Category',
-    home_section_offers_title_ar: 'العروض المميزة',
-    home_section_offers_title_en: 'Featured Offers',
+    home_section_category_title_ar: '',
+    home_section_category_title_en: '',
+    home_section_offers_title_ar: '',
+    home_section_offers_title_en: '',
     about_title_ar: '',
     about_title_en: '',
     about_content_ar: '',
@@ -209,19 +213,14 @@ const fetchSettings = async () => {
         data.forEach(s => {
             if (Object.hasOwn(settings.value, s.key)) {
                 // Sanitize empty arrays stored as string '[]' or actual empty arrays
-                if ((s.value === '' || s.value === null) && ABOUT_TEXT_KEYS.has(s.key)) {
-                    // An About text saved empty stays empty: the website removes that part of the page.
+                if ((s.value === '' || s.value === null) && typeof settings.value[s.key] === 'string') {
+                    // An empty value stays empty (never refilled with a default): the website hides that part.
                     settings.value[s.key] = '';
-                } else if ((s.value === '' || s.value === null) && settings.value[s.key]) {
-                    // Nothing saved yet for this key: keep the storefront default shown in the form.
                 } else if (s.value === '[]' || (Array.isArray(s.value) && s.value.length === 0)) {
                     settings.value[s.key] = null;
                 } else if (isIrisAsset(s.value)) {
-                    if (s.key === 'logo') settings.value[s.key] = '/brand/tijara-logo-full.png';
-                    else if (s.key === 'footer_logo') settings.value[s.key] = '/brand/tijara-logo-full.png';
-                    else if (s.key === 'favicon') settings.value[s.key] = '/brand/tijara-logo.png';
-                    else if (s.key === 'site_name') settings.value[s.key] = 'ماسترجاز | Mastergas';
-                    else settings.value[s.key] = null;
+                    // A leftover of the old demo brand is treated as not set.
+                    settings.value[s.key] = typeof settings.value[s.key] === 'string' ? '' : null;
                 } else {
                     settings.value[s.key] = s.value;
                 }
@@ -260,6 +259,8 @@ const fetchSettings = async () => {
         }
         homeSectionsSaved.value = parseHomeSections(settings.value[HOME_SECTIONS_KEY]);
         resetHomeSections();
+        newsItemsSaved.value = parseNewsItems(data.find((setting) => setting.key === NEWS_BAR_KEY)?.value);
+        resetNewsItems();
         resetTabs();
     } catch (error) {
         triggerAlert(t('admin.settings.failed'), 'error');
@@ -383,6 +384,31 @@ const resetTabs = () => {
     tabsList.value = resolveProductTabs(settings.value[PRODUCT_TABS_KEY]).map((tab) => ({ ...tab }));
 };
 
+// ── News bar ─────────────────────────────────────────────────────────────────
+// The website's news bar shows these items in order; each has an Arabic and an English text.
+const newsItemsSaved = ref(null);
+const newsItems = ref(seedNewsItems());
+const resetNewsItems = () => {
+    newsItems.value = newsItemsSaved.value ? newsItemsSaved.value.map((item) => ({ ...item })) : seedNewsItems();
+};
+const addNewsItem = () => {
+    newsItems.value.push(normalizeNewsItem({ id: newNewsId() }));
+};
+const removeNewsItem = async (index) => {
+    const item = newsItems.value[index];
+    const ok = await dialog.confirm(
+        `سيتم حذف الخبر «${item.text_ar || item.text_en || 'بدون نص'}» من شريط الأخبار بعد الحفظ.`,
+        { type: 'error', title: 'حذف الخبر؟', confirmText: 'حذف' },
+    );
+    if (ok) newsItems.value.splice(index, 1);
+};
+const moveNewsItem = (index, step) => {
+    const target = index + step;
+    if (target < 0 || target >= newsItems.value.length) return;
+    const list = newsItems.value;
+    [list[index], list[target]] = [list[target], list[index]];
+};
+
 // ── Homepage product lists ───────────────────────────────────────────────────
 // Each list on the website homepage («منتجات مميزة», «وصل حديثاً», or a category's
 // products) is one entry of the home_product_sections setting, shown in this order.
@@ -424,6 +450,8 @@ const onSectionCategory = (section) => {
 };
 
 const saveSettings = async (successMessage = t('admin.settings.success')) => {
+    // Never save while the form is still empty and waiting for the API: it would overwrite the real settings.
+    if (loading.value) return;
     const badColor = ['primary_color', 'secondary_color'].find((key) => settings.value[key] && !HEX_COLOR.test(String(settings.value[key]).trim()));
     if (badColor) {
         triggerAlert('اللون يجب أن يكون بصيغة #RRGGBB مثل #660033', 'error');
@@ -440,6 +468,12 @@ const saveSettings = async (successMessage = t('admin.settings.success')) => {
                 return;
             }
             settings.value[key] = result.value;
+        }
+    }
+    if (section.value === 'newsbar') {
+        if (newsItems.value.some((item) => !item.text_ar.trim() && !item.text_en.trim())) {
+            triggerAlert(tx('اكتب نص كل خبر (بالعربي أو الإنجليزي) أو احذف الخبر الفارغ.', 'Write the text of every news item (Arabic or English), or delete the empty one.'), 'error');
+            return;
         }
     }
     if (section.value === 'homepage') {
@@ -463,6 +497,9 @@ const saveSettings = async (successMessage = t('admin.settings.success')) => {
     try {
         if (section.value === 'producttabs' || parseProductTabs(settings.value[PRODUCT_TABS_KEY])) {
             settings.value[PRODUCT_TABS_KEY] = tabsList.value.map(normalizeTab);
+        }
+        if (section.value === 'newsbar' || newsItemsSaved.value) {
+            settings.value[NEWS_BAR_KEY] = newsItems.value.map(normalizeNewsItem);
         }
         if (section.value === 'homepage' || homeSectionsSaved.value) {
             settings.value[HOME_SECTIONS_KEY] = homeSections.value.map(normalizeHomeSection);
@@ -527,7 +564,7 @@ const triggerAlert = (message, type = 'success') => {
             </div>
         </div>
         <div class="left-actions">
-            <button class="save-btn" @click="saveSettings()" :disabled="isSaving">
+            <button class="save-btn" @click="saveSettings()" :disabled="isSaving || loading">
                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                {{ isSaving ? t('admin.settings.saving') : t('admin.settings.save') }}
             </button>
@@ -535,18 +572,19 @@ const triggerAlert = (message, type = 'success') => {
     </div>
 
     <!-- Content Sections -->
-    <div class="settings-content shadow-sm">
+    <div class="settings-content shadow-sm" :class="{ 'is-loading': loading }" :aria-busy="loading">
+        <SettingsSkeleton v-if="loading" :rows="section === 'about' || section === 'homepage' ? 10 : 6" data-testid="settings-skeleton" />
         <!-- Site settings: name + description -->
         <div v-if="section === 'general'" class="tab-pane fade-in">
             <div class="form-grid">
                 <div class="form-group">
                     <label>{{ tx('اسم الموقع (عربي)', 'Site name (Arabic)') }} <span class="req">*</span></label>
-                    <input type="text" v-model="settings.site_name_ar" placeholder="ماسترجاز | Mastergas" data-testid="site-name-ar" />
+                    <input type="text" v-model="settings.site_name_ar" placeholder="اسم الموقع بالعربي" data-testid="site-name-ar" />
                     <small class="field-hint">{{ tx('يظهر في تبويب المتصفح عندما يكون الموقع بالعربي.', 'Shown in the browser tab when the site is in Arabic.') }}</small>
                 </div>
                 <div class="form-group">
                     <label>{{ tx('اسم الموقع (إنجليزي)', 'Site name (English)') }} <span class="req">*</span></label>
-                    <input type="text" v-model="settings.site_name_en" placeholder="Mastergas" class="ltr-input" data-testid="site-name-en" />
+                    <input type="text" v-model="settings.site_name_en" placeholder="Site name in English" class="ltr-input" data-testid="site-name-en" />
                     <small class="field-hint">{{ tx('يظهر في تبويب المتصفح عندما يكون الموقع بالإنجليزي.', 'Shown in the browser tab when the site is in English.') }}</small>
                 </div>
                 <div class="form-group">
@@ -587,11 +625,11 @@ const triggerAlert = (message, type = 'success') => {
             <div class="form-grid">
                 <div class="form-group">
                     <label>{{ t('admin.settings.free_delivery') }} ({{ t('admin.dashboard.sar') }}) <span class="req">*</span></label>
-                    <input type="text" v-model="settings.free_delivery_threshold" placeholder="10" />
+                    <input type="text" v-model="settings.free_delivery_threshold" placeholder="0" />
                 </div>
                 <div class="form-group">
                     <label>{{ t('admin.settings.shipping_cost') }} ({{ t('admin.dashboard.sar') }}) <span class="req">*</span></label>
-                    <input type="text" v-model="settings.shipping_cost" placeholder="15" />
+                    <input type="text" v-model="settings.shipping_cost" placeholder="0" />
                 </div>
                 <div class="form-group">
                     <label>{{ t('admin.settings.tax_rate') }} (%) <span class="req">*</span></label>
@@ -605,15 +643,15 @@ const triggerAlert = (message, type = 'success') => {
             <div class="form-grid">
                 <div class="form-group">
                     <label>{{ t('admin.settings.email') }} <span class="req">*</span></label>
-                    <input type="email" v-model="settings.email" placeholder="info@saudietqaan.com.sa" class="ltr-input" />
+                    <input type="email" v-model="settings.email" placeholder="name@example.com" class="ltr-input" />
                 </div>
                 <div class="form-group">
                     <label>{{ t('admin.settings.support_email') }} <span class="req">*</span></label>
-                    <input type="email" v-model="settings.support_email" placeholder="info@mastergas.com.sa" class="ltr-input" />
+                    <input type="email" v-model="settings.support_email" placeholder="name@example.com" class="ltr-input" />
                 </div>
                 <div class="form-group">
                     <label>{{ t('admin.settings.support_phone') }} <span class="req">*</span></label>
-                    <input type="text" v-model="settings.support_phone" placeholder="8001240198" class="ltr-input" />
+                    <input type="text" v-model="settings.support_phone" placeholder="+966 5X XXX XXXX" class="ltr-input" />
                 </div>
             </div>
             <h3 class="pane-subheading">{{ tx('مواقع التواصل الاجتماعي', 'Social media') }}</h3>
@@ -685,6 +723,48 @@ const triggerAlert = (message, type = 'success') => {
                     <input type="text" v-model="settings.friday_hours_en" placeholder="Friday: 4:00 PM - 10:00 PM" class="ltr-input" />
                 </div>
 
+            </div>
+        </div>
+
+        <!-- News bar Tab -->
+        <div v-if="section === 'newsbar'" class="tab-pane fade-in">
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <div class="info-alert">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        {{ tx('الأخبار تظهر في الشريط الأزرق تحت قائمة الموقع بنفس الترتيب هنا. الزائر يرى النص العربي في الموقع العربي والإنجليزي في الموقع الإنجليزي، وإن نقصت إحدى اللغتين يظهر النص الآخر.', 'News shows in the blue bar under the website menu in this order. Visitors see the Arabic text on the Arabic site and the English text on the English site; if one language is missing the other is shown.') }}
+                    </div>
+                </div>
+
+                <div class="form-group full-width home-lists" data-testid="news-items">
+                    <div v-for="(item, index) in newsItems" :key="item.id" class="home-list-card" :class="{ 'is-off': !item.is_active }" :data-testid="`news-item-${index}`">
+                        <div class="home-list-head">
+                            <span class="home-list-number">{{ index + 1 }}</span>
+                            <strong class="home-list-title">{{ item.text_ar || item.text_en || tx('خبر بدون نص', 'Untitled news item') }}</strong>
+                            <label class="home-list-toggle">
+                                <input type="checkbox" v-model="item.is_active" />
+                                <span>{{ item.is_active ? tx('ظاهر', 'Shown') : tx('مخفي', 'Hidden') }}</span>
+                            </label>
+                            <div class="home-list-actions">
+                                <button type="button" class="icon-btn" :disabled="index === 0" :title="tx('تحريك لأعلى', 'Move up')" @click="moveNewsItem(index, -1)">▲</button>
+                                <button type="button" class="icon-btn" :disabled="index === newsItems.length - 1" :title="tx('تحريك لأسفل', 'Move down')" @click="moveNewsItem(index, 1)">▼</button>
+                                <button type="button" class="icon-btn danger" :title="tx('حذف الخبر', 'Delete news item')" @click="removeNewsItem(index)">✕</button>
+                            </div>
+                        </div>
+                        <div class="home-list-grid">
+                            <div class="form-group full-width">
+                                <label>{{ tx('النص (عربي)', 'Text (Arabic)') }}</label>
+                                <input type="text" v-model="item.text_ar" placeholder="نصائح صيدلانية موثوقة..." />
+                            </div>
+                            <div class="form-group full-width">
+                                <label>{{ tx('النص (English)', 'Text (English)') }}</label>
+                                <input type="text" v-model="item.text_en" placeholder="Trusted pharmacy advice..." class="ltr-input" />
+                            </div>
+                        </div>
+                    </div>
+                    <p v-if="!newsItems.length" class="home-lists-empty">{{ tx('لا توجد أخبار: الشريط لن يظهر في الموقع.', 'No news items: the bar will not show on the website.') }}</p>
+                    <button type="button" class="add-list-btn" data-testid="news-item-add" @click="addNewsItem">+ {{ tx('إضافة خبر', 'Add a news item') }}</button>
+                </div>
             </div>
         </div>
 
@@ -874,7 +954,7 @@ const triggerAlert = (message, type = 'success') => {
                     <div class="color-field">
                         <input type="color" :value="colorPickerValue('primary_color', BRAND_DEFAULTS.primary_color)" @input="settings.primary_color = $event.target.value" data-testid="primary-color-picker" />
                         <input type="text" v-model="settings.primary_color" placeholder="#660033" maxlength="7" class="ltr-input" data-testid="primary-color" />
-                        <button v-if="settings.primary_color !== BRAND_DEFAULTS.primary_color" type="button" class="color-reset" @click="settings.primary_color = BRAND_DEFAULTS.primary_color">{{ tx('الافتراضي', 'Default') }}</button>
+                        <button v-if="settings.primary_color" type="button" class="color-reset" @click="settings.primary_color = ''">{{ tx('الافتراضي', 'Default') }}</button>
                     </div>
                     <small class="field-hint">{{ tx('يُستخدم للأزرار والعناصر الرئيسية في الموقع. الافتراضي #000000.', 'Used for buttons and main elements on the website. Default #000000.') }}</small>
                 </div>
@@ -883,7 +963,7 @@ const triggerAlert = (message, type = 'success') => {
                     <div class="color-field">
                         <input type="color" :value="colorPickerValue('secondary_color', BRAND_DEFAULTS.secondary_color)" @input="settings.secondary_color = $event.target.value" data-testid="secondary-color-picker" />
                         <input type="text" v-model="settings.secondary_color" placeholder="#111827" maxlength="7" class="ltr-input" data-testid="secondary-color" />
-                        <button v-if="settings.secondary_color !== BRAND_DEFAULTS.secondary_color" type="button" class="color-reset" @click="settings.secondary_color = BRAND_DEFAULTS.secondary_color">{{ tx('الافتراضي', 'Default') }}</button>
+                        <button v-if="settings.secondary_color" type="button" class="color-reset" @click="settings.secondary_color = ''">{{ tx('الافتراضي', 'Default') }}</button>
                     </div>
                     <small class="field-hint">{{ tx('يُستخدم للعناصر الداعمة والخلفيات الداكنة. الافتراضي #111827.', 'Used for supporting elements and dark backgrounds. Default #111827.') }}</small>
                 </div>
@@ -1056,6 +1136,7 @@ const triggerAlert = (message, type = 'success') => {
 
 /* Content */
 .settings-content { background: white; border-radius: 20px; padding: 40px; border: 1px solid #f3f4f6; }
+.settings-content.is-loading > .tab-pane { display: none; }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
 .form-group.full-width { grid-column: span 2; }

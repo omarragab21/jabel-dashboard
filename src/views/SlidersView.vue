@@ -255,6 +255,13 @@ const submitForm = async () => {
         triggerAlert('عنوان الشريحة بالإنجليزية مطلوب', 'error');
         return;
     }
+    // The English fields feed the English website: Arabic letters there would show Arabic text on the English site.
+    const ARABIC_LETTERS = /[\u0600-\u06FF]/;
+    if (ARABIC_LETTERS.test(form.value.title_en || '') || ARABIC_LETTERS.test(form.value.description_en || '')) {
+        activeLang.value = 'en';
+        triggerAlert('الحقول الإنجليزية يجب أن تكون بالإنجليزية فقط (بدون أحرف عربية)', 'error');
+        return;
+    }
     const rawLink = String(form.value.link || '').trim();
     if (rawLink && !sanitizeUrl(rawLink, '')) {
         triggerAlert('رابط الشريحة غير آمن أو غير صالح. يرجى استخدام رابط يبدأ بـ / أو https://', 'error');

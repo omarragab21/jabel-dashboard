@@ -268,10 +268,6 @@
 
           <footer class="cm-footer" :class="{ 'is-edit': isEdit }">
             <button type="button" class="cm-btn cm-btn-cancel" @click="closeModal">{{ tx('إلغاء', 'Cancel') }}</button>
-            <button type="button" class="cm-btn cm-btn-outline" v-if="isSubForm && !isEdit" :disabled="isSubmitting || !canSubmit" @click="submitForm(true)" data-testid="category-add-continue">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              {{ tx('إضافة والمتابعة', 'Add and continue') }}
-            </button>
             <button type="submit" class="cm-btn cm-btn-primary" :disabled="isSubmitting || !canSubmit" data-testid="category-submit">
               {{ isSubmitting ? tx('جاري الحفظ...', 'Saving...') : submitLabel }}
             </button>
@@ -677,7 +673,7 @@ const recropCurrentImage = async () => {
 };
 
 // Submit form
-const submitForm = async (keepOpen = false) => {
+const submitForm = async () => {
   if (isSubmitting.value) return;
   if (!String(form.value.name_ar || '').trim()) {
     activeLang.value = 'ar';
@@ -702,15 +698,7 @@ const submitForm = async (keepOpen = false) => {
       triggerAlert('تم إضافة القسم بنجاح');
     }
     if (form.value.parent_id) expandedIds.value = { ...expandedIds.value, [form.value.parent_id]: true };
-    if (keepOpen) {
-      // Next sub-category under the same parent: clear everything else.
-      const keep = { parent_id: form.value.parent_id, is_active: form.value.is_active };
-      form.value = { ...getBaseForm(), ...keep };
-      imagePreview.value = null;
-      activeLang.value = formLang();
-    } else {
-      closeModal();
-    }
+    closeModal();
     fetchCategories();
   } catch (error) {
     if (error.response?.status === 404) {
@@ -1166,8 +1154,6 @@ const runDelete = async () => {
 .cm-btn-cancel:hover { background: #f9fafb; }
 .cm-btn-primary { background: #660033; border: none; color: #fff; }
 .cm-btn-primary:hover:not(:disabled) { background: #4d0026; }
-.cm-btn-outline { background: #fff; border: 1px solid #660033; color: #660033; }
-.cm-btn-outline:hover:not(:disabled) { background: #fdf3f8; }
 .cm-btn-danger { background: #ef4444; border: none; color: #fff; }
 .cm-btn-danger:hover:not(:disabled) { background: #dc2626; }
 .cm-btn:focus-visible, .cm-lang-btn:focus-visible, .cm-close:focus-visible { outline: 2px solid #660033; outline-offset: 2px; }
