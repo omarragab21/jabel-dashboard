@@ -63,6 +63,8 @@ const routes = [
       // Privacy policy and terms live in Firebase until the backend exposes them.
       { path: 'settings/privacy', name: 'Settings-privacy', component: () => import('../views/LegalPageView.vue'), meta: { legalPage: 'privacy' } },
       { path: 'settings/terms', name: 'Settings-terms', component: () => import('../views/LegalPageView.vue'), meta: { legalPage: 'terms' } },
+      { path: 'settings/returns', name: 'Settings-returns', component: () => import('../views/LegalPageView.vue'), meta: { legalPage: 'returns' } },
+      { path: 'settings/faq', name: 'Settings-faq', component: () => import('../views/LegalPageView.vue'), meta: { legalPage: 'faq' } },
     ],
   },
   { path: '/:pathMatch(.*)*', name: 'AdminNotFound', component: NotFoundView },

@@ -10,11 +10,13 @@ const route = useRoute();
 const { tx } = useAdminText();
 const dialog = useDialog();
 
-// 'privacy' or 'terms' (set on the route); the text is stored in the site settings API (key legal_pages).
+// 'privacy', 'terms', 'returns' or 'faq' (set on the route); the text is stored in the site settings API (key legal_pages).
 const pageId = computed(() => route.meta.legalPage || 'privacy');
 const titles = computed(() => ({
     privacy: { title: tx('سياسة الخصوصية', 'Privacy policy'), url: '/privacy-policy' },
     terms: { title: tx('الشروط والأحكام', 'Terms & conditions'), url: '/terms' },
+    returns: { title: tx('سياسة الإرجاع والاستبدال', 'Returns & exchange policy'), url: '/returns-policy' },
+    faq: { title: tx('الأسئلة الشائعة', 'FAQ'), url: '/faq' },
 }[pageId.value]));
 
 // The notice box at the top of the page on the website: a cookies notice (with its on/off switch) on the privacy
@@ -28,6 +30,14 @@ const bannerMeta = computed(() => ({
         heading: tx('التنبيه القانوني', 'Legal alert'),
         hint: tx('الصندوق الأحمر أعلى الصفحة. لو تركت الكل فاضياً يتشال من الموقع.', 'The red box at the top of the page. If you leave everything empty, it is removed from the website.'),
     },
+    returns: {
+        heading: tx('تنبيه أعلى الصفحة', 'Notice at the top'),
+        hint: tx('صندوق معلومات أعلى الصفحة. لو تركت الكل فاضياً يتشال من الموقع.', 'An info box at the top of the page. If you leave everything empty, it is removed from the website.'),
+    },
+    faq: {
+        heading: tx('تنبيه أعلى الصفحة', 'Notice at the top'),
+        hint: tx('صندوق معلومات أعلى الصفحة. لو تركت الكل فاضياً يتشال من الموقع.', 'An info box at the top of the page. If you leave everything empty, it is removed from the website.'),
+    },
 }[pageId.value]));
 
 const page = ref({ updated_at: '', tagline_ar: '', tagline_en: '', banner: { title_ar: '', title_en: '', text_ar: '', text_en: '' }, sections: [] });
@@ -36,6 +46,8 @@ const loadFailed = ref(false);
 const savedBefore = ref(true);
 const isSaving = ref(false);
 
+// Returns policy and FAQ are written as questions and answers (shown as an expandable list on the website).
+const isQa = computed(() => pageId.value === 'returns' || pageId.value === 'faq');
 const emptySection = () => ({ title_ar: '', title_en: '', text_ar: '', text_en: '' });
 
 const load = async () => {
@@ -63,8 +75,8 @@ const moveSection = (index, step) => {
 };
 const removeSection = async (index) => {
     const ok = await dialog.confirm(
-        tx('سيتم حذف هذا القسم من الصفحة عند الحفظ.', 'This section will be removed from the page when you save.'),
-        { type: 'error', title: tx(`حذف القسم ${index + 1}؟`, `Delete section ${index + 1}?`), confirmText: tx('حذف القسم', 'Delete section') },
+        isQa.value ? tx('سيتم حذف هذا السؤال وجوابه من الصفحة عند الحفظ.', 'This question and its answer will be removed from the page when you save.') : tx('سيتم حذف هذا القسم من الصفحة عند الحفظ.', 'This section will be removed from the page when you save.'),
+        { type: 'error', title: isQa.value ? tx(`حذف السؤال ${index + 1}؟`, `Delete question ${index + 1}?`) : tx(`حذف القسم ${index + 1}؟`, `Delete section ${index + 1}?`), confirmText: isQa.value ? tx('حذف السؤال', 'Delete question') : tx('حذف القسم', 'Delete section') },
     );
     if (ok) page.value.sections.splice(index, 1);
 };
@@ -77,9 +89,9 @@ const triggerAlert = (message, type = 'success') => {
 
 const validate = () => {
     if (!/^\d{4}-\d{2}$/.test(page.value.updated_at)) return tx('حدد شهر آخر تحديث', 'Pick the last-updated month');
-    if (!page.value.sections.length) return tx('أضف قسماً واحداً على الأقل', 'Add at least one section');
+    if (!page.value.sections.length) return isQa.value ? tx('أضف سؤالاً واحداً على الأقل', 'Add at least one question') : tx('أضف قسماً واحداً على الأقل', 'Add at least one section');
     const bad = page.value.sections.findIndex((s) => [s.title_ar, s.title_en, s.text_ar, s.text_en].some((v) => !String(v || '').trim()));
-    if (bad >= 0) return tx(`القسم ${bad + 1}: العنوان والنص مطلوبان بالعربي والإنجليزي`, `Section ${bad + 1}: title and text are required in Arabic and English`);
+    if (bad >= 0) return isQa.value ? tx(`السؤال ${bad + 1}: السؤال والجواب مطلوبان بالعربي والإنجليزي`, `Question ${bad + 1}: the question and answer are required in Arabic and English`) : tx(`القسم ${bad + 1}: العنوان والنص مطلوبان بالعربي والإنجليزي`, `Section ${bad + 1}: title and text are required in Arabic and English`);
     return '';
 };
 
@@ -131,7 +143,7 @@ const save = async () => {
 
     <div v-else class="content-card shadow-sm">
       <div v-if="!savedBefore" class="info-alert mb-4">
-        {{ tx('لا يوجد نص محفوظ لهذه الصفحة في إعدادات الموقع بعد. أضف الأقسام ثم اضغط «حفظ».', 'No text is stored for this page in the site settings yet. Add the sections, then press Save.') }}
+        {{ isQa ? tx('لا توجد أسئلة محفوظة لهذه الصفحة بعد. أضف الأسئلة وأجوبتها ثم اضغط «حفظ».', 'No questions are stored for this page yet. Add the questions and answers, then press Save.') : tx('لا يوجد نص محفوظ لهذه الصفحة في إعدادات الموقع بعد. أضف الأقسام ثم اضغط «حفظ».', 'No text is stored for this page in the site settings yet. Add the sections, then press Save.') }}
       </div>
 
       <div class="form-grid">
@@ -179,7 +191,7 @@ const save = async () => {
       <section v-for="(section, index) in page.sections" :key="index" class="section-block" :data-testid="`legal-section-${index + 1}`">
         <div class="section-head">
           <span class="section-step">{{ index + 1 }}</span>
-          <h3>{{ tx('القسم', 'Section') }} {{ index + 1 }}<small v-if="index === 0"> · {{ tx('المقدمة', 'Introduction') }}</small></h3>
+          <h3>{{ isQa ? tx('السؤال', 'Question') : tx('القسم', 'Section') }} {{ index + 1 }}<small v-if="index === 0 && !isQa"> · {{ tx('المقدمة', 'Introduction') }}</small></h3>
           <div class="section-tools">
             <button type="button" class="icon-btn" :disabled="index === 0" :title="tx('نقل لأعلى', 'Move up')" @click="moveSection(index, -1)">↑</button>
             <button type="button" class="icon-btn" :disabled="index === page.sections.length - 1" :title="tx('نقل لأسفل', 'Move down')" @click="moveSection(index, 1)">↓</button>
@@ -188,25 +200,25 @@ const save = async () => {
         </div>
         <div class="form-grid">
           <div class="form-group">
-            <label>{{ tx('العنوان (عربي)', 'Title (Arabic)') }}</label>
-            <input type="text" v-model="section.title_ar" maxlength="150" />
+            <label>{{ isQa ? tx('السؤال (عربي)', 'Question (Arabic)') : tx('العنوان (عربي)', 'Title (Arabic)') }}</label>
+            <input type="text" v-model="section.title_ar" maxlength="200" />
           </div>
           <div class="form-group">
-            <label>{{ tx('العنوان (إنجليزي)', 'Title (English)') }}</label>
-            <input type="text" v-model="section.title_en" maxlength="150" class="ltr-input" />
+            <label>{{ isQa ? tx('السؤال (إنجليزي)', 'Question (English)') : tx('العنوان (إنجليزي)', 'Title (English)') }}</label>
+            <input type="text" v-model="section.title_en" maxlength="200" class="ltr-input" />
           </div>
           <div class="form-group">
-            <label>{{ tx('النص (عربي)', 'Text (Arabic)') }}</label>
+            <label>{{ isQa ? tx('الجواب (عربي)', 'Answer (Arabic)') : tx('النص (عربي)', 'Text (Arabic)') }}</label>
             <textarea v-model="section.text_ar" rows="6" maxlength="4000"></textarea>
           </div>
           <div class="form-group">
-            <label>{{ tx('النص (إنجليزي)', 'Text (English)') }}</label>
+            <label>{{ isQa ? tx('الجواب (إنجليزي)', 'Answer (English)') : tx('النص (إنجليزي)', 'Text (English)') }}</label>
             <textarea v-model="section.text_en" rows="6" maxlength="4000" class="ltr-input"></textarea>
           </div>
         </div>
       </section>
 
-      <button type="button" class="ghost-btn add-btn" @click="addSection" data-testid="legal-add-section">+ {{ tx('إضافة قسم', 'Add section') }}</button>
+      <button type="button" class="ghost-btn add-btn" @click="addSection" data-testid="legal-add-section">+ {{ isQa ? tx('إضافة سؤال وجوابه', 'Add question & answer') : tx('إضافة قسم', 'Add section') }}</button>
     </div>
 
     <div v-if="alert.show" :class="['alert-toast', alert.type, 'show']">{{ alert.message }}</div>

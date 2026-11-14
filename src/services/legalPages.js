@@ -1,9 +1,9 @@
 // Privacy policy and Terms & Conditions text, stored in the site settings API under the key "legal_pages"
-// ({ privacy: {...}, terms: {...} }) next to every other site setting. The website reads the same key.
+// ({ privacy, terms, returns, faq }) next to every other site setting. The website reads the same key.
 import api from '../config/axios';
 import { settingsService } from './settingsService';
 
-export const LEGAL_PAGE_IDS = ['privacy', 'terms'];
+export const LEGAL_PAGE_IDS = ['privacy', 'terms', 'returns', 'faq'];
 const SETTING_KEY = 'legal_pages';
 
 const str = (value) => (typeof value === 'string' ? value : '');
@@ -59,7 +59,7 @@ const toPage = (data, id) => ({
   updated_at: /^\d{4}-\d{2}$/.test(str(data?.updated_at)) ? data.updated_at : currentMonth(),
   tagline_ar: str(data?.tagline_ar),
   tagline_en: str(data?.tagline_en),
-  banner: data?.banner === undefined ? { ...DEFAULT_BANNERS[id] } : cleanBanner(asObject(data.banner)),
+  banner: data?.banner === undefined ? { ...(DEFAULT_BANNERS[id] || {}) } : cleanBanner(asObject(data.banner)),
   sections: (Array.isArray(data?.sections) ? data.sections : [])
     .map((section, index) => ({ position: Number(section?.position) || index + 1, ...cleanSection(section) }))
     .sort((a, b) => a.position - b.position)
