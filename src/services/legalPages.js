@@ -60,6 +60,8 @@ const toPage = (data, id) => ({
   tagline_ar: str(data?.tagline_ar),
   tagline_en: str(data?.tagline_en),
   banner: data?.banner === undefined ? { ...(DEFAULT_BANNERS[id] || {}) } : cleanBanner(asObject(data.banner)),
+  // Background photo of the page header (FAQ / returns); empty means the website's default photo.
+  hero_image: str(data?.hero_image).trim(),
   sections: (Array.isArray(data?.sections) ? data.sections : [])
     .map((section, index) => ({ position: Number(section?.position) || index + 1, ...cleanSection(section) }))
     .sort((a, b) => a.position - b.position)
@@ -75,7 +77,26 @@ export const loadLegalPage = async (id) => {
 /** Saves one page, keeping the other one untouched, then reads it back to confirm the API really stored it. */
 export const saveLegalPage = async (id, page) => {
   const all = await readAll();
+  // A newly picked photo is uploaded first (same site-images endpoint the other settings images use); the
+  // returned URL is what gets stored. A string keeps the saved photo, an empty value restores the default.
+  let heroImage = str(page.hero_image).trim();
+  if (typeof File !== 'undefined' && page.hero_image instanceof File) {
+    const formData = new FormData();
+    formData.append('title', `legal_${id}_hero`);
+    formData.append('image_file', page.hero_image);
+    const upload = await api.post('/v1/site-images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+    const body = upload.data;
+    const candidates = [body, body?.data, body?.data?.data, body?.data?.image, body?.image];
+    heroImage = '';
+    for (const c of candidates) {
+      if (!c) continue;
+      const v = typeof c === 'string' ? c : (c.image_url || c.url || c.image || c.path || c.file || c.src);
+      if (typeof v === 'string' && v.trim()) { heroImage = v.trim(); break; }
+    }
+    if (!heroImage) throw new Error('Hero image upload returned no URL');
+  }
   all[id] = {
+    hero_image: heroImage,
     updated_at: page.updated_at,
     tagline_ar: str(page.tagline_ar).trim(),
     tagline_en: str(page.tagline_en).trim(),

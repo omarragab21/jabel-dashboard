@@ -5,6 +5,11 @@ import { useRoute } from 'vue-router';
 import { useAdminText } from '../composables/useAdminText';
 import { useDialog } from '../composables/useDialog';
 import { loadLegalPage, saveLegalPage } from '../services/legalPages';
+import ImageCropModal from '../components/ImageCropModal.vue';
+import ImageCropButton from '../components/ImageCropButton.vue';
+import { useImageCrop } from '../composables/useImageCrop';
+import { safeObjectUrl, sanitizeAssetUrl } from '../utils/adminSecurity';
+import api from '../config/axios';
 
 const route = useRoute();
 const { tx } = useAdminText();
@@ -40,7 +45,7 @@ const bannerMeta = computed(() => ({
     },
 }[pageId.value]));
 
-const page = ref({ updated_at: '', tagline_ar: '', tagline_en: '', banner: { title_ar: '', title_en: '', text_ar: '', text_en: '' }, sections: [] });
+const page = ref({ hero_image: '', updated_at: '', tagline_ar: '', tagline_en: '', banner: { title_ar: '', title_en: '', text_ar: '', text_en: '' }, sections: [] });
 const loading = ref(true);
 const loadFailed = ref(false);
 const savedBefore = ref(true);
@@ -65,6 +70,37 @@ const load = async () => {
     }
 };
 onMounted(load);
+
+// Header photo (FAQ / returns pages): a staged File until saved, then the stored URL.
+const { cropModal, closeCrop, finishCrop, prepareImage, recropImage } = useImageCrop();
+const hasHero = computed(() => pageId.value === 'returns' || pageId.value === 'faq');
+const heroPreview = ref('');
+const heroCropOptions = () => ({ defaultRatio: '16:9', fileName: `${pageId.value}-hero`, title: tx('قص وضبط صورة الغلاف (Crop & Resize)', 'Crop & resize cover image') });
+const resolveHero = (value) => {
+    if (typeof value !== 'string' || !value.trim() || value.trim() === '[]') return '';
+    const v = value.trim();
+    if (/^(https?:|blob:|data:|\/(?![/\\]))/i.test(v)) return sanitizeAssetUrl(v, '');
+    if (/^[/\\]{2}/.test(v) || /^(?:javascript|vbscript|file):/i.test(v)) return '';
+    const origin = String(api.defaults.baseURL || '').replace(/\/api\/?$/, '');
+    return sanitizeAssetUrl(`${origin}/storage/${v.replace(/^\/?storage\//i, '')}`, '');
+};
+const heroShown = computed(() => heroPreview.value || resolveHero(page.value.hero_image));
+const stageHero = (file) => { page.value.hero_image = file; heroPreview.value = safeObjectUrl(file, heroPreview.value); };
+const onHeroChange = async (e) => {
+    const picked = e.target.files?.[0];
+    e.target.value = '';
+    if (!picked) return;
+    const { file, error } = await prepareImage(picked, heroCropOptions());
+    if (error) { triggerAlert(error, 'error'); return; }
+    stageHero(file);
+};
+const recropHero = async () => {
+    const source = page.value.hero_image instanceof File ? page.value.hero_image : resolveHero(page.value.hero_image);
+    const { file, error } = await recropImage(source, heroCropOptions());
+    if (error) triggerAlert(error, 'error');
+    if (file) stageHero(file);
+};
+const resetHero = () => { page.value.hero_image = ''; heroPreview.value = ''; };
 
 const addSection = () => { page.value.sections.push(emptySection()); };
 const moveSection = (index, step) => {
@@ -102,6 +138,8 @@ const save = async () => {
     try {
         await saveLegalPage(pageId.value, page.value);
         savedBefore.value = true;
+        await load();
+        heroPreview.value = '';
         triggerAlert('تم حفظ الصفحة وستظهر في الموقع');
     } catch (error) {
         console.error('Failed to save legal page', error);
@@ -162,6 +200,28 @@ const save = async () => {
         </div>
       </div>
 
+      <section v-if="hasHero" class="section-block" data-testid="legal-hero">
+        <div class="section-head">
+          <span class="section-step">▣</span>
+          <h3>{{ tx('صورة الغلاف', 'Cover image') }}<small> · {{ tx('اختياري', 'Optional') }}</small></h3>
+        </div>
+        <p class="banner-hint">{{ tx('الصورة التي تظهر خلف عنوان الصفحة في الموقع. لو لم تختر صورة يظهر خلف العنوان لون داكن سادة.', 'The photo shown behind the page title on the website. If you pick none, a plain dark background is shown.') }}</p>
+        <div class="hero-card">
+          <div class="hero-frame">
+            <img v-if="heroShown" :src="heroShown" :alt="tx('صورة الغلاف', 'Cover image')" />
+            <span v-else>{{ tx('لا توجد صورة', 'No image') }}</span>
+          </div>
+          <div class="hero-actions">
+            <label class="ghost-btn hero-pick">
+              {{ tx('اختيار صورة', 'Choose image') }}
+              <input type="file" accept="image/*" hidden @change="onHeroChange" data-testid="legal-hero-input" />
+            </label>
+            <ImageCropButton v-if="heroShown" @crop="recropHero" />
+            <button v-if="heroShown" type="button" class="ghost-btn" @click="resetHero">{{ tx('إزالة الصورة', 'Remove image') }}</button>
+          </div>
+        </div>
+      </section>
+
       <section class="section-block banner-block" data-testid="legal-banner">
         <div class="section-head">
           <span class="section-step banner-step">!</span>
@@ -221,6 +281,7 @@ const save = async () => {
       <button type="button" class="ghost-btn add-btn" @click="addSection" data-testid="legal-add-section">+ {{ isQa ? tx('إضافة سؤال وجوابه', 'Add question & answer') : tx('إضافة قسم', 'Add section') }}</button>
     </div>
 
+    <ImageCropModal v-bind="cropModal" @close="closeCrop" @cropped="finishCrop" />
     <div v-if="alert.show" :class="['alert-toast', alert.type, 'show']">{{ alert.message }}</div>
   </div>
 </template>
@@ -264,6 +325,11 @@ const save = async () => {
 .banner-block { background: #fafcff; }
 .banner-step { background: #0284c7; }
 .banner-hint { margin: -6px 0 18px; color: #6b7280; font-size: 0.85rem; line-height: 1.6; }
+.hero-card { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.hero-frame { width: 320px; max-width: 100%; aspect-ratio: 16 / 9; border-radius: 12px; border: 1px dashed #d1d5db; background: #f3f4f6; display: flex; align-items: center; justify-content: center; overflow: hidden; color: #6b7280; font-size: 0.85rem; }
+.hero-frame img { width: 100%; height: 100%; object-fit: cover; }
+.hero-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.hero-pick { display: inline-block; }
 @media (max-width: 768px) {
   .form-grid { grid-template-columns: 1fr; }
   .content-card { padding: 20px; }
