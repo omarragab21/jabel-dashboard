@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAdminText } from '../composables/useAdminText';
 import { useDialog } from '../composables/useDialog';
-import { loadLegalPage, saveLegalPage } from '../services/legalPages';
+import { LEGAL_PAGE_IDS, loadLegalPage, saveLegalPage } from '../services/legalPages';
 import ImageCropModal from '../components/ImageCropModal.vue';
 import ImageCropButton from '../components/ImageCropButton.vue';
 import { useImageCrop } from '../composables/useImageCrop';
@@ -73,7 +73,8 @@ onMounted(load);
 
 // Header photo (FAQ / returns pages): a staged File until saved, then the stored URL.
 const { cropModal, closeCrop, finishCrop, prepareImage, recropImage } = useImageCrop();
-const hasHero = computed(() => pageId.value === 'returns' || pageId.value === 'faq');
+// Every legal page (privacy, terms, returns, FAQ) has its own header photo.
+const hasHero = computed(() => LEGAL_PAGE_IDS.includes(pageId.value));
 const heroPreview = ref('');
 const heroCropOptions = () => ({ defaultRatio: '16:9', fileName: `${pageId.value}-hero`, title: tx('قص وضبط صورة الغلاف (Crop & Resize)', 'Crop & resize cover image') });
 const resolveHero = (value) => {

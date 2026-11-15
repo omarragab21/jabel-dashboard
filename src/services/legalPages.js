@@ -2,6 +2,7 @@
 // ({ privacy, terms, returns, faq }) next to every other site setting. The website reads the same key.
 import api from '../config/axios';
 import { settingsService } from './settingsService';
+import { uploadedImageUrl } from '../domain/legalHero';
 
 export const LEGAL_PAGE_IDS = ['privacy', 'terms', 'returns', 'faq'];
 const SETTING_KEY = 'legal_pages';
@@ -78,21 +79,14 @@ export const loadLegalPage = async (id) => {
 export const saveLegalPage = async (id, page) => {
   const all = await readAll();
   // A newly picked photo is uploaded first (same site-images endpoint the other settings images use); the
-  // returned URL is what gets stored. A string keeps the saved photo, an empty value restores the default.
+  // returned URL is what gets stored. A string keeps the saved photo, an empty value removes it.
   let heroImage = str(page.hero_image).trim();
   if (typeof File !== 'undefined' && page.hero_image instanceof File) {
     const formData = new FormData();
     formData.append('title', `legal_${id}_hero`);
     formData.append('image_file', page.hero_image);
     const upload = await api.post('/v1/site-images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-    const body = upload.data;
-    const candidates = [body, body?.data, body?.data?.data, body?.data?.image, body?.image];
-    heroImage = '';
-    for (const c of candidates) {
-      if (!c) continue;
-      const v = typeof c === 'string' ? c : (c.image_url || c.url || c.image || c.path || c.file || c.src);
-      if (typeof v === 'string' && v.trim()) { heroImage = v.trim(); break; }
-    }
+    heroImage = uploadedImageUrl(upload.data);
     if (!heroImage) throw new Error('Hero image upload returned no URL');
   }
   all[id] = {
