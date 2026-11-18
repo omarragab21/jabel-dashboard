@@ -6,6 +6,7 @@ import router from './router/index.js';
 import i18n from './i18n/index.js';
 import { watch } from 'vue';
 import { useTheme } from './composables/useTheme.js';
+import { initColumnToggle } from './utils/columnToggle.js';
 
 const { initTheme } = useTheme();
 initTheme();
@@ -28,3 +29,4 @@ const app = createApp(App);
 app.use(i18n);
 app.use(router);
 app.mount('#app');
+initColumnToggle(); // "Columns" menu on every data table
