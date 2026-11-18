@@ -3,6 +3,7 @@ import { localizeMessage } from '../utils/uiMessages';
 import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAdminText } from '../composables/useAdminText';
+import BilingualField from '../components/BilingualField.vue';
 import { useDialog } from '../composables/useDialog';
 import { LEGAL_PAGE_IDS, loadLegalPage, saveLegalPage } from '../services/legalPages';
 import ImageCropModal from '../components/ImageCropModal.vue';
@@ -13,6 +14,7 @@ import api from '../config/axios';
 
 const route = useRoute();
 const { tx } = useAdminText();
+const isFilled = (value) => String(value ?? '').trim().length > 0;
 const dialog = useDialog();
 
 // 'privacy', 'terms', 'returns' or 'faq' (set on the route); the text is stored in the site settings API (key legal_pages).
@@ -191,13 +193,11 @@ const save = async () => {
           <input type="month" lang="en-GB" v-model="page.updated_at" class="ltr-input" data-testid="legal-updated" />
         </div>
         <div class="form-group"></div>
-        <div class="form-group">
-          <label>{{ tx('الجملة تحت العنوان (عربي)', 'Line under the title (Arabic)') }}</label>
-          <input type="text" v-model="page.tagline_ar" maxlength="200" />
-        </div>
-        <div class="form-group">
-          <label>{{ tx('الجملة تحت العنوان (إنجليزي)', 'Line under the title (English)') }}</label>
-          <input type="text" v-model="page.tagline_en" maxlength="200" class="ltr-input" />
+        <div class="form-group span-all">
+          <BilingualField :label="tx('الجملة تحت العنوان', 'Line under the title')" :filled-ar="isFilled(page.tagline_ar)" :filled-en="isFilled(page.tagline_en)">
+            <template #ar><input type="text" v-model="page.tagline_ar" maxlength="200" /></template>
+            <template #en><input type="text" v-model="page.tagline_en" maxlength="200" class="ltr-input" /></template>
+          </BilingualField>
         </div>
       </div>
 
@@ -230,21 +230,17 @@ const save = async () => {
         </div>
         <p class="banner-hint">{{ bannerMeta.hint }}</p>
         <div class="form-grid">
-          <div class="form-group">
-            <label>{{ tx('العنوان (عربي)', 'Title (Arabic)') }}</label>
-            <input type="text" v-model="page.banner.title_ar" maxlength="150" data-testid="legal-banner-title-ar" />
+          <div class="form-group span-all">
+            <BilingualField :label="tx('العنوان', 'Title')" :filled-ar="isFilled(page.banner.title_ar)" :filled-en="isFilled(page.banner.title_en)">
+              <template #ar><input type="text" v-model="page.banner.title_ar" maxlength="150" data-testid="legal-banner-title-ar" /></template>
+              <template #en><input type="text" v-model="page.banner.title_en" maxlength="150" class="ltr-input" data-testid="legal-banner-title-en" /></template>
+            </BilingualField>
           </div>
-          <div class="form-group">
-            <label>{{ tx('العنوان (إنجليزي)', 'Title (English)') }}</label>
-            <input type="text" v-model="page.banner.title_en" maxlength="150" class="ltr-input" data-testid="legal-banner-title-en" />
-          </div>
-          <div class="form-group">
-            <label>{{ tx('النص (عربي)', 'Text (Arabic)') }}</label>
-            <textarea v-model="page.banner.text_ar" rows="3" maxlength="400" data-testid="legal-banner-text-ar"></textarea>
-          </div>
-          <div class="form-group">
-            <label>{{ tx('النص (إنجليزي)', 'Text (English)') }}</label>
-            <textarea v-model="page.banner.text_en" rows="3" maxlength="400" class="ltr-input" data-testid="legal-banner-text-en"></textarea>
+          <div class="form-group span-all">
+            <BilingualField :label="tx('النص', 'Text')" :filled-ar="isFilled(page.banner.text_ar)" :filled-en="isFilled(page.banner.text_en)">
+              <template #ar><textarea v-model="page.banner.text_ar" rows="3" maxlength="400" data-testid="legal-banner-text-ar"></textarea></template>
+              <template #en><textarea v-model="page.banner.text_en" rows="3" maxlength="400" class="ltr-input" data-testid="legal-banner-text-en"></textarea></template>
+            </BilingualField>
           </div>
         </div>
       </section>
@@ -260,21 +256,17 @@ const save = async () => {
           </div>
         </div>
         <div class="form-grid">
-          <div class="form-group">
-            <label>{{ isQa ? tx('السؤال (عربي)', 'Question (Arabic)') : tx('العنوان (عربي)', 'Title (Arabic)') }}</label>
-            <input type="text" v-model="section.title_ar" maxlength="200" />
+          <div class="form-group span-all">
+            <BilingualField :label="isQa ? tx('السؤال', 'Question') : tx('العنوان', 'Title')" :filled-ar="isFilled(section.title_ar)" :filled-en="isFilled(section.title_en)">
+              <template #ar><input type="text" v-model="section.title_ar" maxlength="200" /></template>
+              <template #en><input type="text" v-model="section.title_en" maxlength="200" class="ltr-input" /></template>
+            </BilingualField>
           </div>
-          <div class="form-group">
-            <label>{{ isQa ? tx('السؤال (إنجليزي)', 'Question (English)') : tx('العنوان (إنجليزي)', 'Title (English)') }}</label>
-            <input type="text" v-model="section.title_en" maxlength="200" class="ltr-input" />
-          </div>
-          <div class="form-group">
-            <label>{{ isQa ? tx('الجواب (عربي)', 'Answer (Arabic)') : tx('النص (عربي)', 'Text (Arabic)') }}</label>
-            <textarea v-model="section.text_ar" rows="6" maxlength="4000"></textarea>
-          </div>
-          <div class="form-group">
-            <label>{{ isQa ? tx('الجواب (إنجليزي)', 'Answer (English)') : tx('النص (إنجليزي)', 'Text (English)') }}</label>
-            <textarea v-model="section.text_en" rows="6" maxlength="4000" class="ltr-input"></textarea>
+          <div class="form-group span-all">
+            <BilingualField :label="isQa ? tx('الجواب', 'Answer') : tx('النص', 'Text')" :filled-ar="isFilled(section.text_ar)" :filled-en="isFilled(section.text_en)">
+              <template #ar><textarea v-model="section.text_ar" rows="6" maxlength="4000"></textarea></template>
+              <template #en><textarea v-model="section.text_en" rows="6" maxlength="4000" class="ltr-input"></textarea></template>
+            </BilingualField>
           </div>
         </div>
       </section>
@@ -307,6 +299,7 @@ const save = async () => {
 .info-alert { background: #eff6ff; color: #1e40af; padding: 15px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; border: 1px solid #dbeafe; }
 .mb-4 { margin-bottom: 1rem; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.form-grid > .span-all { grid-column: 1 / -1; }
 .form-group label { display: block; font-weight: 700; font-size: 0.9rem; color: #374151; margin-bottom: 10px; }
 .form-group input, .form-group textarea { width: 100%; padding: 14px 18px; border: 1px solid #f3f4f6; border-radius: 12px; outline: none; font-family: inherit; font-size: 0.95rem; background: #fafafa; color: #1f2937; box-sizing: border-box; }
 .form-group input:focus, .form-group textarea:focus { border-color: #660033; background: white; box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05); }

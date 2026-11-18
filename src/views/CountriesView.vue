@@ -60,14 +60,10 @@
       <div class="modal-content">
         <h2>{{ isEdit ? tx('تعديل دولة', 'Edit Country') : tx('إضافة دولة', 'Add Country') }}</h2>
         <form @submit.prevent="handleSubmit">
-          <div class="form-group">
-            <label>{{ tx('الاسم', 'Name') }} *</label>
-            <input v-model="form.name" type="text" required />
-          </div>
-          <div class="form-group">
-            <label>{{ tx('الاسم بالإنجليزي', 'English Name') }}</label>
-            <input v-model="form.name_en" type="text" />
-          </div>
+          <BilingualField :label="tx('الاسم', 'Name')" required :filled-ar="isFilled(form.name)" :filled-en="isFilled(form.name_en)">
+            <template #ar><input v-model="form.name" type="text" required /></template>
+            <template #en><input v-model="form.name_en" type="text" dir="ltr" /></template>
+          </BilingualField>
           <div class="form-group">
             <label>{{ tx('الكود', 'Code') }} *</label>
             <input v-model="form.code" type="text" required maxlength="5" />
@@ -100,8 +96,10 @@
 import { ref, onMounted } from 'vue';
 import api from '../config/axios';
 import { useAdminText } from '../composables/useAdminText';
+import BilingualField from '../components/BilingualField.vue';
 
 const { tx, locale } = useAdminText();
+const isFilled = (value) => String(value ?? '').trim().length > 0;
 const localizedName = (item) => item?.name_i18n?.[locale.value] || (locale.value === 'en' ? item?.name_en || item?.name : item?.name || item?.name_en);
 
 const countries = ref([]);

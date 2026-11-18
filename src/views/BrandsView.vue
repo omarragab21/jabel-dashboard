@@ -135,10 +135,6 @@
           </button>
         </div>
 
-        <div class="i18n-toggle" role="tablist" aria-label="Language" dir="ltr">
-          <button type="button" class="i18n-btn" :class="{ active: activeLang === 'en' }" @click="activeLang = 'en'">English</button>
-          <button type="button" class="i18n-btn" :class="{ active: activeLang === 'ar' }" @click="activeLang = 'ar'">العربية</button>
-        </div>
         
         <form @submit.prevent="submitForm" class="brand-form">
           <!-- Logo Upload -->
@@ -164,15 +160,10 @@
           </div>
 
           <!-- Name -->
-          <div class="form-group" v-show="activeLang === 'ar'">
-            <label class="form-label">{{ tx('الاسم (عربي)', 'Name (Arabic)') }} <span class="req">*</span></label>
-            <input type="text" v-model="form.name_ar" class="form-control" :placeholder="tx('اسم العلامة التجارية بالعربي', 'Brand name in Arabic')" required />
-          </div>
-
-          <div class="form-group" v-show="activeLang === 'en'">
-            <label class="form-label">الاسم (English) <span class="req">*</span></label>
-            <input type="text" v-model="form.name_en" class="form-control" placeholder="Brand name in English" required />
-          </div>
+          <BilingualField :label="tx('اسم العلامة التجارية', 'Brand name')" required :filled-ar="isFilled(form.name_ar)" :filled-en="isFilled(form.name_en)" :nudge="langNudge">
+            <template #ar><input type="text" v-model="form.name_ar" class="form-control" :placeholder="tx('اسم العلامة التجارية بالعربي', 'Brand name in Arabic')" required /></template>
+            <template #en><input type="text" v-model="form.name_en" class="form-control" dir="ltr" placeholder="Brand name in English" required /></template>
+          </BilingualField>
 
           <!-- URL -->
           <div class="form-group">
@@ -225,6 +216,7 @@ import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, computed, onMounted } from 'vue';
 import api from '../config/axios';
 import { useAdminText } from '../composables/useAdminText';
+import BilingualField from '../components/BilingualField.vue';
 import { safeObjectUrl } from '../utils/adminSecurity';
 import ImageCropModal from '../components/ImageCropModal.vue';
 import ImageCropButton from '../components/ImageCropButton.vue';
@@ -241,9 +233,10 @@ const statusFilter = ref('');
 
 // The form opens on the dashboard's language; Arabic tab sits on the right, English on the left.
 
-const formLang = () => (locale.value === 'en' ? 'en' : 'ar');
 
-const activeLang = ref(formLang());
+const langNudge = ref(null); // bumped after a failed validation so each bilingual field jumps to the missing language
+const isFilled = (value) => String(value ?? '').trim().length > 0;
+const nudgeLang = (lang) => { langNudge.value = { lang, n: (langNudge.value?.n || 0) + 1 }; };
 
 // Computed
 const activeBrandsCount = computed(() => brands.value.filter(b => b.is_active).length);
@@ -327,7 +320,6 @@ const openAddModal = () => {
     sort_order: 0
   };
   imagePreview.value = null;
-  activeLang.value = formLang();
   showFormModal.value = true;
 };
 
@@ -344,7 +336,6 @@ const openEditModal = (brand) => {
     sort_order: brand.sort_order || 0
   };
   imagePreview.value = brand.logo ? getImageUrl(brand.logo) : null;
-  activeLang.value = formLang();
   showFormModal.value = true;
 };
 
@@ -352,7 +343,6 @@ const closeModal = () => {
   showFormModal.value = false;
   imagePreview.value = null;
   if (fileInput.value) fileInput.value.value = '';
-  activeLang.value = formLang();
 };
 
 const handleDrop = (e) => {
@@ -391,12 +381,12 @@ const recropCurrentImage = async () => {
 const submitForm = async () => {
   // Validate bilingual fields
   if (!String(form.value.name_ar || '').trim()) {
-    activeLang.value = 'ar';
+    nudgeLang('ar');
     triggerAlert('الاسم بالعربي مطلوب', 'error');
     return;
   }
   if (!String(form.value.name_en || '').trim()) {
-    activeLang.value = 'en';
+    nudgeLang('en');
     triggerAlert('الاسم بالإنجليزية مطلوب', 'error');
     return;
   }

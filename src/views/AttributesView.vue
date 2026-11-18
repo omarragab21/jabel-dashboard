@@ -21,8 +21,10 @@
         <button class="modal-close" @click="closeAttributeModal">×</button>
         <div class="form-header"><div class="modal-heading-row"><div v-if="!editingAttributeId" class="header-icon-main"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><h3 class="modal-title-main">{{ editingAttributeId ? tx('تعديل خاصية منتج', 'Edit Product Attribute') : tx('إضافة خاصية منتج', 'Add Product Attribute') }}</h3></div><p class="modal-subtitle-main">{{ editingAttributeId ? tx('عدّل اسم الخاصية — القيم تُدار من زر إدارة القيم', 'Edit the attribute name; values are managed separately') : tx('أضف الخاصية ثم أضف قيمها من زر إدارة القيم. أي قيمة بكود لون تظهر كدائرة لون تلقائياً', 'Add the attribute, then add its values. Any value with a color code shows as a color circle automatically') }}</p></div>
         <form class="value-form" @submit.prevent="submitAttribute">
-          <div class="form-group"><label class="form-label">{{ tx('الاسم بالعربي', 'Name (Arabic)') }} *</label><input v-model="attributeForm.name_ar" v-lang-only="'ar'" class="form-control" required :placeholder="tx('مثال: اللون', 'Example: Color')" /></div>
-          <div class="form-group"><label class="form-label">{{ tx('الاسم بالإنجليزية', 'Name (English)') }} *</label><input v-model="attributeForm.name_en" v-lang-only="'en'" class="form-control" required placeholder="Example: Color" /></div>
+          <BilingualField :label="tx('اسم الخاصية', 'Attribute name')" required :filled-ar="isFilled(attributeForm.name_ar)" :filled-en="isFilled(attributeForm.name_en)">
+            <template #ar><input v-model="attributeForm.name_ar" v-lang-only="'ar'" class="form-control" required :placeholder="tx('مثال: اللون', 'Example: Color')" /></template>
+            <template #en><input v-model="attributeForm.name_en" v-lang-only="'en'" class="form-control" dir="ltr" required placeholder="Example: Color" /></template>
+          </BilingualField>
           <label class="core-toggle" data-testid="attribute-core-toggle">
             <input type="checkbox" v-model="attributeForm.is_core" />
             <span class="core-toggle-text">
@@ -145,14 +147,10 @@
           </div>
 
           <!-- Bilingual Value Names -->
-          <div class="form-group">
-            <label class="form-label">{{ tx('اسم القيمة بالعربي', 'Value name (Arabic)') }} <span class="req">*</span></label>
-            <input type="text" v-model="valueForm.name_ar" v-lang-only="'ar'" class="form-control" :placeholder="tx('مثال: أسود ملكي أو 90 سم', 'Example: Royal Black or 90 cm')" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label">{{ tx('اسم القيمة بالإنجليزية', 'Value name (English)') }} <span class="req">*</span></label>
-            <input type="text" v-model="valueForm.name_en" v-lang-only="'en'" class="form-control" placeholder="Example: Royal Black or 90 cm" dir="ltr" required />
-          </div>
+          <BilingualField :label="tx('اسم القيمة', 'Value name')" required :filled-ar="isFilled(valueForm.name_ar)" :filled-en="isFilled(valueForm.name_en)">
+            <template #ar><input type="text" v-model="valueForm.name_ar" v-lang-only="'ar'" class="form-control" :placeholder="tx('مثال: أسود ملكي أو 90 سم', 'Example: Royal Black or 90 cm')" required /></template>
+            <template #en><input type="text" v-model="valueForm.name_en" v-lang-only="'en'" class="form-control" placeholder="Example: Royal Black or 90 cm" dir="ltr" required /></template>
+          </BilingualField>
 
           <!-- Status -->
           <div class="form-group">
@@ -236,12 +234,14 @@ import { apiErrorMessage } from '../utils/apiMessage';
 import { computed, ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAdminText } from '../composables/useAdminText';
+import BilingualField from '../components/BilingualField.vue';
 import productAttributeService from '../services/productAttributeService';
 import { parseColorCode } from '../domain/catalog/adminCatalog';
 import { loadSavedCoreIds, resolveCoreIds, saveCoreIds } from '../services/coreAttributes';
 
 const { locale } = useI18n();
 const { tx } = useAdminText();
+const isFilled = (value) => String(value ?? '').trim().length > 0;
 const isEnglish = computed(() => locale.value === 'en');
 
 const attributeName = (attribute) => {

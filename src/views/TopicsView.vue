@@ -4,6 +4,7 @@ import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, onMounted, computed } from 'vue';
 import api from '../config/axios';
 import { useAdminText } from '../composables/useAdminText';
+import BilingualField from '../components/BilingualField.vue';
 
 const { tx, locale } = useAdminText();
 
@@ -17,8 +18,9 @@ const isEditing = ref(false);
 const currentTopic = ref(null);
 const isSubmitting = ref(false);
 // The form opens on the dashboard's language; Arabic tab sits on the right, English on the left.
-const formLang = () => (locale.value === 'en' ? 'en' : 'ar');
-const activeLang = ref(formLang());
+const langNudge = ref(null); // bumped after a failed validation so each bilingual field jumps to the missing language
+const isFilled = (value) => String(value ?? '').trim().length > 0;
+const nudgeLang = (lang) => { langNudge.value = { lang, n: (langNudge.value?.n || 0) + 1 }; };
 
 const form = ref({
     title_ar: '',
@@ -63,7 +65,6 @@ const openAddModal = () => {
         content_ar: '',
         content_en: '',
     };
-    activeLang.value = formLang();
     showFormModal.value = true;
 };
 
@@ -78,7 +79,6 @@ const openEditModal = (topic) => {
         content_ar: contentObj?.ar ?? topic.content ?? '',
         content_en: contentObj?.en ?? '',
     };
-    activeLang.value = formLang();
     showFormModal.value = true;
 };
 
@@ -90,22 +90,22 @@ const openViewModal = (topic) => {
 const submitForm = async () => {
     // Validate bilingual fields
     if (!String(form.value.title_ar || '').trim()) {
-        activeLang.value = 'ar';
+        nudgeLang('ar');
         triggerAlert('عنوان الصفحة بالعربي مطلوب', 'error');
         return;
     }
     if (!String(form.value.title_en || '').trim()) {
-        activeLang.value = 'en';
+        nudgeLang('en');
         triggerAlert('عنوان الصفحة بالإنجليزية مطلوب', 'error');
         return;
     }
     if (!String(form.value.content_ar || '').trim()) {
-        activeLang.value = 'ar';
+        nudgeLang('ar');
         triggerAlert('المحتوى بالعربي مطلوب', 'error');
         return;
     }
     if (!String(form.value.content_en || '').trim()) {
-        activeLang.value = 'en';
+        nudgeLang('en');
         triggerAlert('المحتوى بالإنجليزية مطلوب', 'error');
         return;
     }
@@ -287,20 +287,18 @@ const formatDate = (date) => {
           </div>
           <form @submit.prevent="submitForm">
              <div class="modal-body">
-                <div class="i18n-toggle" role="tablist" aria-label="Language" dir="ltr">
-                  <button type="button" class="i18n-btn" :class="{ active: activeLang === 'en' }" @click="activeLang = 'en'">English</button>
-                  <button type="button" class="i18n-btn" :class="{ active: activeLang === 'ar' }" @click="activeLang = 'ar'">العربية</button>
-                </div>
                 <div class="form-grid">
                    <div class="form-group full-width">
-                      <label>{{ tx('عنوان الصفحة', 'Page Title') }} <span class="req">*</span></label>
-                      <input v-show="activeLang === 'ar'" type="text" v-model="form.title_ar" placeholder="مثال: سياسة الخصوصية" />
-                      <input v-show="activeLang === 'en'" type="text" v-model="form.title_en" placeholder="Page title in English" />
+                      <BilingualField :label="tx('عنوان الصفحة', 'Page Title')" required :filled-ar="isFilled(form.title_ar)" :filled-en="isFilled(form.title_en)" :nudge="langNudge">
+                         <template #ar><input type="text" v-model="form.title_ar" placeholder="مثال: سياسة الخصوصية" /></template>
+                         <template #en><input type="text" v-model="form.title_en" dir="ltr" placeholder="Page title in English" /></template>
+                      </BilingualField>
                    </div>
                    <div class="form-group full-width">
-                      <label>{{ tx('المحتوى', 'Content') }} <span class="req">*</span></label>
-                      <textarea v-show="activeLang === 'ar'" v-model="form.content_ar" rows="6" placeholder="أدخل محتوى الصفحة هنا..."></textarea>
-                      <textarea v-show="activeLang === 'en'" v-model="form.content_en" rows="6" placeholder="Page content in English..."></textarea>
+                      <BilingualField :label="tx('المحتوى', 'Content')" required :filled-ar="isFilled(form.content_ar)" :filled-en="isFilled(form.content_en)" :nudge="langNudge">
+                         <template #ar><textarea v-model="form.content_ar" rows="6" placeholder="أدخل محتوى الصفحة هنا..."></textarea></template>
+                         <template #en><textarea v-model="form.content_en" rows="6" dir="ltr" placeholder="Page content in English..."></textarea></template>
+                      </BilingualField>
                    </div>
                 </div>
              </div>

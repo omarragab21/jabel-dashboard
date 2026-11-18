@@ -171,20 +171,11 @@
             </div>
           </fieldset>
 
-          <div class="lang-row">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
-              <div class="i18n-toggle" role="tablist" aria-label="Language" dir="ltr">
-                <button type="button" class="i18n-btn" :class="{ active: activeLang === 'en' }" @click="activeLang = 'en'">English</button>
-                <button type="button" class="i18n-btn" :class="{ active: activeLang === 'ar' }" @click="activeLang = 'ar'">العربية</button>
-              </div>
-            </div>
-
           <fieldset class="form-fieldset" :disabled="isView">
-            <div class="form-group">
-              <label class="form-label" for="dc-desc">{{ tx('وصف الكود', 'Code description') }}</label>
-              <input v-show="activeLang === 'ar'" id="dc-desc" type="text" v-model="form.description_ar" class="form-control" placeholder="مثال: خصم 25% على الطلبات فوق 100 د.أ" />
-              <input v-show="activeLang === 'en'" type="text" v-model="form.description_en" class="form-control" placeholder="e.g. 25% off on orders over 100 JOD" dir="ltr" />
-            </div>
+            <BilingualField :label="tx('وصف الكود', 'Code description')" :filled-ar="isFilled(form.description_ar)" :filled-en="isFilled(form.description_en)">
+              <template #ar><input id="dc-desc" type="text" v-model="form.description_ar" class="form-control" placeholder="مثال: خصم 25% على الطلبات فوق 100 د.أ" /></template>
+              <template #en><input type="text" v-model="form.description_en" class="form-control" placeholder="e.g. 25% off on orders over 100 JOD" dir="ltr" /></template>
+            </BilingualField>
           </fieldset>
 
           <div class="form-footer-btns">
@@ -231,6 +222,7 @@ import { useCurrencyLabel } from '../composables/useCurrencyLabel';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, computed, onMounted } from 'vue';
 import { useAdminText } from '../composables/useAdminText';
+import BilingualField from '../components/BilingualField.vue';
 import adminCatalogService from '../application/adminCatalogService';
 import { toDiscountPayload } from '../domain/catalog/adminCatalog';
 
@@ -254,9 +246,8 @@ const isDeleting = ref(false);
 
 // The form opens on the dashboard's language; Arabic tab sits on the right, English on the left.
 
-const formLang = () => (locale.value === 'en' ? 'en' : 'ar');
 
-const activeLang = ref(formLang());
+const isFilled = (value) => String(value ?? '').trim().length > 0;
 
 const initialForm = {
     name_ar: '',
@@ -359,7 +350,6 @@ const openAddModal = () => {
     isView.value = false;
     currentId.value = null;
     form.value = { ...initialForm };
-    activeLang.value = formLang();
     showFormModal.value = true;
 };
 
@@ -389,7 +379,6 @@ const openEditModal = (offer) => {
     isView.value = false;
     currentId.value = offer.id;
     form.value = toForm(offer);
-    activeLang.value = formLang();
     showFormModal.value = true;
 };
 

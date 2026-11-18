@@ -74,14 +74,10 @@
               </option>
             </select>
           </div>
-          <div class="form-group">
-            <label>{{ tx('الاسم', 'Name') }} *</label>
-            <input v-model="form.name" type="text" required />
-          </div>
-          <div class="form-group">
-            <label>{{ tx('الاسم بالإنجليزي', 'English Name') }}</label>
-            <input v-model="form.name_en" type="text" />
-          </div>
+          <BilingualField :label="tx('الاسم', 'Name')" required :filled-ar="isFilled(form.name)" :filled-en="isFilled(form.name_en)">
+            <template #ar><input v-model="form.name" type="text" required /></template>
+            <template #en><input v-model="form.name_en" type="text" dir="ltr" /></template>
+          </BilingualField>
           <div class="form-group">
             <label>{{ tx('الترتيب', 'Sort Order') }}</label>
             <input v-model="form.sort_order" type="number" />
@@ -106,8 +102,10 @@
 import { ref, onMounted } from 'vue';
 import api from '../config/axios';
 import { useAdminText } from '../composables/useAdminText';
+import BilingualField from '../components/BilingualField.vue';
 
 const { tx, locale } = useAdminText();
+const isFilled = (value) => String(value ?? '').trim().length > 0;
 const localizedName = (item) => item?.name_i18n?.[locale.value] || (locale.value === 'en' ? item?.name_en || item?.name : item?.name || item?.name_en);
 
 const cities = ref([]);

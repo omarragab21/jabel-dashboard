@@ -4,6 +4,7 @@ import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, onMounted, computed } from 'vue';
 import adminManagementService from '../application/adminManagementService';
 import { useAdminText } from '../composables/useAdminText';
+import BilingualField from '../components/BilingualField.vue';
 import { safeObjectUrl, sanitizeAssetUrl } from '../utils/adminSecurity';
 import ImageCropModal from '../components/ImageCropModal.vue';
 import ImageCropButton from '../components/ImageCropButton.vue';
@@ -27,8 +28,9 @@ const isDeleting = ref(false);
 const previewImage = ref(null);
 const imageFile = ref(null);
 // The form opens on the dashboard's language; Arabic tab sits on the right, English on the left.
-const formLang = () => (locale.value === 'en' ? 'en' : 'ar');
-const activeLang = ref(formLang());
+const langNudge = ref(null); // bumped after a failed validation so each bilingual field jumps to the missing language
+const isFilled = (value) => String(value ?? '').trim().length > 0;
+const nudgeLang = (lang) => { langNudge.value = { lang, n: (langNudge.value?.n || 0) + 1 }; };
 
 const backendOrigin = (import.meta.env.VITE_API_BASE_URL || 'https://backend-jabal.be-kite.com/api')
     .replace(/\/api\/?$/, '');
@@ -190,7 +192,6 @@ const openAddModal = () => {
     form.value = { ...initialForm, order: sliders.value.length + 1 };
     previewImage.value = null;
     imageFile.value = null;
-    activeLang.value = formLang();
     showFormModal.value = true;
 };
 
@@ -210,7 +211,6 @@ const openEditModal = (slider) => {
     };
     previewImage.value = normalizeSliderImage(slider.image);
     imageFile.value = null;
-    activeLang.value = formLang();
     showFormModal.value = true;
 };
 
@@ -246,19 +246,19 @@ const recropCurrentImage = async () => {
 const submitForm = async () => {
     // Validate bilingual fields
     if (!String(form.value.title_ar || '').trim()) {
-        activeLang.value = 'ar';
+        nudgeLang('ar');
         triggerAlert('عنوان الشريحة بالعربي مطلوب', 'error');
         return;
     }
     if (!String(form.value.title_en || '').trim()) {
-        activeLang.value = 'en';
+        nudgeLang('en');
         triggerAlert('عنوان الشريحة بالإنجليزية مطلوب', 'error');
         return;
     }
     // The English fields feed the English website: Arabic letters there would show Arabic text on the English site.
     const ARABIC_LETTERS = /[\u0600-\u06FF]/;
     if (ARABIC_LETTERS.test(form.value.title_en || '') || ARABIC_LETTERS.test(form.value.description_en || '')) {
-        activeLang.value = 'en';
+        nudgeLang('en');
         triggerAlert('الحقول الإنجليزية يجب أن تكون بالإنجليزية فقط (بدون أحرف عربية)', 'error');
         return;
     }
@@ -504,10 +504,6 @@ const copyLink = (text) => {
         </div>
         
         <div class="modal-body">
-           <div class="i18n-toggle" role="tablist" aria-label="Language" dir="ltr">
-             <button type="button" class="i18n-btn" :class="{ active: activeLang === 'en' }" @click="activeLang = 'en'">English</button>
-             <button type="button" class="i18n-btn" :class="{ active: activeLang === 'ar' }" @click="activeLang = 'ar'">العربية</button>
-           </div>
 
            <div class="upload-area mb-6">
               <label class="upload-label">{{ tx('صورة الشريحة', 'Slider Image') }}</label>
@@ -524,16 +520,18 @@ const copyLink = (text) => {
               <ImageCropModal v-bind="cropModal" @close="closeCrop" @cropped="finishCrop" />
            </div>
 
-           <div class="form-group mb-4">
-              <label class="form-label">{{ tx('العنوان', 'Title') }} <span class="req">*</span></label>
-              <input v-show="activeLang === 'ar'" type="text" v-model="form.title_ar" class="form-control" placeholder="عنوان الشريحة بالعربي..." />
-              <input v-show="activeLang === 'en'" type="text" v-model="form.title_en" class="form-control" placeholder="Slider title in English..." />
+           <div class="mb-4">
+              <BilingualField :label="tx('العنوان', 'Title')" required :filled-ar="isFilled(form.title_ar)" :filled-en="isFilled(form.title_en)" :nudge="langNudge">
+                 <template #ar><input type="text" v-model="form.title_ar" class="form-control" placeholder="عنوان الشريحة بالعربي..." /></template>
+                 <template #en><input type="text" v-model="form.title_en" class="form-control" dir="ltr" placeholder="Slider title in English..." /></template>
+              </BilingualField>
            </div>
 
-           <div class="form-group mb-4">
-              <label class="form-label">{{ tx('الوصف', 'Description') }}</label>
-              <textarea v-show="activeLang === 'ar'" v-model="form.description_ar" class="form-control" rows="3" placeholder="وصف قصير للعرض بالعربي..."></textarea>
-              <textarea v-show="activeLang === 'en'" v-model="form.description_en" class="form-control" rows="3" placeholder="Short slider description in English..."></textarea>
+           <div class="mb-4">
+              <BilingualField :label="tx('الوصف', 'Description')" :filled-ar="isFilled(form.description_ar)" :filled-en="isFilled(form.description_en)" :nudge="langNudge">
+                 <template #ar><textarea v-model="form.description_ar" class="form-control" rows="3" placeholder="وصف قصير للعرض بالعربي..."></textarea></template>
+                 <template #en><textarea v-model="form.description_en" class="form-control" rows="3" dir="ltr" placeholder="Short slider description in English..."></textarea></template>
+              </BilingualField>
            </div>
 
            <div class="form-group mb-4">

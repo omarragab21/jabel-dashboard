@@ -210,16 +210,16 @@
         </div>
         <form @submit.prevent="saveOffer" class="offer-form" novalidate>
           <div class="form-section">
-            <div class="i18n-toggle" role="tablist" aria-label="Language" dir="ltr">
-              <button type="button" class="i18n-btn" :class="{ active: activeLang === 'en' }" @click="activeLang = 'en'">English</button>
-              <button type="button" class="i18n-btn" :class="{ active: activeLang === 'ar' }" @click="activeLang = 'ar'">العربية</button>
-            </div>
-
-            <label class="form-label">{{ tx('اسم العرض', 'Offer name') }} <span class="req">*</span></label>
-            <input v-show="activeLang === 'ar'" type="text" v-model="form.name_ar" :class="['form-control', { invalid: errors.name_ar }]" placeholder="مثال: خصم الصيف الكبير" data-testid="offer-name-ar" />
-            <input v-show="activeLang === 'en'" type="text" v-model="form.name_en" :class="['form-control', 'ltr-text', { invalid: errors.name_en }]" placeholder="e.g. Summer Big Discount" data-testid="offer-name-en" />
-            <span v-if="activeLang === 'ar' && errors.name_ar" class="field-error" data-testid="err-name-ar">{{ tx('اسم العرض بالعربي مطلوب', 'The Arabic name is required') }}</span>
-            <span v-if="activeLang === 'en' && errors.name_en" class="field-error" data-testid="err-name-en">{{ tx('اسم العرض بالإنجليزي مطلوب', 'The English name is required') }}</span>
+            <BilingualField :label="tx('اسم العرض', 'Offer name')" required :filled-ar="isFilled(form.name_ar)" :filled-en="isFilled(form.name_en)" :nudge="langNudge">
+              <template #ar>
+                <input type="text" v-model="form.name_ar" :class="['form-control', { invalid: errors.name_ar }]" placeholder="مثال: خصم الصيف الكبير" data-testid="offer-name-ar" />
+                <span v-if="errors.name_ar" class="field-error" data-testid="err-name-ar">{{ tx('اسم العرض بالعربي مطلوب', 'The Arabic name is required') }}</span>
+              </template>
+              <template #en>
+                <input type="text" v-model="form.name_en" :class="['form-control', 'ltr-text', { invalid: errors.name_en }]" placeholder="e.g. Summer Big Discount" data-testid="offer-name-en" />
+                <span v-if="errors.name_en" class="field-error" data-testid="err-name-en">{{ tx('اسم العرض بالإنجليزي مطلوب', 'The English name is required') }}</span>
+              </template>
+            </BilingualField>
           </div>
 
           <div class="form-section">
@@ -352,6 +352,7 @@ import { useCurrencyLabel } from '../composables/useCurrencyLabel';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useAdminText } from '../composables/useAdminText';
+import BilingualField from '../components/BilingualField.vue';
 import adminCatalogService from '../application/adminCatalogService';
 import { offerUsage, promotionDiscountLabel, promotionFormFrom, toPromotionPayload, validatePromotionForm } from '../domain/catalog/adminCatalog';
 import ImageCropModal from '../components/ImageCropModal.vue';
@@ -379,8 +380,9 @@ const usageLoading = ref(false);
 const showModal = ref(false);
 const editingId = ref(null);
 // The form opens on the dashboard's language; Arabic tab sits on the right, English on the left.
-const formLang = () => (locale.value === 'en' ? 'en' : 'ar');
-const activeLang = ref(formLang());
+const langNudge = ref(null);
+const isFilled = (value) => String(value ?? '').trim().length > 0;
+const nudgeLang = (lang) => { langNudge.value = { lang, n: (langNudge.value?.n || 0) + 1 }; };
 const submitted = ref(false);
 
 const searchQuery = ref('');
@@ -552,7 +554,6 @@ const openCreate = () => {
   imageFile.value = null;
   imagePreview.value = null;
   submitted.value = false;
-  activeLang.value = formLang();
   productSearch.value = '';
   showModal.value = true;
 };
@@ -562,7 +563,6 @@ const openEdit = async (offer) => {
   imageFile.value = null;
   imagePreview.value = offerImage(offer);
   submitted.value = false;
-  activeLang.value = formLang();
   productSearch.value = '';
   // The list does not carry the chosen products: read the offer before showing its form.
   let detailed = offer;
@@ -608,8 +608,8 @@ const saveOffer = async () => {
   const found = validatePromotionForm(form.value);
   if (Object.keys(found).length) {
     // Show the language tab that has the missing name.
-    if (found.name_ar) activeLang.value = 'ar';
-    else if (found.name_en) activeLang.value = 'en';
+    if (found.name_ar) nudgeLang('ar');
+    else if (found.name_en) nudgeLang('en');
     return;
   }
   saving.value = true;

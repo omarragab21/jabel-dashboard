@@ -198,14 +198,6 @@
             <span>{{ tx('القسم الرئيسي:', 'Main category:') }} {{ formParentName }}</span>
           </div>
 
-          <!-- Language -->
-          <div class="cm-lang" role="tablist" :aria-label="tx('اللغة', 'Language')">
-            <div class="cm-lang-switch" dir="ltr">
-              <button type="button" role="tab" class="cm-lang-btn" :class="{ active: activeLang === 'en', missing: !nameFilled('en') }" :aria-selected="activeLang === 'en'" @click="activeLang = 'en'">English</button>
-              <button type="button" role="tab" class="cm-lang-btn" :class="{ active: activeLang === 'ar', missing: !nameFilled('ar') }" :aria-selected="activeLang === 'ar'" @click="activeLang = 'ar'">العربية</button>
-            </div>
-          </div>
-
           <!-- Image -->
           <div class="cm-field">
             <label class="cm-label">{{ isSubForm ? tx('صورة القسم الفرعي', 'Sub-category image') : tx('صورة القسم', 'Category image') }} <span class="cm-req">*</span></label>
@@ -233,24 +225,16 @@
 
 
           <!-- Name -->
-          <div class="cm-field" v-show="activeLang === 'ar'">
-            <label class="cm-label" for="cm-name-ar">{{ isSubForm ? tx('اسم القسم الفرعي', 'Sub-category name') : tx('اسم القسم', 'Category name') }} <span class="cm-req">*</span></label>
-            <input id="cm-name-ar" type="text" v-model="form.name_ar" class="cm-input" :placeholder="isSubForm ? 'مثال: هواتف ذكية' : 'مثال: إلكترونيات'" data-testid="category-name-ar" />
-          </div>
-          <div class="cm-field" v-show="activeLang === 'en'">
-            <label class="cm-label" for="cm-name-en">{{ isSubForm ? tx('اسم القسم الفرعي', 'Sub-category name') : tx('اسم القسم', 'Category name') }} (English) <span class="cm-req">*</span></label>
-            <input id="cm-name-en" type="text" v-model="form.name_en" class="cm-input" dir="ltr" :placeholder="isSubForm ? 'e.g. Smartphones' : 'e.g. Electronics'" data-testid="category-name-en" />
-          </div>
+          <BilingualField :label="isSubForm ? tx('اسم القسم الفرعي', 'Sub-category name') : tx('اسم القسم', 'Category name')" required :filled-ar="nameFilled('ar')" :filled-en="nameFilled('en')" :nudge="langNudge">
+            <template #ar><input id="cm-name-ar" type="text" v-model="form.name_ar" class="cm-input" :placeholder="isSubForm ? 'مثال: هواتف ذكية' : 'مثال: إلكترونيات'" data-testid="category-name-ar" /></template>
+            <template #en><input id="cm-name-en" type="text" v-model="form.name_en" class="cm-input" dir="ltr" :placeholder="isSubForm ? 'e.g. Smartphones' : 'e.g. Electronics'" data-testid="category-name-en" /></template>
+          </BilingualField>
 
           <!-- Description -->
-          <div class="cm-field" v-show="activeLang === 'ar'">
-            <label class="cm-label" for="cm-desc-ar">{{ tx('الوصف', 'Description') }}</label>
-            <textarea id="cm-desc-ar" v-model="form.description_ar" class="cm-textarea" placeholder="وصف القسم (اختياري)" rows="3"></textarea>
-          </div>
-          <div class="cm-field" v-show="activeLang === 'en'">
-            <label class="cm-label" for="cm-desc-en">{{ tx('الوصف', 'Description') }} (English)</label>
-            <textarea id="cm-desc-en" v-model="form.description_en" class="cm-textarea" dir="ltr" placeholder="Category description (optional)" rows="3"></textarea>
-          </div>
+          <BilingualField :label="tx('الوصف', 'Description')" :filled-ar="isFilled(form.description_ar)" :filled-en="isFilled(form.description_en)">
+            <template #ar><textarea id="cm-desc-ar" v-model="form.description_ar" class="cm-textarea" placeholder="وصف القسم (اختياري)" rows="3"></textarea></template>
+            <template #en><textarea id="cm-desc-en" v-model="form.description_en" class="cm-textarea" dir="ltr" placeholder="Category description (optional)" rows="3"></textarea></template>
+          </BilingualField>
 
           <!-- Status -->
           <div class="cm-field">
@@ -380,6 +364,7 @@ import { localizeMessage } from '../utils/uiMessages';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, computed, onMounted } from 'vue';
 import { useAdminText } from '../composables/useAdminText';
+import BilingualField from '../components/BilingualField.vue';
 import adminCatalogService from '../application/adminCatalogService';
 import { categoryMatchesSearch, toCategoryPayload } from '../domain/catalog/adminCatalog';
 import { visibleCategories, visibleProducts } from '../utils/catalogVisibility';
@@ -482,8 +467,9 @@ const viewCategory = ref(null);
 const fileInput = ref(null);
 const isSubmitting = ref(false);
 // The form opens on the dashboard's language; Arabic tab sits on the right, English on the left.
-const formLang = () => (locale.value === 'en' ? 'en' : 'ar');
-const activeLang = ref(formLang());
+const langNudge = ref(null);
+const isFilled = (value) => String(value ?? '').trim().length > 0;
+const nudgeLang = (lang) => { langNudge.value = { lang, n: (langNudge.value?.n || 0) + 1 }; };
 const editingName = ref('');
 const CATEGORY_HAS_PRODUCTS = 'لا يمكن حذف هذا القسم لأنه مرتبط بمنتجات. انقل المنتجات إلى قسم آخر أو احذفها أولًا.';
 const deleteTarget = ref(null);
@@ -591,7 +577,6 @@ const openAddModal = () => {
   editingId.value = null;
   form.value = getBaseForm();
   imagePreview.value = null;
-  activeLang.value = formLang();
   showFormModal.value = true;
 };
 
@@ -618,7 +603,6 @@ const openEditModal = (cat) => {
     image: null
   };
   imagePreview.value = cat.image || null;
-  activeLang.value = formLang();
   showFormModal.value = true;
 };
 
@@ -637,7 +621,6 @@ const closeModal = () => {
   imageError.value = '';
   form.value = getBaseForm();
   imagePreview.value = null;
-  activeLang.value = formLang();
 };
 
 // Image Upload
@@ -676,12 +659,12 @@ const recropCurrentImage = async () => {
 const submitForm = async () => {
   if (isSubmitting.value) return;
   if (!String(form.value.name_ar || '').trim()) {
-    activeLang.value = 'ar';
+    nudgeLang('ar');
     triggerAlert('اسم القسم بالعربي مطلوب', 'error');
     return;
   }
   if (!String(form.value.name_en || '').trim()) {
-    activeLang.value = 'en';
+    nudgeLang('en');
     triggerAlert('اسم القسم بالإنجليزية مطلوب', 'error');
     return;
   }
