@@ -8,6 +8,8 @@
 // Hiding is done with generated CSS (nth-child rules), so it keeps working while Vue re-renders
 // the rows. Rows made of a single colspan cell (empty / loading states) are never hidden.
 
+import { attachRowSelection } from './rowSelection';
+
 const TABLE_SELECTOR = 'table.data-table, table.returns-table';
 const STORAGE_PREFIX = 'jb:cols:';
 const STYLE_ID = 'jb-column-toggle-style';
@@ -186,6 +188,9 @@ const enhance = (table, index) => {
 
   const holder = table.closest('.table-container, .table-wrap, .table-card') || table;
   holder.parentNode.insertBefore(bar, holder);
+  // Tables with row actions also get row checkboxes + a bulk-actions bar (design only).
+  const hasActions = cells.some((th) => ALWAYS_VISIBLE.test(th.className) || /إجراءات|actions?/i.test(th.textContent.trim()));
+  if (hasActions && holder !== table) entry.selection = attachRowSelection(table, holder, bar);
   document.head.append(style);
   table.dataset.ctId = id;
   tables.set(table, entry);
@@ -197,6 +202,7 @@ const scan = () => {
   // Forget tables that left the page (route change, tab switch) together with their menu.
   tables.forEach((entry, table) => {
     if (!table.isConnected) {
+      entry.selection?.destroy();
       entry.bar.remove();
       entry.style.remove();
       tables.delete(table);
@@ -206,7 +212,7 @@ const scan = () => {
     if (table.closest('.modal-content, .modal-overlay, .sr-only')) return; // tables inside dialogs keep all columns
     const known = tables.get(table);
     if (!known) enhance(table, index);
-    else refreshBar(table, known);
+    else { refreshBar(table, known); known.selection?.layout(); }
   });
 };
 
@@ -224,7 +230,7 @@ export const initColumnToggle = () => {
     requestAnimationFrame(() => { queued = false; scan(); });
   };
   new MutationObserver((records) => {
-    if (records.every((record) => record.target.closest?.('.ct-bar'))) return; // our own menu changes
+    if (records.every((record) => record.target.closest?.('.ct-bar, .ct-rail'))) return; // our own menu changes
     schedule();
   }).observe(document.getElementById('app') || document.body, { childList: true, subtree: true });
   document.addEventListener('click', () => closeAll(null));
