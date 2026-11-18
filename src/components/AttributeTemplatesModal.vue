@@ -11,39 +11,95 @@ const { tx, locale } = useAdminText();
 const lang = computed(() => (locale.value === 'en' ? 1 : 0));
 const pick = (pair) => pair[lang.value];
 
-const step = ref('gallery'); // gallery -> preview -> running -> result
+const step = ref('gallery'); // gallery -> preview (one template) -> review (the whole basket) -> running -> result
 const template = ref(null);
-const selection = ref([]); // per attribute: { include, core, open, values: boolean[] }
+// What was picked, kept per template so several templates can be mixed into one basket.
+const choices = ref({}); // templateId -> [{ include, core, open, values: boolean[] }]
 const progress = ref({ done: 0, total: 0, label: '' });
 const summary = ref(null);
 
+const selection = computed(() => (template.value ? choices.value[template.value.id] || [] : []));
+
 const openTemplate = (item) => {
+  if (!choices.value[item.id]) {
+    choices.value[item.id] = item.attributes.map((attribute) => ({
+      include: false,
+      core: Boolean(attribute.core),
+      open: false,
+      values: attribute.values.map(() => true),
+    }));
+  }
   template.value = item;
-  selection.value = item.attributes.map((attribute) => ({
-    include: true,
-    core: Boolean(attribute.core),
-    open: false,
-    values: attribute.values.map(() => true),
-  }));
   step.value = 'preview';
 };
 
-const plan = computed(() => (template.value ? planTemplate(template.value, selection.value, props.attributes) : { attributes: 0, values: 0, rows: [] }));
-const rowFor = (index) => plan.value.rows.find((row) => row.index === index);
-const allIncluded = computed(() => selection.value.every((choice) => choice.include));
+const keyOf = (attribute) => `${normalize(attribute.name[0])}|${normalize(attribute.name[1])}`;
+const normalize = (value) => String(value).trim().toLowerCase();
+
+const pickedCount = (item) => (choices.value[item.id] || []).filter((choice) => choice.include).length;
+const basketTemplates = computed(() => ATTRIBUTE_TEMPLATES.filter((item) => pickedCount(item) > 0));
+
+// All picked attributes of all templates as one template: the same attribute (e.g. Color) picked from
+// two templates becomes one attribute holding the union of the picked values.
+const combined = computed(() => {
+  const merged = new Map();
+  basketTemplates.value.forEach((item) => {
+    item.attributes.forEach((attribute, index) => {
+      const choice = choices.value[item.id][index];
+      if (!choice.include) return;
+      const key = keyOf(attribute);
+      if (!merged.has(key)) merged.set(key, { name: attribute.name, type: attribute.type, core: false, values: [], sources: [], seen: new Set() });
+      const entry = merged.get(key);
+      if (attribute.type === 'color') entry.type = 'color';
+      if (choice.core) entry.core = true;
+      if (!entry.sources.includes(item.id)) entry.sources.push(item.id);
+      attribute.values.forEach((raw, valueIndex) => {
+        if (!choice.values[valueIndex]) return;
+        const value = parseTemplateValue(raw);
+        const valueKey = `${normalize(value.name_ar)}|${normalize(value.name_en)}`;
+        if (entry.seen.has(valueKey)) return;
+        entry.seen.add(valueKey);
+        entry.values.push(raw);
+      });
+    });
+  });
+  return { id: 'basket', attributes: [...merged.values()].map(({ seen, ...rest }) => rest) };
+});
+const combinedSelection = computed(() => combined.value.attributes.map((attribute) => ({
+  include: attribute.values.length > 0, core: attribute.core, values: attribute.values.map(() => true),
+})));
+const basketPlan = computed(() => planTemplate(combined.value, combinedSelection.value, props.attributes));
+const basketAttributes = computed(() => combined.value.attributes.length);
+const basketValues = computed(() => combined.value.attributes.reduce((sum, attribute) => sum + attribute.values.length, 0));
+const templateName = (id) => pick(ATTRIBUTE_TEMPLATES.find((item) => item.id === id).name);
+const existsInBasket = (index) => basketPlan.value.rows.find((row) => row.index === index)?.exists;
+
+const removeFromBasket = (attribute) => {
+  const key = keyOf(attribute);
+  ATTRIBUTE_TEMPLATES.forEach((item) => {
+    item.attributes.forEach((candidate, index) => {
+      if (keyOf(candidate) === key && choices.value[item.id]) choices.value[item.id][index].include = false;
+    });
+  });
+};
+const clearBasket = () => { choices.value = {}; };
+const existsOnServer = (attribute) => props.attributes.some((item) => [item.name, item.label, item.name_ar, item.name_en, item.translations?.ar?.name, item.translations?.en?.name].map((value) => normalize(value ?? '')).some((value) => value && (value === normalize(attribute.name[0]) || value === normalize(attribute.name[1]))));
+
+// Inside one template
+const allIncluded = computed(() => selection.value.length > 0 && selection.value.every((choice) => choice.include));
 const toggleAll = () => { const next = !allIncluded.value; selection.value.forEach((choice) => { choice.include = next; }); };
 const setAllValues = (index, on) => { selection.value[index].values = selection.value[index].values.map(() => on); };
 const chosenCount = (index) => selection.value[index].values.filter(Boolean).length;
-const nothingToCreate = computed(() => plan.value.attributes === 0 && plan.value.values === 0);
 
 const percent = computed(() => (progress.value.total ? Math.round((progress.value.done / progress.value.total) * 100) : 100));
+const nothingToCreate = computed(() => basketPlan.value.attributes === 0 && basketPlan.value.values === 0);
 
 const run = async () => {
   step.value = 'running';
-  progress.value = { done: 0, total: plan.value.attributes + plan.value.values, label: '' };
+  progress.value = { done: 0, total: basketPlan.value.attributes + basketPlan.value.values, label: '' };
   summary.value = await applyTemplate({
-    template: template.value,
-    selection: selection.value,
+    template: combined.value,
+    selection: combinedSelection.value,
     existing: props.attributes,
     onProgress: (value) => { progress.value = value; },
   });
@@ -58,11 +114,13 @@ const close = () => { if (step.value === 'running') return; if (step.value === '
   <div class="tpl-overlay" @click.self="close" data-testid="attribute-templates">
     <div class="tpl-screen" role="dialog" aria-modal="true">
       <header class="tpl-head">
-        <button v-if="step === 'preview'" type="button" class="tpl-back" @click="step = 'gallery'">← {{ tx('رجوع', 'Back') }}</button>
+        <button v-if="step === 'preview'" type="button" class="tpl-back" @click="step = 'gallery'">← {{ tx('رجوع للقوالب', 'Back to templates') }}</button>
+        <button v-else-if="step === 'review'" type="button" class="tpl-back" @click="step = 'gallery'">← {{ tx('رجوع للقوالب', 'Back to templates') }}</button>
         <div class="tpl-titles">
-          <h2>{{ step === 'gallery' ? tx('قوالب الخصائص الجاهزة', 'Ready-made attribute templates') : template ? `${template.icon} ${pick(template.name)}` : '' }}</h2>
-          <p v-if="step === 'gallery'">{{ tx('اختر قالباً وسيتم إنشاء كل خصائصه وقيمها دفعة واحدة. تقدر تعدّل أي حاجة بعدها.', 'Pick a template and all its attributes and values are created at once. You can edit anything afterwards.') }}</p>
+          <h2>{{ step === 'gallery' ? tx('قوالب الخصائص الجاهزة', 'Ready-made attribute templates') : step === 'review' ? tx('مراجعة السلة', 'Review your basket') : template ? `${template.icon} ${pick(template.name)}` : '' }}</h2>
+          <p v-if="step === 'gallery'">{{ tx('ادخل على أي قالب واختار منه اللي يعجبك، وارجع واختار من قالب تاني. كل اللي تختاره بيتجمع في سلة واحدة وتنشئه مرة واحدة.', 'Open any template and pick what you like, then go back and pick from another. Everything you pick is collected into one basket and created at once.') }}</p>
           <p v-else-if="step === 'preview'">{{ pick(template.description) }}</p>
+          <p v-else-if="step === 'review'">{{ tx('ده كل اللي اخترته من كل القوالب. الخاصية المشتركة بين قالبين بتتدمج.', 'Everything you picked across templates. An attribute shared by two templates is merged into one.') }}</p>
         </div>
         <button v-if="step !== 'running'" type="button" class="tpl-close" :aria-label="tx('إغلاق', 'Close')" @click="close">×</button>
       </header>
@@ -72,6 +130,7 @@ const close = () => { if (step.value === 'running') return; if (step.value === '
         <div class="tpl-grid">
           <button v-for="item in ATTRIBUTE_TEMPLATES" :key="item.id" type="button" class="tpl-card" :data-testid="`template-${item.id}`" @click="openTemplate(item)">
             <span class="tpl-icon">{{ item.icon }}</span>
+            <span v-if="pickedCount(item)" class="tpl-picked">✓ {{ pickedCount(item) }} {{ tx('محدد', 'picked') }}</span>
             <strong>{{ pick(item.name) }}</strong>
             <span class="tpl-desc">{{ pick(item.description) }}</span>
             <span class="tpl-stats">
@@ -85,14 +144,14 @@ const close = () => { if (step.value === 'running') return; if (step.value === '
       <!-- 2. Preview -->
       <div v-else-if="step === 'preview'" class="tpl-body">
         <div class="tpl-tools">
-          <label class="tpl-check"><input type="checkbox" :checked="allIncluded" @change="toggleAll" /> {{ tx('تحديد كل الخصائص', 'Select all attributes') }}</label>
-          <span class="tpl-hint">{{ tx('شيل علامة ✓ من أي خاصية أو قيمة مش عايزها قبل الإنشاء.', 'Untick any attribute or value you don\'t want before creating.') }}</span>
+          <label class="tpl-check"><input type="checkbox" :checked="allIncluded" @change="toggleAll" /> {{ tx('تحديد كل خصائص القالب', 'Select the whole template') }}</label>
+          <span class="tpl-hint">{{ tx('علّم ✓ على الخصائص اللي عايزها بس. تقدر تفتح القيم وتشيل منها.', 'Tick only the attributes you want. Open the values to untick some.') }}</span>
         </div>
         <div v-for="(attribute, index) in template.attributes" :key="attribute.name[1]" class="tpl-attr" :class="{ off: !selection[index].include }">
           <div class="tpl-attr-head">
             <label class="tpl-check strong"><input v-model="selection[index].include" type="checkbox" /> {{ pick(attribute.name) }}</label>
             <span v-if="attribute.type === 'color'" class="tpl-tag">{{ tx('ألوان', 'Colors') }}</span>
-            <span v-if="rowFor(index)?.exists" class="tpl-tag warn">{{ tx('موجودة — هتتضاف القيم الناقصة بس', 'Already exists — only missing values are added') }}</span>
+            <span v-if="existsOnServer(attribute)" class="tpl-tag warn">{{ tx('موجودة — هتتضاف القيم الناقصة بس', 'Already exists — only missing values are added') }}</span>
             <label class="tpl-check core"><input v-model="selection[index].core" type="checkbox" :disabled="!selection[index].include" /> {{ tx('أساسية', 'Core') }}</label>
             <button type="button" class="tpl-toggle" @click="selection[index].open = !selection[index].open">
               {{ chosenCount(index) }}/{{ attribute.values.length }} {{ tx('قيمة', 'values') }} {{ selection[index].open ? '▲' : '▼' }}
@@ -110,6 +169,28 @@ const close = () => { if (step.value === 'running') return; if (step.value === '
             </label>
           </div>
         </div>
+      </div>
+
+      <!-- 2b. Review the basket (all templates) -->
+      <div v-else-if="step === 'review'" class="tpl-body">
+        <div v-for="(attribute, index) in combined.attributes" :key="attribute.name[1]" class="tpl-attr">
+          <div class="tpl-attr-head">
+            <strong class="tpl-name">{{ pick(attribute.name) }}</strong>
+            <span v-if="attribute.type === 'color'" class="tpl-tag">{{ tx('ألوان', 'Colors') }}</span>
+            <span v-if="attribute.core" class="tpl-tag">{{ tx('أساسية', 'Core') }}</span>
+            <span v-for="id in attribute.sources" :key="id" class="tpl-tag src">{{ templateName(id) }}</span>
+            <span v-if="existsInBasket(index)" class="tpl-tag warn">{{ tx('موجودة — هتتضاف القيم الناقصة بس', 'Already exists — only missing values are added') }}</span>
+            <span class="tpl-count">{{ attribute.values.length }} {{ tx('قيمة', 'values') }}</span>
+            <button type="button" class="tpl-remove" :title="tx('شيل من السلة', 'Remove from basket')" @click="removeFromBasket(attribute)">✕</button>
+          </div>
+          <div class="tpl-values">
+            <span v-for="raw in attribute.values" :key="raw" class="tpl-chip on">
+              <span v-if="parseTemplateValue(raw).color" class="tpl-dot" :style="{ background: parseTemplateValue(raw).color }"></span>
+              {{ pick([parseTemplateValue(raw).name_ar, parseTemplateValue(raw).name_en]) }}
+            </span>
+          </div>
+        </div>
+        <p v-if="!combined.attributes.length" class="tpl-hint">{{ tx('السلة فاضية. ارجع واختار خصائص من القوالب.', 'The basket is empty. Go back and pick attributes from the templates.') }}</p>
       </div>
 
       <!-- 3. Running -->
@@ -139,12 +220,24 @@ const close = () => { if (step.value === 'running') return; if (step.value === '
         <p v-if="summary.coreFailed" class="tpl-errors">{{ tx('اتعملت الخصائص، لكن تعذر تعليمها كأساسية. علّمها من صفحة الخصائص.', 'Attributes were created, but marking them as core failed. Mark them on the attributes page.') }}</p>
       </div>
 
-      <footer v-if="step === 'preview'" class="tpl-foot">
+      <footer v-if="step === 'gallery' || step === 'preview'" class="tpl-foot">
+        <div class="tpl-total">
+          <template v-if="!basketAttributes">{{ step === 'preview' ? tx('لسه ما اخترتش حاجة من القالب ده.', 'Nothing picked from this template yet.') : tx('السلة فاضية.', 'The basket is empty.') }}</template>
+          <template v-else>
+            🧺 {{ tx('في السلة', 'In basket') }}: <b>{{ basketAttributes }}</b> {{ tx('خاصية', 'attributes') }} · <b>{{ basketValues }}</b> {{ tx('قيمة', 'values') }}
+            <template v-if="basketTemplates.length > 1"> · {{ tx('من', 'from') }} <b>{{ basketTemplates.length }}</b> {{ tx('قوالب', 'templates') }}</template>
+          </template>
+        </div>
+        <button v-if="basketAttributes" type="button" class="tpl-btn ghost" @click="clearBasket">{{ tx('تفريغ السلة', 'Clear basket') }}</button>
+        <button v-if="step === 'preview'" type="button" class="tpl-btn ghost" @click="step = 'gallery'">{{ tx('إضافة من قالب تاني', 'Pick from another template') }}</button>
+        <button type="button" class="tpl-btn" :disabled="!basketAttributes" data-testid="template-review" @click="step = 'review'">{{ tx('مراجعة وإنشاء', 'Review & create') }}</button>
+      </footer>
+      <footer v-else-if="step === 'review'" class="tpl-foot">
         <div class="tpl-total">
           <template v-if="nothingToCreate">{{ tx('مفيش حاجة جديدة هتتعمل: كل اللي اخترته موجود.', 'Nothing new to create: everything you picked already exists.') }}</template>
-          <template v-else>{{ tx('هيتم إنشاء', 'Will create') }} <b>{{ plan.attributes }}</b> {{ tx('خاصية و', 'attributes and') }} <b>{{ plan.values }}</b> {{ tx('قيمة', 'values') }}</template>
+          <template v-else>{{ tx('هيتم إنشاء', 'Will create') }} <b>{{ basketPlan.attributes }}</b> {{ tx('خاصية و', 'attributes and') }} <b>{{ basketPlan.values }}</b> {{ tx('قيمة', 'values') }}</template>
         </div>
-        <button type="button" class="tpl-btn ghost" @click="emit('close')">{{ tx('إلغاء', 'Cancel') }}</button>
+        <button type="button" class="tpl-btn ghost" @click="step = 'gallery'">{{ tx('إضافة المزيد', 'Add more') }}</button>
         <button type="button" class="tpl-btn" :disabled="nothingToCreate" data-testid="template-apply" @click="run">{{ tx('إنشاء الكل', 'Create all') }}</button>
       </footer>
       <footer v-else-if="step === 'result'" class="tpl-foot">
@@ -214,6 +307,14 @@ const close = () => { if (step.value === 'running') return; if (step.value === '
 .tpl-summary { list-style: none; margin: 0.4rem 0 0; padding: 0; display: grid; gap: 0.35rem; font-size: 0.95rem; }
 .tpl-errors { max-width: 560px; text-align: start; font-size: 0.82rem; color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 0.7rem 1rem; }
 .tpl-errors p { margin: 0.2rem 0 0; }
+.tpl-picked { align-self: flex-end; font-size: 0.74rem; font-weight: 800; padding: 0.15rem 0.6rem; border-radius: 999px; background: var(--primary, #660033); color: #fff; }
+.tpl-card { position: relative; }
+.tpl-picked { position: absolute; top: 0.8rem; inset-inline-end: 0.8rem; }
+.tpl-name { margin-inline-end: auto; font-size: 0.95rem; }
+.tpl-tag.src { background: var(--bg-main, #f8f7fa); color: var(--text-muted, #787586); border: 1px solid var(--border-color, #e2e0e7); }
+.tpl-count { font-size: 0.78rem; font-weight: 700; color: var(--text-muted, #787586); }
+.tpl-remove { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border-color, #e2e0e7); background: transparent; color: #dc2626; cursor: pointer; font-weight: 800; }
+.tpl-remove:hover { background: #dc2626; color: #fff; border-color: #dc2626; }
 @keyframes tpl-spin { to { transform: rotate(360deg); } }
 @media (max-width: 640px) { .tpl-overlay { padding: 0; } .tpl-screen { border-radius: 0; } }
 </style>
