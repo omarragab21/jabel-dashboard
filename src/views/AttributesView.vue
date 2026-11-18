@@ -6,6 +6,11 @@
         <h2 class="page-title">{{ tx('خصائص المنتجات', 'Product Attributes') }}</h2>
         <p class="page-subtitle">{{ tx('إدارة القيم المتاحة ضمن خصائص المنتجات المعرفة مسبقاً', 'Manage predefined product attributes and values') }}</p>
       </div>
+      <div class="header-actions">
+      <button class="header-add-btn header-tpl-btn" type="button" data-testid="open-attribute-templates" @click="showTemplates = true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        {{ tx('قوالب جاهزة', 'Templates') }}
+      </button>
       <button class="header-add-btn" type="button" @click="openAttributeModal">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="12" y1="5" x2="12" y2="19"/>
@@ -13,7 +18,10 @@
         </svg>
         {{ tx('إضافة خاصية', 'Add Attribute') }}
       </button>
+      </div>
     </div>
+
+    <AttributeTemplatesModal v-if="showTemplates" :attributes="attributes" @close="showTemplates = false" @done="fetchAttributes" />
 
     <!-- Add Attribute Modal -->
     <div class="modal-overlay" v-if="showAttributeModal" @click.self="closeAttributeModal">
@@ -235,6 +243,7 @@ import { computed, ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAdminText } from '../composables/useAdminText';
 import BilingualField from '../components/BilingualField.vue';
+import AttributeTemplatesModal from '../components/AttributeTemplatesModal.vue';
 import productAttributeService from '../services/productAttributeService';
 import { parseColorCode } from '../domain/catalog/adminCatalog';
 import { loadSavedCoreIds, resolveCoreIds, saveCoreIds } from '../services/coreAttributes';
@@ -259,6 +268,7 @@ const valueName = (value) => {
 };
 
 const attributes = ref([]);
+const showTemplates = ref(false);
 const loading = ref(false);
 
 const selectedAttribute = ref(null);
@@ -547,6 +557,9 @@ const deleteValueItem = async (val) => {
   color: #6b7280;
 }
 .add-btn,
+.header-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.header-tpl-btn { background: transparent !important; color: var(--primary, #660033) !important; border: 1.5px solid var(--primary, #660033) !important; }
+.header-tpl-btn:hover { background: rgba(102, 0, 51, 0.08) !important; }
 .header-add-btn {
   display: flex;
   align-items: center;
