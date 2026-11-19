@@ -57,7 +57,7 @@
         </div>
       </div>
 
-      <!-- Toolbar: search + status segments -->
+      <!-- Toolbar: search + status dropdown (same as Reviews and Orders) -->
       <div class="filters-row">
         <div class="search-box">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="search-icon">
@@ -66,20 +66,11 @@
           <input type="text" v-model="searchQuery" :placeholder="tx('البحث بالاسم أو البريد أو رقم الجوال...', 'Search by name, email or phone...')" class="search-input" />
         </div>
 
-        <div class="status-segments" role="tablist" :aria-label="tx('تصفية حسب الحالة', 'Filter by status')">
-          <button
-            v-for="opt in statusOptions"
-            :key="opt.value"
-            type="button"
-            role="tab"
-            class="segment-btn"
-            :class="{ active: statusFilter === opt.value }"
-            :aria-selected="statusFilter === opt.value"
-            @click="statusFilter = opt.value"
-          >
-            <span>{{ opt.label }}</span>
-            <span class="segment-count">{{ opt.count }}</span>
-          </button>
+        <div class="filter-select">
+          <select v-model="statusFilter" class="form-select" :aria-label="tx('تصفية حسب الحالة', 'Filter by status')" data-testid="customers-status-filter">
+            <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }} ({{ opt.count }})</option>
+          </select>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="select-icon" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
       </div>
 
@@ -326,12 +317,9 @@ const bulkActions = computed(() => [
 .search-input { width: 100%; height: 48px; box-sizing: border-box; padding: 0 2.8rem 0 1rem; border: 1px solid #e5e7eb; border-radius: 10px; font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 0.85rem; outline: none; background: #fff; transition: border-color 0.2s, box-shadow 0.2s; }
 .search-input:focus { border-color: #660033; box-shadow: 0 0 0 4px rgba(0,0,0,0.06); }
 
-.status-segments { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem; height: 48px; box-sizing: border-box; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 10px; }
-.segment-btn { display: inline-flex; align-items: center; gap: 0.6rem; height: 100%; padding: 0 1.1rem; border: none; background: transparent; border-radius: 8px; font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 0.82rem; font-weight: 700; color: #6b7280; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-.segment-btn:hover { color: #111827; }
-.segment-btn.active { background: #660033; color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
-.segment-count { min-width: 20px; padding: 0.05rem 0.4rem; border-radius: 50px; background: #e5e7eb; color: #374151; font-size: 0.7rem; font-weight: 800; text-align: center; }
-.segment-btn.active .segment-count { background: rgba(255,255,255,0.22); color: #fff; }
+.filter-select { position: relative; display: flex; align-items: center; min-width: 150px; }
+.form-select { width: 100%; padding: 0.75rem 0.75rem 0.75rem 2.2rem; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 0.85rem; color: #374151; appearance: none; outline: none; }
+.filter-select .select-icon { position: absolute; left: 0.75rem; color: #9ca3af; pointer-events: none; }
 
 .table-container { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow-x: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
 .data-table { width: 100%; border-collapse: collapse; }
@@ -399,8 +387,7 @@ const bulkActions = computed(() => [
 
 @media (max-width: 768px) {
   .list-stats-grid { grid-template-columns: 1fr; }
-  .status-segments { width: 100%; }
-  .segment-btn { flex: 1; justify-content: center; padding: 0 0.5rem; }
+  .filter-select { width: 100%; }
   .view-modal { padding: 1.5rem 1.25rem; }
 }
 </style>
