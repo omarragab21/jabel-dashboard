@@ -43,6 +43,7 @@ const sectionMeta = computed(() => ({
     newsbar: { title: tx('شريط الأخبار', 'News bar'), subtitle: tx('الأخبار التي تظهر في الشريط الأزرق تحت قائمة الموقع، بالعربي والإنجليزي', 'The news shown in the blue bar under the website menu, in Arabic and English') },
     branding: { title: tx('الهوية البصرية', 'Visual identity'), subtitle: tx('الشعارات وأيقونة المتصفح والألوان الأساسية', 'Logos, browser icon and brand colours') },
     about: { title: tx('من نحن', 'About us'), subtitle: tx('محتوى صفحة «من نحن» في الموقع', 'Content of the website About page') },
+    status: { title: tx('حالة الموقع', 'Website status'), subtitle: tx('شغّال أو تحت الإنشاء أو جاري التحديث: اللي تختاره يظهر للزوار بدل الموقع', 'Live, under construction or updating: what you pick is shown to visitors instead of the site') },
     preview: { title: tx('معاينة الموقع', 'Site preview'), subtitle: tx('رابط الموقع الحقيقي الذي يفتحه زر «معاينة الموقع» أعلى لوحة التحكم', 'The live website link opened by the «Preview site» button at the top of the dashboard') },
 }[section.value]));
 // True from the first paint: every Site setup page shows a shimmer until the API answers.
@@ -113,6 +114,10 @@ const settings = ref({
     about_section_3_content_en: '',
     ...aboutPageDefaults(),
     site_preview_url: '',
+    // Website status: 'live' (normal), 'construction' or 'updating'. Anything else counts as live.
+    site_status: 'live',
+    site_status_message_ar: '',
+    site_status_message_en: '',
     about_hero_image: null,
     about_image_1: null,
     about_image_2: null,
@@ -262,6 +267,7 @@ const fetchSettings = async () => {
         resetHomeSections();
         newsItemsSaved.value = parseNewsItems(data.find((setting) => setting.key === NEWS_BAR_KEY)?.value);
         resetNewsItems();
+        savedSiteStatus.value = SITE_STATUSES.includes(settings.value.site_status) ? settings.value.site_status : 'live';
         resetTabs();
     } catch (error) {
         triggerAlert(t('admin.settings.failed'), 'error');
@@ -410,6 +416,18 @@ const moveNewsItem = (index, step) => {
     [list[index], list[target]] = [list[target], list[index]];
 };
 
+// ── Website status ─────────────────────────────────────
+// The website reads site_status from the settings API: 'live' shows the site; 'construction' and 'updating' show a
+// full-page notice instead (with the optional message below, in Arabic and English).
+const SITE_STATUSES = ['live', 'construction', 'updating'];
+const siteStatus = computed(() => (SITE_STATUSES.includes(settings.value.site_status) ? settings.value.site_status : 'live'));
+const savedSiteStatus = ref('live');
+const siteStatusOptions = computed(() => [
+    { value: 'live', title: tx('الموقع شغّال', 'Website is live'), hint: tx('الزوار يشوفون الموقع بشكله العادي.', 'Visitors see the website as usual.') },
+    { value: 'construction', title: tx('تحت الإنشاء', 'Under construction'), hint: tx('الزوار يشوفون صفحة «الموقع تحت الإنشاء» بدل الموقع.', 'Visitors see an «under construction» page instead of the site.') },
+    { value: 'updating', title: tx('جاري التحديث', 'Updating'), hint: tx('الزوار يشوفون صفحة «جاري تحديث الموقع» بدل الموقع.', 'Visitors see an «updating the site» page instead of the site.') },
+]);
+
 // ── Homepage product lists ───────────────────────────────────────────────────
 // Each list on the website homepage («منتجات مميزة», «وصل حديثاً», or a category's
 // products) is one entry of the home_product_sections setting, shown in this order.
@@ -488,6 +506,14 @@ const saveSettings = async (successMessage = t('admin.settings.success')) => {
             return;
         }
     }
+    if (section.value === 'status' && siteStatus.value !== 'live' && siteStatus.value !== savedSiteStatus.value) {
+        const closing = siteStatus.value === 'construction' ? tx('تحت الإنشاء', 'under construction') : tx('جاري التحديث', 'updating');
+        const ok = await dialog.confirm(
+            tx(`الزوار مش هيشوفوا الموقع وهتظهر لهم صفحة «${closing}» لحد ما ترجّعه «الموقع شغّال».`, `Visitors will not see the website; they get the «${closing}» page until you set it back to live.`),
+            { type: 'warning', title: tx('تغيير حالة الموقع؟', 'Change the website status?'), confirmText: tx('تأكيد', 'Confirm') },
+        );
+        if (!ok) return;
+    }
     const previewRaw = String(settings.value.site_preview_url ?? '').trim();
     if (previewRaw && !normalizePreviewUrl(previewRaw)) {
         triggerAlert(tx('رابط الموقع غير صحيح. اكتبه مثل https://mastergas.com.sa', 'The site link is not valid. Write it like https://mastergas.com.sa'), 'error');
@@ -511,6 +537,7 @@ const saveSettings = async (successMessage = t('admin.settings.success')) => {
         await settingsService.bulkUpdate({ ...settings.value, site_name: siteName });
 
         setPreviewUrl(settings.value.site_preview_url);
+        savedSiteStatus.value = siteStatus.value;
         triggerAlert(successMessage);
         // Refresh to get full URLs
         fetchSettings();
@@ -759,6 +786,31 @@ const triggerAlert = (message, type = 'success') => {
                     <p v-if="!newsItems.length" class="home-lists-empty">{{ tx('لا توجد أخبار: الشريط لن يظهر في الموقع.', 'No news items: the bar will not show on the website.') }}</p>
                     <button type="button" class="add-list-btn" data-testid="news-item-add" @click="addNewsItem">+ {{ tx('إضافة خبر', 'Add a news item') }}</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Website status Tab -->
+        <div v-if="section === 'status'" class="tab-pane fade-in" data-testid="site-status-pane">
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label>{{ tx('حالة الموقع', 'Website status') }}</label>
+                    <div class="status-options" role="radiogroup" :aria-label="tx('حالة الموقع', 'Website status')">
+                        <label v-for="option in siteStatusOptions" :key="option.value" class="status-option" :class="[`is-${option.value}`, { active: siteStatus === option.value }]" :data-testid="`site-status-${option.value}`">
+                            <input type="radio" name="site_status" :value="option.value" v-model="settings.site_status" />
+                            <span class="status-dot" aria-hidden="true"></span>
+                            <span class="status-text"><strong>{{ option.title }}</strong><small>{{ option.hint }}</small></span>
+                        </label>
+                    </div>
+                    <small class="field-hint">{{ tx('اضغط «حفظ» لتطبيق الحالة. لوحة التحكم نفسها تفضل شغّالة دايماً، والتغيير يظهر للزوار عند فتح الموقع أو تحديث الصفحة.', 'Press Save to apply. This dashboard always keeps working; visitors see the change when they open or refresh the site.') }}</small>
+                </div>
+                <BilingualField v-if="siteStatus !== 'live'" class="form-group full-width" :ar="settings.site_status_message_ar" :en="settings.site_status_message_en" testid="site-status-message">
+                    <template #label><label>{{ tx('رسالة للزوار (اختياري)', 'Message for visitors (optional)') }}</label></template>
+                    <template #default="{ lang }">
+                        <textarea v-show="lang === 'ar'" v-model="settings.site_status_message_ar" rows="3" maxlength="300" dir="rtl" placeholder="مثال: نعمل على تطوير الموقع وسنعود قريباً" data-testid="site-status-message-ar"></textarea>
+                        <textarea v-show="lang === 'en'" v-model="settings.site_status_message_en" rows="3" maxlength="300" dir="ltr" placeholder="e.g. We are improving the site and will be back soon" class="ltr-input" data-testid="site-status-message-en"></textarea>
+                        <small class="field-hint">{{ tx('تظهر تحت العنوان في صفحة الزوار. لو تركتها فاضية تظهر الرسالة الافتراضية.', 'Shown under the title on the visitors page. Left empty, the default message is shown.') }}</small>
+                    </template>
+                </BilingualField>
             </div>
         </div>
 
@@ -1189,6 +1241,19 @@ const triggerAlert = (message, type = 'success') => {
 .logo-preview-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .logo-preview-box.dark { background: #1f2937; }
 .logo-preview-box.small { width: 60px; height: 60px; }
+.status-options { display: grid; gap: 12px; margin-top: 8px; }
+.status-option { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1.5px solid #e5e7eb; border-radius: 14px; background: #fff; cursor: pointer; transition: border-color .15s, background .15s, box-shadow .15s; }
+.status-option input { position: absolute; opacity: 0; pointer-events: none; }
+.status-option:hover { border-color: #c9c4cf; }
+.status-option:focus-within { box-shadow: 0 0 0 3px rgba(102, 0, 51, 0.15); }
+.status-option.active { border-color: #660033; background: rgba(102, 0, 51, 0.05); }
+.status-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; background: #9ca3af; }
+.status-option.is-live .status-dot { background: #16a34a; }
+.status-option.is-construction .status-dot { background: #f59e0b; }
+.status-option.is-updating .status-dot { background: #2563eb; }
+.status-text { display: flex; flex-direction: column; gap: 2px; }
+.status-text strong { font-size: 0.95rem; color: #1f2937; }
+.status-text small { color: #6b7280; font-size: 0.8rem; line-height: 1.5; }
 .field-hint { display: block; margin-top: 4px; color: #6b7280; font-size: 0.76rem; line-height: 1.5; }
 
 .upload-info p { margin: 0 0 8px; color: #4b5563; font-size: 0.85rem; font-weight: 600; }

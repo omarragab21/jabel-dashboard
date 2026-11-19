@@ -89,6 +89,7 @@ export const PERMISSION_GROUPS = [
       { key: 'settings_branding', route: '/admin/settings/branding', label: ['الهوية البصرية', 'Branding'], actions: READ_UPDATE },
       { key: 'settings_newsbar', route: '/admin/settings/newsbar', label: ['شريط الأخبار', 'News bar'], actions: READ_UPDATE },
       { key: 'settings_about', route: '/admin/settings/about', label: ['من نحن', 'About us'], actions: READ_UPDATE },
+      { key: 'settings_status', route: '/admin/settings/status', label: ['حالة الموقع', 'Website status'], actions: READ_UPDATE },
       { key: 'settings_preview', route: '/admin/settings/preview', label: ['معاينة الموقع', 'Site preview'], actions: READ_ONLY },
       { key: 'settings_privacy', route: '/admin/settings/privacy', label: ['سياسة الخصوصية', 'Privacy policy'], actions: READ_UPDATE },
       { key: 'settings_terms', route: '/admin/settings/terms', label: ['الشروط والأحكام', 'Terms & conditions'], actions: READ_UPDATE },
