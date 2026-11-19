@@ -133,7 +133,6 @@ export const tijaraAdminApi = {
   listOrders: (params = {}) => api.get('/v1/orders', { params }),
   getOrder: (id) => api.get(`/v1/orders/${encodePathSegment(id, 'order id')}`),
   updateOrder: (id, payload) => api.patch(`/v1/orders/${encodePathSegment(id, 'order id')}`, payload, json),
-  deleteOrder: (id) => api.delete(`/v1/orders/${encodePathSegment(id, 'order id')}`),
 };
 
 export default tijaraAdminApi;

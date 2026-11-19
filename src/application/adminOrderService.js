@@ -24,10 +24,6 @@ export const adminOrderService = {
     const response = await tijaraAdminApi.updateOrder(order.id, payload);
     return toOrder(dataFromResponse(response.data));
   },
-  deleteOrder: async (id) => {
-    if (id === undefined || id === null || id === '') throw new Error('رقم الطلب غير موجود');
-    return tijaraAdminApi.deleteOrder(id);
-  },
 };
 
 export default adminOrderService;
