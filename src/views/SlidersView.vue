@@ -417,7 +417,7 @@ const bulkActions = computed(() => [
     </div>
 
     <!-- How the banners change on the website -->
-    <BannerAnimationPicker />
+    <BannerAnimationPicker :images="sliders.map((slider) => normalizeSliderImage(slider.image)).filter(Boolean)" />
 
     <!-- Filters -->
     <div class="filters-card mb-6">
