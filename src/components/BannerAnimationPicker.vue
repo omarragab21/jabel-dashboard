@@ -14,6 +14,8 @@ const props = defineProps({ images: { type: Array, default: () => [] } });
 
 const { tx, locale } = useAdminText();
 const lang = computed(() => (locale.value === 'en' ? 1 : 0));
+// Arabic reads and aligns from the right, English from the left (the dialog is teleported to <body>, so it sets its own direction).
+const dir = computed(() => (lang.value === 1 ? 'ltr' : 'rtl'));
 
 const open = ref(false);
 const saved = ref('cinematic');
@@ -119,7 +121,7 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('keydown', onKey); })
 </script>
 
 <template>
-  <section class="ba-card" data-testid="banner-animation">
+  <section class="ba-card" data-testid="banner-animation" :dir="dir">
     <div class="ba-head">
       <div>
         <h2>{{ tx('حركة البانرات', 'Banner animation') }}</h2>
@@ -135,7 +137,7 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('keydown', onKey); })
   </section>
 
   <Teleport to="body">
-    <div v-if="open" class="ba-overlay" data-testid="banner-animation-dialog" @click.self="close">
+    <div v-if="open" class="ba-overlay" data-testid="banner-animation-dialog" :dir="dir" @click.self="close">
       <div class="ba-dialog" role="dialog" aria-modal="true" :aria-label="tx('حركة البانرات', 'Banner animation')">
         <div class="ba-dialog-head">
           <div>
@@ -147,7 +149,7 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('keydown', onKey); })
 
         <div class="ba-dialog-body">
           <div class="ba-preview-wrap">
-            <div class="bap-stage" data-testid="banner-animation-stage" dir="ltr">
+            <div class="bap-stage" data-testid="banner-animation-stage" :dir="dir">
               <transition-group :key="`${selected}-${stageKey}`" :name="transitionName" tag="div" class="hero-slides-wrapper" :class="`hero-anim-${selected}`">
                 <div v-for="(slide, idx) in slides" v-show="current === idx" :key="slide.id" class="hero-slide-item">
                   <div class="hero-bg" :style="slide.bg"></div>
@@ -208,7 +210,7 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('keydown', onKey); })
 .ba-cancel { border: 1px solid #d1d5db; background: #fff; border-radius: 10px; padding: 9px 18px; font: inherit; cursor: pointer; }
 
 .ba-overlay { position: fixed; inset: 0; z-index: 3000; background: rgba(17, 24, 39, 0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
-.ba-dialog { background: #fff; color: #111827; width: 100%; max-width: 980px; max-height: calc(100vh - 32px); border-radius: 18px; display: flex; flex-direction: column; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3); overflow: hidden; }
+.ba-dialog { text-align: start; background: #fff; color: #111827; width: 100%; max-width: 980px; max-height: calc(100vh - 32px); border-radius: 18px; display: flex; flex-direction: column; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3); overflow: hidden; }
 .ba-dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 16px 20px; border-bottom: 1px solid #e5e7eb; }
 .ba-dialog-head h2 { margin: 0 0 4px; font-size: 1.1rem; }
 .ba-dialog-head p { margin: 0; color: #6b7280; font-size: 0.85rem; }
