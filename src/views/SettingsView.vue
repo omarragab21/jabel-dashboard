@@ -43,7 +43,7 @@ const sectionMeta = computed(() => ({
     newsbar: { title: tx('شريط الأخبار', 'News bar'), subtitle: tx('الأخبار التي تظهر في الشريط الأزرق تحت قائمة الموقع، بالعربي والإنجليزي', 'The news shown in the blue bar under the website menu, in Arabic and English') },
     branding: { title: tx('الهوية البصرية', 'Visual identity'), subtitle: tx('الشعارات وأيقونة المتصفح والألوان الأساسية', 'Logos, browser icon and brand colours') },
     about: { title: tx('من نحن', 'About us'), subtitle: tx('محتوى صفحة «من نحن» في الموقع', 'Content of the website About page') },
-    status: { title: tx('حالة الموقع', 'Website status'), subtitle: tx('شغّال أو تحت الإنشاء أو جاري التحديث: اللي تختاره يظهر للزوار بدل الموقع', 'Live, under construction or updating: what you pick is shown to visitors instead of the site') },
+    status: { title: tx('حالة الموقع', 'Website status'), subtitle: tx('يعمل الموقع أو هو قيد الإنشاء أو قيد التحديث: ما تختاره يظهر للزوار بدلاً من الموقع', 'Live, under construction or updating: what you pick is shown to visitors instead of the site') },
     preview: { title: tx('معاينة الموقع', 'Site preview'), subtitle: tx('رابط الموقع الحقيقي الذي يفتحه زر «معاينة الموقع» أعلى لوحة التحكم', 'The live website link opened by the «Preview site» button at the top of the dashboard') },
 }[section.value]));
 // True from the first paint: every Site setup page shows a shimmer until the API answers.
@@ -423,9 +423,9 @@ const SITE_STATUSES = ['live', 'construction', 'updating'];
 const siteStatus = computed(() => (SITE_STATUSES.includes(settings.value.site_status) ? settings.value.site_status : 'live'));
 const savedSiteStatus = ref('live');
 const siteStatusOptions = computed(() => [
-    { value: 'live', title: tx('الموقع شغّال', 'Website is live'), hint: tx('الزوار يشوفون الموقع بشكله العادي.', 'Visitors see the website as usual.') },
-    { value: 'construction', title: tx('تحت الإنشاء', 'Under construction'), hint: tx('الزوار يشوفون صفحة «الموقع تحت الإنشاء» بدل الموقع.', 'Visitors see an «under construction» page instead of the site.') },
-    { value: 'updating', title: tx('جاري التحديث', 'Updating'), hint: tx('الزوار يشوفون صفحة «جاري تحديث الموقع» بدل الموقع.', 'Visitors see an «updating the site» page instead of the site.') },
+    { value: 'live', title: tx('الموقع يعمل', 'Website is live'), hint: tx('يشاهد الزوار الموقع بشكله المعتاد.', 'Visitors see the website as usual.') },
+    { value: 'construction', title: tx('تحت الإنشاء', 'Under construction'), hint: tx('يشاهد الزوار صفحة «الموقع تحت الإنشاء» بدلاً من الموقع.', 'Visitors see an «under construction» page instead of the site.') },
+    { value: 'updating', title: tx('قيد التحديث', 'Updating'), hint: tx('يشاهد الزوار صفحة «جارٍ تحديث الموقع» بدلاً من الموقع.', 'Visitors see an «updating the site» page instead of the site.') },
 ]);
 
 // ── Homepage product lists ───────────────────────────────────────────────────
@@ -507,9 +507,9 @@ const saveSettings = async (successMessage = t('admin.settings.success')) => {
         }
     }
     if (section.value === 'status' && siteStatus.value !== 'live' && siteStatus.value !== savedSiteStatus.value) {
-        const closing = siteStatus.value === 'construction' ? tx('تحت الإنشاء', 'under construction') : tx('جاري التحديث', 'updating');
+        const closing = siteStatus.value === 'construction' ? tx('تحت الإنشاء', 'under construction') : tx('قيد التحديث', 'updating');
         const ok = await dialog.confirm(
-            tx(`الزوار مش هيشوفوا الموقع وهتظهر لهم صفحة «${closing}» لحد ما ترجّعه «الموقع شغّال».`, `Visitors will not see the website; they get the «${closing}» page until you set it back to live.`),
+            tx(`لن يتمكن الزوار من مشاهدة الموقع، وستظهر لهم صفحة «${closing}» إلى أن تعيد الحالة إلى «الموقع يعمل».`, `Visitors will not see the website; they get the «${closing}» page until you set it back to live.`),
             { type: 'warning', title: tx('تغيير حالة الموقع؟', 'Change the website status?'), confirmText: tx('تأكيد', 'Confirm') },
         );
         if (!ok) return;
@@ -801,14 +801,14 @@ const triggerAlert = (message, type = 'success') => {
                             <span class="status-text"><strong>{{ option.title }}</strong><small>{{ option.hint }}</small></span>
                         </label>
                     </div>
-                    <small class="field-hint">{{ tx('اضغط «حفظ» لتطبيق الحالة. لوحة التحكم نفسها تفضل شغّالة دايماً، والتغيير يظهر للزوار عند فتح الموقع أو تحديث الصفحة.', 'Press Save to apply. This dashboard always keeps working; visitors see the change when they open or refresh the site.') }}</small>
+                    <small class="field-hint">{{ tx('اضغط «حفظ» لتطبيق الحالة. تبقى لوحة التحكم تعمل دائماً، ويظهر التغيير للزوار عند فتح الموقع أو تحديث الصفحة.', 'Press Save to apply. This dashboard always keeps working; visitors see the change when they open or refresh the site.') }}</small>
                 </div>
                 <BilingualField v-if="siteStatus !== 'live'" class="form-group full-width" :ar="settings.site_status_message_ar" :en="settings.site_status_message_en" testid="site-status-message">
                     <template #label><label>{{ tx('رسالة للزوار (اختياري)', 'Message for visitors (optional)') }}</label></template>
                     <template #default="{ lang }">
-                        <textarea v-show="lang === 'ar'" v-model="settings.site_status_message_ar" rows="3" maxlength="300" dir="rtl" placeholder="مثال: نعمل على تطوير الموقع وسنعود قريباً" data-testid="site-status-message-ar"></textarea>
+                        <textarea v-show="lang === 'ar'" v-model="settings.site_status_message_ar" rows="3" maxlength="300" dir="rtl" placeholder="مثال: نعمل على تطوير الموقع، وسيعود إلى الخدمة قريباً" data-testid="site-status-message-ar"></textarea>
                         <textarea v-show="lang === 'en'" v-model="settings.site_status_message_en" rows="3" maxlength="300" dir="ltr" placeholder="e.g. We are improving the site and will be back soon" class="ltr-input" data-testid="site-status-message-en"></textarea>
-                        <small class="field-hint">{{ tx('تظهر تحت العنوان في صفحة الزوار. لو تركتها فاضية تظهر الرسالة الافتراضية.', 'Shown under the title on the visitors page. Left empty, the default message is shown.') }}</small>
+                        <small class="field-hint">{{ tx('تظهر أسفل العنوان في صفحة الزوار. وإذا تُركت فارغة تظهر الرسالة الافتراضية.', 'Shown under the title on the visitors page. Left empty, the default message is shown.') }}</small>
                     </template>
                 </BilingualField>
             </div>
