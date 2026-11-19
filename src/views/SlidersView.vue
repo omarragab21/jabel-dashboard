@@ -15,6 +15,7 @@ import { sanitizeUrl } from '../utils/sanitize';
 import BilingualField from '../components/BilingualField.vue';
 import { provideBilingualForm } from '../composables/useBilingualForm';
 import { hasText } from '../utils/bilingualText';
+import BannerAnimationPicker from '../components/BannerAnimationPicker.vue';
 
 const { tx, locale } = useAdminText();
 const { cropModal, closeCrop, finishCrop, prepareImage, recropImage } = useImageCrop();
@@ -414,6 +415,9 @@ const bulkActions = computed(() => [
           </button>
        </div>
     </div>
+
+    <!-- How the banners change on the website -->
+    <BannerAnimationPicker />
 
     <!-- Filters -->
     <div class="filters-card mb-6">
