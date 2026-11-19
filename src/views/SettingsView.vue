@@ -14,6 +14,7 @@ import SettingsSkeleton from '../components/SettingsSkeleton.vue';
 import ImageCropButton from '../components/ImageCropButton.vue';
 import { useImageCrop } from '../composables/useImageCrop';
 import { useDialog } from '../composables/useDialog';
+import BilingualField from '../components/BilingualField.vue';
 // The colours the website ships with (website/src/style.css: --color-brand-primary and --color-surface-dark-elevated).
 import { DEFAULT_TAB_TITLES, PRODUCT_TABS_KEY, normalizeTab, parseProductTabs, resolveProductTabs } from '../domain/productTabs';
 import { SOCIAL_KEYS, normalizeSocialLink } from '../domain/socialLinks';
@@ -577,24 +578,21 @@ const triggerAlert = (message, type = 'success') => {
         <!-- Site settings: name + description -->
         <div v-if="section === 'general'" class="tab-pane fade-in">
             <div class="form-grid">
-                <div class="form-group">
-                    <label>{{ tx('اسم الموقع (عربي)', 'Site name (Arabic)') }} <span class="req">*</span></label>
-                    <input type="text" v-model="settings.site_name_ar" placeholder="اسم الموقع بالعربي" data-testid="site-name-ar" />
-                    <small class="field-hint">{{ tx('يظهر في تبويب المتصفح عندما يكون الموقع بالعربي.', 'Shown in the browser tab when the site is in Arabic.') }}</small>
-                </div>
-                <div class="form-group">
-                    <label>{{ tx('اسم الموقع (إنجليزي)', 'Site name (English)') }} <span class="req">*</span></label>
-                    <input type="text" v-model="settings.site_name_en" placeholder="Site name in English" class="ltr-input" data-testid="site-name-en" />
-                    <small class="field-hint">{{ tx('يظهر في تبويب المتصفح عندما يكون الموقع بالإنجليزي.', 'Shown in the browser tab when the site is in English.') }}</small>
-                </div>
-                <div class="form-group">
-                    <label>{{ tx('وصف الموقع (عربي)', 'Site description (Arabic)') }}</label>
-                    <textarea v-model="settings.site_description_ar" rows="3" maxlength="300" placeholder="نبذة قصيرة تظهر أسفل الشعار في فوتر الموقع" data-testid="site-description-ar"></textarea>
-                </div>
-                <div class="form-group">
-                    <label>{{ tx('وصف الموقع (إنجليزي)', 'Site description (English)') }}</label>
-                    <textarea v-model="settings.site_description_en" rows="3" maxlength="300" placeholder="A short note shown under the logo in the website footer" class="ltr-input" data-testid="site-description-en"></textarea>
-                </div>
+                <BilingualField class="form-group" required :ar="settings.site_name_ar" :en="settings.site_name_en" testid="site-name">
+                    <template #label><label>{{ tx('اسم الموقع', 'Site name') }} <span class="req">*</span></label></template>
+                    <template #default="{ lang }">
+                        <input v-show="lang === 'ar'" type="text" v-model="settings.site_name_ar" dir="rtl" placeholder="اسم الموقع بالعربي" data-testid="site-name-ar" />
+                        <input v-show="lang === 'en'" type="text" v-model="settings.site_name_en" dir="ltr" placeholder="Site name in English" class="ltr-input" data-testid="site-name-en" />
+                        <small class="field-hint">{{ lang === 'ar' ? tx('يظهر في تبويب المتصفح عندما يكون الموقع بالعربي.', 'Shown in the browser tab when the site is in Arabic.') : tx('يظهر في تبويب المتصفح عندما يكون الموقع بالإنجليزي.', 'Shown in the browser tab when the site is in English.') }}</small>
+                    </template>
+                </BilingualField>
+                <BilingualField class="form-group" :ar="settings.site_description_ar" :en="settings.site_description_en" testid="site-description">
+                    <template #label><label>{{ tx('وصف الموقع', 'Site description') }}</label></template>
+                    <template #default="{ lang }">
+                        <textarea v-show="lang === 'ar'" v-model="settings.site_description_ar" rows="3" maxlength="300" dir="rtl" placeholder="نبذة قصيرة تظهر أسفل الشعار في فوتر الموقع" data-testid="site-description-ar"></textarea>
+                        <textarea v-show="lang === 'en'" v-model="settings.site_description_en" rows="3" maxlength="300" dir="ltr" placeholder="A short note shown under the logo in the website footer" class="ltr-input" data-testid="site-description-en"></textarea>
+                    </template>
+                </BilingualField>
             </div>
         </div>
 
@@ -694,34 +692,31 @@ const triggerAlert = (message, type = 'success') => {
         <!-- Address & working hours -->
         <div v-if="section === 'location'" class="tab-pane fade-in">
             <div class="form-grid">
-                <div class="form-group full-width">
-                    <label>{{ t('admin.settings.address_ar') }} <span class="req">*</span></label>
-                    <textarea v-model="settings.address_ar" rows="2" placeholder="المملكة العربية السعودية - الرياض"></textarea>
-                </div>
-                <div class="form-group full-width">
-                    <label>{{ t('admin.settings.address_en') }} <span class="req">*</span></label>
-                    <textarea v-model="settings.address_en" rows="2" placeholder="Kingdom of Saudi Arabia - Riyadh" class="ltr-input"></textarea>
-                </div>
+                <BilingualField class="form-group full-width" required :ar="settings.address_ar" :en="settings.address_en" testid="address">
+                    <template #label><label>{{ tx('العنوان', 'Address') }} <span class="req">*</span></label></template>
+                    <template #default="{ lang }">
+                        <textarea v-show="lang === 'ar'" v-model="settings.address_ar" rows="2" dir="rtl" placeholder="المملكة العربية السعودية - الرياض" data-testid="address-ar"></textarea>
+                        <textarea v-show="lang === 'en'" v-model="settings.address_en" rows="2" dir="ltr" placeholder="Kingdom of Saudi Arabia - Riyadh" class="ltr-input" data-testid="address-en"></textarea>
+                    </template>
+                </BilingualField>
 
                 <div class="form-group full-width">
                     <small class="field-hint">{{ tx('ساعات العمل وساعات الجمعة تظهر في فوتر الموقع وصفحة «تواصل معنا». اكتب اليوم والوقت معًا مثل: السبت - الخميس: 9:00 ص - 10:00 م', 'Working hours and Friday hours show in the website footer and the Contact page. Write the day and time together, e.g. Saturday - Thursday: 9:00 AM - 10:00 PM') }}</small>
                 </div>
-                <div class="form-group full-width">
-                    <label>{{ t('admin.settings.working_hours_ar') }} <span class="req">*</span></label>
-                    <input type="text" v-model="settings.working_hours_ar" placeholder="السبت - الخميس: 9:00 ص - 10:00 م" />
-                </div>
-                <div class="form-group full-width">
-                    <label>{{ t('admin.settings.working_hours_en') }} <span class="req">*</span></label>
-                    <input type="text" v-model="settings.working_hours_en" placeholder="Saturday - Thursday: 9:00 AM - 10:00 PM" class="ltr-input" />
-                </div>
-                <div class="form-group full-width">
-                    <label>{{ t('admin.settings.friday_hours_ar') }} <span class="req">*</span></label>
-                    <input type="text" v-model="settings.friday_hours_ar" placeholder="الجمعة: 4:00 م - 10:00 م" />
-                </div>
-                <div class="form-group full-width">
-                    <label>{{ t('admin.settings.friday_hours_en') }} <span class="req">*</span></label>
-                    <input type="text" v-model="settings.friday_hours_en" placeholder="Friday: 4:00 PM - 10:00 PM" class="ltr-input" />
-                </div>
+                <BilingualField class="form-group full-width" required :ar="settings.working_hours_ar" :en="settings.working_hours_en" testid="working-hours">
+                    <template #label><label>{{ tx('ساعات العمل', 'Working hours') }} <span class="req">*</span></label></template>
+                    <template #default="{ lang }">
+                        <input v-show="lang === 'ar'" type="text" v-model="settings.working_hours_ar" dir="rtl" placeholder="السبت - الخميس: 9:00 ص - 10:00 م" data-testid="working-hours-ar" />
+                        <input v-show="lang === 'en'" type="text" v-model="settings.working_hours_en" dir="ltr" placeholder="Saturday - Thursday: 9:00 AM - 10:00 PM" class="ltr-input" data-testid="working-hours-en" />
+                    </template>
+                </BilingualField>
+                <BilingualField class="form-group full-width" required :ar="settings.friday_hours_ar" :en="settings.friday_hours_en" testid="friday-hours">
+                    <template #label><label>{{ tx('ساعات يوم الجمعة', 'Friday hours') }} <span class="req">*</span></label></template>
+                    <template #default="{ lang }">
+                        <input v-show="lang === 'ar'" type="text" v-model="settings.friday_hours_ar" dir="rtl" placeholder="الجمعة: 4:00 م - 10:00 م" data-testid="friday-hours-ar" />
+                        <input v-show="lang === 'en'" type="text" v-model="settings.friday_hours_en" dir="ltr" placeholder="Friday: 4:00 PM - 10:00 PM" class="ltr-input" data-testid="friday-hours-en" />
+                    </template>
+                </BilingualField>
 
             </div>
         </div>
@@ -752,14 +747,13 @@ const triggerAlert = (message, type = 'success') => {
                             </div>
                         </div>
                         <div class="home-list-grid">
-                            <div class="form-group full-width">
-                                <label>{{ tx('النص (عربي)', 'Text (Arabic)') }}</label>
-                                <input type="text" v-model="item.text_ar" placeholder="نصائح صيدلانية موثوقة..." />
-                            </div>
-                            <div class="form-group full-width">
-                                <label>{{ tx('النص (English)', 'Text (English)') }}</label>
-                                <input type="text" v-model="item.text_en" placeholder="Trusted pharmacy advice..." class="ltr-input" />
-                            </div>
+                            <BilingualField class="form-group full-width" :ar="item.text_ar" :en="item.text_en" :testid="`news-item-${index}-text`">
+                                <template #label><label>{{ tx('النص', 'Text') }}</label></template>
+                                <template #default="{ lang }">
+                                    <input v-show="lang === 'ar'" type="text" v-model="item.text_ar" dir="rtl" placeholder="نصائح صيدلانية موثوقة..." :data-testid="`news-item-${index}-text-ar`" />
+                                    <input v-show="lang === 'en'" type="text" v-model="item.text_en" dir="ltr" placeholder="Trusted pharmacy advice..." class="ltr-input" :data-testid="`news-item-${index}-text-en`" />
+                                </template>
+                            </BilingualField>
                         </div>
                     </div>
                     <p v-if="!newsItems.length" class="home-lists-empty">{{ tx('لا توجد أخبار: الشريط لن يظهر في الموقع.', 'No news items: the bar will not show on the website.') }}</p>
@@ -794,14 +788,13 @@ const triggerAlert = (message, type = 'success') => {
                             </div>
                         </div>
                         <div class="home-list-grid">
-                            <div class="form-group">
-                                <label>{{ tx('العنوان (عربي)', 'Title (Arabic)') }}</label>
-                                <input type="text" v-model.trim="item.title_ar" placeholder="منتجات مميزة" />
-                            </div>
-                            <div class="form-group">
-                                <label>{{ tx('العنوان (English)', 'Title (English)') }}</label>
-                                <input type="text" v-model.trim="item.title_en" placeholder="Featured Products" class="ltr-input" />
-                            </div>
+                            <BilingualField class="form-group" :ar="item.title_ar" :en="item.title_en" :testid="`home-section-${index}-title`">
+                                <template #label><label>{{ tx('العنوان', 'Title') }}</label></template>
+                                <template #default="{ lang }">
+                                    <input v-show="lang === 'ar'" type="text" v-model.trim="item.title_ar" dir="rtl" placeholder="منتجات مميزة" :data-testid="`home-section-${index}-title-ar`" />
+                                    <input v-show="lang === 'en'" type="text" v-model.trim="item.title_en" dir="ltr" placeholder="Featured Products" class="ltr-input" :data-testid="`home-section-${index}-title-en`" />
+                                </template>
+                            </BilingualField>
                             <div class="form-group">
                                 <label>{{ tx('المنتجات المعروضة', 'Products shown') }}</label>
                                 <select v-model="item.source" class="custom-select-v2" @change="item.source !== 'category' && (item.category_id = null)">
@@ -831,23 +824,21 @@ const triggerAlert = (message, type = 'success') => {
                     <h3 style="font-size: 1.1rem; font-weight: 800; color: #1f2937; margin: 0 0 20px 0;">{{ t('admin.settings.home_titles') }}</h3>
                 </div>
                 
-                <div class="form-group">
-                    <label>{{ t('admin.settings.category_title_ar') }}</label>
-                    <input type="text" v-model="settings.home_section_category_title_ar" placeholder="تسوّق حسب الفئة" />
-                </div>
-                <div class="form-group">
-                    <label>{{ t('admin.settings.category_title_en') }}</label>
-                    <input type="text" v-model="settings.home_section_category_title_en" placeholder="Shop by Category" class="ltr-input" />
-                </div>
+                <BilingualField class="form-group" :ar="settings.home_section_category_title_ar" :en="settings.home_section_category_title_en" testid="home-category-title">
+                    <template #label><label>{{ tx('عنوان قسم الفئات', 'Category section title') }}</label></template>
+                    <template #default="{ lang }">
+                        <input v-show="lang === 'ar'" type="text" v-model="settings.home_section_category_title_ar" dir="rtl" placeholder="تسوّق حسب الفئة" data-testid="home-category-title-ar" />
+                        <input v-show="lang === 'en'" type="text" v-model="settings.home_section_category_title_en" dir="ltr" placeholder="Shop by Category" class="ltr-input" data-testid="home-category-title-en" />
+                    </template>
+                </BilingualField>
                 
-                <div class="form-group">
-                    <label>{{ t('admin.settings.offers_title_ar') }}</label>
-                    <input type="text" v-model="settings.home_section_offers_title_ar" placeholder="العروض المميزة" />
-                </div>
-                <div class="form-group">
-                    <label>{{ t('admin.settings.offers_title_en') }}</label>
-                    <input type="text" v-model="settings.home_section_offers_title_en" placeholder="Featured Offers" class="ltr-input" />
-                </div>
+                <BilingualField class="form-group" :ar="settings.home_section_offers_title_ar" :en="settings.home_section_offers_title_en" testid="home-offers-title">
+                    <template #label><label>{{ tx('عنوان قسم العروض', 'Offers section title') }}</label></template>
+                    <template #default="{ lang }">
+                        <input v-show="lang === 'ar'" type="text" v-model="settings.home_section_offers_title_ar" dir="rtl" placeholder="العروض المميزة" data-testid="home-offers-title-ar" />
+                        <input v-show="lang === 'en'" type="text" v-model="settings.home_section_offers_title_en" dir="ltr" placeholder="Featured Offers" class="ltr-input" data-testid="home-offers-title-en" />
+                    </template>
+                </BilingualField>
             </div>
         </div>
         <!-- Product page tabs -->
@@ -867,14 +858,13 @@ const triggerAlert = (message, type = 'success') => {
                             <strong class="home-list-title">{{ tab.title_ar || tab.title_en || DEFAULT_TAB_TITLES[tab.source].ar }}</strong>
                         </div>
                         <div class="home-list-grid">
-                            <div class="form-group">
-                                <label>{{ tx('الاسم (عربي)', 'Name (Arabic)') }}</label>
-                                <input type="text" v-model="tab.title_ar" :placeholder="DEFAULT_TAB_TITLES[tab.source].ar" />
-                            </div>
-                            <div class="form-group">
-                                <label>{{ tx('الاسم (English)', 'Name (English)') }}</label>
-                                <input type="text" v-model="tab.title_en" :placeholder="DEFAULT_TAB_TITLES[tab.source].en" class="ltr-input" />
-                            </div>
+                            <BilingualField class="form-group" :ar="tab.title_ar" :en="tab.title_en" :testid="`product-tab-${index}-title`">
+                                <template #label><label>{{ tx('الاسم', 'Name') }}</label></template>
+                                <template #default="{ lang }">
+                                    <input v-show="lang === 'ar'" type="text" v-model="tab.title_ar" dir="rtl" :placeholder="DEFAULT_TAB_TITLES[tab.source].ar" :data-testid="`product-tab-${index}-title-ar`" />
+                                    <input v-show="lang === 'en'" type="text" v-model="tab.title_en" dir="ltr" :placeholder="DEFAULT_TAB_TITLES[tab.source].en" class="ltr-input" :data-testid="`product-tab-${index}-title-en`" />
+                                </template>
+                            </BilingualField>
                         </div>
                     </div>
                 </div>
@@ -1048,22 +1038,20 @@ const triggerAlert = (message, type = 'success') => {
                     </div>
 
                     <div class="form-grid about-two-columns about-section-fields">
-                        <div class="form-group">
-                            <label>{{ tx('العنوان (عربي)', 'Title (Arabic)') }}</label>
-                            <input type="text" v-model="settings[section.titleAr]" :placeholder="section.placeholders.titleAr" />
-                        </div>
-                        <div class="form-group">
-                            <label>Title (English)</label>
-                            <input type="text" v-model="settings[section.titleEn]" :placeholder="section.placeholders.titleEn" class="ltr-input" />
-                        </div>
-                        <div class="form-group">
-                            <label>{{ tx('الوصف (عربي)', 'Description (Arabic)') }}</label>
-                            <textarea v-model="settings[section.contentAr]" rows="6" :placeholder="section.placeholders.contentAr"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label>Description (English)</label>
-                            <textarea v-model="settings[section.contentEn]" rows="6" :placeholder="section.placeholders.contentEn" class="ltr-input"></textarea>
-                        </div>
+                        <BilingualField class="form-group" :ar="settings[section.titleAr]" :en="settings[section.titleEn]" :testid="`about-section-${section.number}-title`">
+                            <template #label><label>{{ tx('العنوان', 'Title') }}</label></template>
+                            <template #default="{ lang }">
+                                <input v-show="lang === 'ar'" type="text" v-model="settings[section.titleAr]" dir="rtl" :placeholder="section.placeholders.titleAr" :data-testid="`about-section-${section.number}-title-ar`" />
+                                <input v-show="lang === 'en'" type="text" v-model="settings[section.titleEn]" dir="ltr" :placeholder="section.placeholders.titleEn" class="ltr-input" :data-testid="`about-section-${section.number}-title-en`" />
+                            </template>
+                        </BilingualField>
+                        <BilingualField class="form-group" :ar="settings[section.contentAr]" :en="settings[section.contentEn]" :testid="`about-section-${section.number}-content`">
+                            <template #label><label>{{ tx('الوصف', 'Description') }}</label></template>
+                            <template #default="{ lang }">
+                                <textarea v-show="lang === 'ar'" v-model="settings[section.contentAr]" rows="6" dir="rtl" :placeholder="section.placeholders.contentAr" :data-testid="`about-section-${section.number}-content-ar`"></textarea>
+                                <textarea v-show="lang === 'en'" v-model="settings[section.contentEn]" rows="6" dir="ltr" :placeholder="section.placeholders.contentEn" class="ltr-input" :data-testid="`about-section-${section.number}-content-en`"></textarea>
+                            </template>
+                        </BilingualField>
                     </div>
                 </section>
 
@@ -1077,17 +1065,20 @@ const triggerAlert = (message, type = 'success') => {
                             <p>{{ tx('نصوص صفحة «من نحن» بالعربي والإنجليزي. أي خانة تسيبها فاضية وتحفظ، الجزء ده بيتشال من الصفحة في الموقع.', 'About page texts in Arabic and English. Any field you leave empty and save is removed from the page on the website.') }}</p>
                         </div>
                     </div>
-                    <div v-for="item in group.fields" :key="item.key" class="form-grid about-two-columns about-section-fields">
-                        <div class="form-group">
-                            <label>{{ tx(item.label[0], item.label[1]) }} ({{ tx('عربي', 'Arabic') }})</label>
-                            <textarea v-if="item.multiline" v-model="settings[`${item.key}_ar`]" rows="3" :data-testid="`${item.key}_ar`"></textarea>
-                            <input v-else type="text" v-model="settings[`${item.key}_ar`]" :data-testid="`${item.key}_ar`" />
-                        </div>
-                        <div class="form-group">
-                            <label>{{ item.label[1] }} (English)</label>
-                            <textarea v-if="item.multiline" v-model="settings[`${item.key}_en`]" rows="3" class="ltr-input" :data-testid="`${item.key}_en`"></textarea>
-                            <input v-else type="text" v-model="settings[`${item.key}_en`]" class="ltr-input" :data-testid="`${item.key}_en`" />
-                        </div>
+                    <div v-for="item in group.fields" :key="item.key" class="about-section-fields">
+                        <BilingualField class="form-group" :ar="settings[`${item.key}_ar`]" :en="settings[`${item.key}_en`]" :testid="`${item.key}-field`">
+                            <template #label><label>{{ tx(item.label[0], item.label[1]) }}</label></template>
+                            <template #default="{ lang }">
+                                <template v-if="item.multiline">
+                                    <textarea v-show="lang === 'ar'" v-model="settings[`${item.key}_ar`]" rows="3" dir="rtl" :data-testid="`${item.key}_ar`"></textarea>
+                                    <textarea v-show="lang === 'en'" v-model="settings[`${item.key}_en`]" rows="3" dir="ltr" class="ltr-input" :data-testid="`${item.key}_en`"></textarea>
+                                </template>
+                                <template v-else>
+                                    <input v-show="lang === 'ar'" type="text" v-model="settings[`${item.key}_ar`]" dir="rtl" :data-testid="`${item.key}_ar`" />
+                                    <input v-show="lang === 'en'" type="text" v-model="settings[`${item.key}_en`]" dir="ltr" class="ltr-input" :data-testid="`${item.key}_en`" />
+                                </template>
+                            </template>
+                        </BilingualField>
                     </div>
                 </section>
 

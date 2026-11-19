@@ -94,10 +94,12 @@
     </div>
 
     <!-- Table -->
+    <div class="col-toolbar"><ColumnPicker table-key="reviews" /></div>
     <div class="table-container">
-      <table class="data-table">
+      <table class="data-table" data-col-key="reviews" :data-bulk-table="bulk.tableId">
         <thead>
           <tr>
+            <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
             <th class="col-name text-right">{{ tx('المنتج', 'Product') }}</th>
             <th class="col-customer">{{ tx('العميل', 'Customer') }}</th>
             <th class="col-rating">{{ tx('التقييم', 'Rating') }}</th>
@@ -108,10 +110,11 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading" class="state-row"><td colspan="7">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
-          <tr v-else-if="filteredReviews.length === 0" class="state-row"><td colspan="7">{{ tx('لا توجد تقييمات مطابقة', 'No matching reviews') }}</td></tr>
+          <tr v-if="loading" class="state-row"><td colspan="8">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
+          <tr v-else-if="filteredReviews.length === 0" class="state-row"><td colspan="8">{{ tx('لا توجد تقييمات مطابقة', 'No matching reviews') }}</td></tr>
           <template v-else>
-            <tr v-for="review in filteredReviews" :key="review.id" class="data-row">
+            <tr v-for="review in filteredReviews" :key="review.id" class="data-row" :class="{ 'is-selected': bulk.isSelected(review.id) }" :data-bulk-id="review.id">
+              <td class="bulk-col" @click.stop><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(review.id)" :aria-label="tx('تحديد', 'Select')" data-testid="bulk-row" @click="bulk.toggle(review.id, $event)" /></td>
               <td class="col-name text-right">
                 <span class="offer-name">{{ productName(review) }}</span>
               </td>
@@ -150,6 +153,7 @@
         </tbody>
       </table>
     </div>
+    <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="reviews" />
 
     <!-- View Modal -->
     <div class="modal-overlay" v-if="viewedReview" @click.self="closeView">
@@ -242,6 +246,9 @@
 </template>
 
 <script setup>
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
+import ColumnPicker from '../components/ColumnPicker.vue';
 import { localizeMessage } from '../utils/uiMessages';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, computed, onMounted } from 'vue';
@@ -349,6 +356,16 @@ const executeDelete = async () => {
 };
 
 onMounted(fetchReviews);
+
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+const bulk = useBulkSelection(() => filteredReviews.value);
+const bulkActions = computed(() => [
+  { key: 'approve', label: tx('موافقة ونشر', 'Approve'), icon: 'check', applies: (r) => !r.is_approved,
+    each: (r) => adminManagementService.updateReview(r.id, { is_approved: 1 }), done: fetchReviews, success: (n) => tx(`تمت الموافقة على ${n} تقييم`, `${n} reviews approved`) },
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    confirm: (rows) => tx(`هتحذف ${rows.length} تقييم. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} reviews? This cannot be undone.`),
+    each: (r) => adminManagementService.deleteReview(r.id), done: fetchReviews, success: (n) => tx(`تم حذف ${n} تقييم`, `${n} reviews deleted`) },
+]);
 </script>
 
 <style scoped>

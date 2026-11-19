@@ -1,4 +1,7 @@
 <script setup>
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
+import ColumnPicker from '../components/ColumnPicker.vue';
 import { localizeMessage } from '../utils/uiMessages';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, onMounted, computed } from 'vue';
@@ -9,6 +12,9 @@ import ImageCropModal from '../components/ImageCropModal.vue';
 import ImageCropButton from '../components/ImageCropButton.vue';
 import { useImageCrop } from '../composables/useImageCrop';
 import { sanitizeUrl } from '../utils/sanitize';
+import BilingualField from '../components/BilingualField.vue';
+import { provideBilingualForm } from '../composables/useBilingualForm';
+import { hasText } from '../utils/bilingualText';
 
 const { tx, locale } = useAdminText();
 const { cropModal, closeCrop, finishCrop, prepareImage, recropImage } = useImageCrop();
@@ -26,9 +32,11 @@ const deleteTarget = ref(null);
 const isDeleting = ref(false);
 const previewImage = ref(null);
 const imageFile = ref(null);
-// The form opens on the dashboard's language; Arabic tab sits on the right, English on the left.
-const formLang = () => (locale.value === 'en' ? 'en' : 'ar');
-const activeLang = ref(formLang());
+// The English fields feed the English website: Arabic letters there are marked on the field's English side.
+const ARABIC_LETTERS = /[\u0600-\u06FF]/;
+const hasArabicLetters = (value) => ARABIC_LETTERS.test(String(value || ''));
+// Each Arabic / English field has its own language switch (BilingualField); this resets or reveals them all.
+const bilingual = provideBilingualForm();
 
 const backendOrigin = (import.meta.env.VITE_API_BASE_URL || 'https://backend-jabal.be-kite.com/api')
     .replace(/\/api\/?$/, '');
@@ -190,7 +198,7 @@ const openAddModal = () => {
     form.value = { ...initialForm, order: sliders.value.length + 1 };
     previewImage.value = null;
     imageFile.value = null;
-    activeLang.value = formLang();
+    bilingual.reset();
     showFormModal.value = true;
 };
 
@@ -210,7 +218,7 @@ const openEditModal = (slider) => {
     };
     previewImage.value = normalizeSliderImage(slider.image);
     imageFile.value = null;
-    activeLang.value = formLang();
+    bilingual.reset();
     showFormModal.value = true;
 };
 
@@ -245,20 +253,19 @@ const recropCurrentImage = async () => {
 
 const submitForm = async () => {
     // Validate bilingual fields
-    if (!String(form.value.title_ar || '').trim()) {
-        activeLang.value = 'ar';
+    if (!hasText(form.value.title_ar)) {
+        bilingual.reveal();
         triggerAlert('عنوان الشريحة بالعربي مطلوب', 'error');
         return;
     }
-    if (!String(form.value.title_en || '').trim()) {
-        activeLang.value = 'en';
+    if (!hasText(form.value.title_en)) {
+        bilingual.reveal();
         triggerAlert('عنوان الشريحة بالإنجليزية مطلوب', 'error');
         return;
     }
     // The English fields feed the English website: Arabic letters there would show Arabic text on the English site.
-    const ARABIC_LETTERS = /[\u0600-\u06FF]/;
-    if (ARABIC_LETTERS.test(form.value.title_en || '') || ARABIC_LETTERS.test(form.value.description_en || '')) {
-        activeLang.value = 'en';
+    if (hasArabicLetters(form.value.title_en) || hasArabicLetters(form.value.description_en)) {
+        bilingual.reveal();
         triggerAlert('الحقول الإنجليزية يجب أن تكون بالإنجليزية فقط (بدون أحرف عربية)', 'error');
         return;
     }
@@ -371,6 +378,18 @@ const copyLink = (text) => {
     navigator.clipboard.writeText(text);
     triggerAlert('تم نسخ الرابط بنجاح');
 };
+
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+const bulk = useBulkSelection(() => filteredSliders.value);
+const bulkActions = computed(() => [
+  { key: 'activate', label: tx('تفعيل', 'Activate'), icon: 'check', applies: (s) => s.status !== 'active',
+    each: (s) => adminManagementService.updateSlider(s.id, toUpdateForm(s, { status: 'active' })), done: () => fetchSliders({ notify: false }), success: (n) => tx(`تم تفعيل ${n} شريحة`, `${n} slides activated`) },
+  { key: 'deactivate', label: tx('تعطيل', 'Deactivate'), icon: 'ban', applies: (s) => s.status === 'active',
+    each: (s) => adminManagementService.updateSlider(s.id, toUpdateForm(s, { status: 'inactive' })), done: () => fetchSliders({ notify: false }), success: (n) => tx(`تم تعطيل ${n} شريحة`, `${n} slides deactivated`) },
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    confirm: (rows) => tx(`هتحذف ${rows.length} شريحة. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} slides? This cannot be undone.`),
+    each: (s) => adminManagementService.deleteSlider(s.id), done: () => fetchSliders({ notify: false }), success: (n) => tx(`تم حذف ${n} شريحة`, `${n} slides deleted`) },
+]);
 </script>
 
 <template>
@@ -383,7 +402,7 @@ const copyLink = (text) => {
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
              </div>
              <div>
-                <h1>{{ tx('إعلانات السلايدر', 'Homepage Sliders') }}</h1>
+                <h1>{{ tx('البانرات الرئيسية', 'Homepage Banners') }}</h1>
                 <p>{{ tx('إدارة شرائح العرض في الصفحة الرئيسية', 'Manage homepage promotional sliders') }}</p>
              </div>
           </div>
@@ -405,10 +424,12 @@ const copyLink = (text) => {
     </div>
 
     <!-- Table -->
+    <div class="col-toolbar"><ColumnPicker table-key="sliders" /></div>
     <div class="table-container shadow-sm">
-      <table class="data-table">
+      <table class="data-table" data-col-key="sliders" :data-bulk-table="bulk.tableId">
         <thead>
           <tr>
+            <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
             <th class="col-order">{{ tx('الترتيب', 'Order') }}</th>
             <th class="col-info text-right">{{ tx('الصورة والعنوان', 'Image and Title') }}</th>
             <th class="col-desc">{{ tx('الوصف', 'Description') }}</th>
@@ -418,20 +439,21 @@ const copyLink = (text) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading" class="state-row"><td colspan="6">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
-          <tr v-else-if="filteredSliders.length === 0" class="state-row"><td colspan="6">{{ tx('لا توجد شرائح متوفرة', 'No sliders available') }}</td></tr>
+          <tr v-if="loading" class="state-row"><td colspan="7">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
+          <tr v-else-if="filteredSliders.length === 0" class="state-row"><td colspan="7">{{ tx('لا توجد شرائح متوفرة', 'No sliders available') }}</td></tr>
           <template v-else>
             <tr
               v-for="slider in filteredSliders"
               :key="slider.id"
               class="data-row"
-              :class="dropClass(slider)"
+              :class="[dropClass(slider), { 'is-selected': bulk.isSelected(slider.id) }]"
               :draggable="armedId === slider.id"
               @dragstart="onDragStart(slider, $event)"
               @dragover="onDragOver(slider, $event)"
               @drop="onDrop"
               @dragend="resetDrag"
-            >
+             :data-bulk-id="slider.id">
+              <td class="bulk-col" @click.stop><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(slider.id)" :aria-label="tx('تحديد', 'Select')" data-testid="bulk-row" @click="bulk.toggle(slider.id, $event)" /></td>
               <td class="col-order">
                   <div class="order-controls">
                     <span
@@ -493,6 +515,7 @@ const copyLink = (text) => {
         </tbody>
       </table>
     </div>
+    <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="sliders" />
 
     <!-- Form Modal -->
     <div class="modal-overlay" v-if="showFormModal" @click.self="showFormModal = false">
@@ -504,11 +527,6 @@ const copyLink = (text) => {
         </div>
         
         <div class="modal-body">
-           <div class="i18n-toggle" role="tablist" aria-label="Language" dir="ltr">
-             <button type="button" class="i18n-btn" :class="{ active: activeLang === 'en' }" @click="activeLang = 'en'">English</button>
-             <button type="button" class="i18n-btn" :class="{ active: activeLang === 'ar' }" @click="activeLang = 'ar'">العربية</button>
-           </div>
-
            <div class="upload-area mb-6">
               <label class="upload-label">{{ tx('صورة الشريحة', 'Slider Image') }}</label>
               <div class="image-preview-box" @click="$refs.imageInput.click()">
@@ -524,17 +542,25 @@ const copyLink = (text) => {
               <ImageCropModal v-bind="cropModal" @close="closeCrop" @cropped="finishCrop" />
            </div>
 
-           <div class="form-group mb-4">
-              <label class="form-label">{{ tx('العنوان', 'Title') }} <span class="req">*</span></label>
-              <input v-show="activeLang === 'ar'" type="text" v-model="form.title_ar" class="form-control" placeholder="عنوان الشريحة بالعربي..." />
-              <input v-show="activeLang === 'en'" type="text" v-model="form.title_en" class="form-control" placeholder="Slider title in English..." />
-           </div>
+           <BilingualField class="form-group mb-4" required :ar="form.title_ar" :en="form.title_en" :invalid-en="hasArabicLetters(form.title_en)" testid="slider-title">
+              <template #label="{ lang }">
+                 <label class="form-label" :for="`slider-title-${lang}`">{{ tx('العنوان', 'Title') }} <span class="req">*</span></label>
+              </template>
+              <template #default="{ lang }">
+                 <input v-show="lang === 'ar'" id="slider-title-ar" type="text" v-model="form.title_ar" class="form-control" dir="rtl" placeholder="عنوان الشريحة بالعربي..." data-testid="slider-title-ar" />
+                 <input v-show="lang === 'en'" id="slider-title-en" type="text" v-model="form.title_en" class="form-control" dir="ltr" placeholder="Slider title in English..." data-testid="slider-title-en" />
+              </template>
+           </BilingualField>
 
-           <div class="form-group mb-4">
-              <label class="form-label">{{ tx('الوصف', 'Description') }}</label>
-              <textarea v-show="activeLang === 'ar'" v-model="form.description_ar" class="form-control" rows="3" placeholder="وصف قصير للعرض بالعربي..."></textarea>
-              <textarea v-show="activeLang === 'en'" v-model="form.description_en" class="form-control" rows="3" placeholder="Short slider description in English..."></textarea>
-           </div>
+           <BilingualField class="form-group mb-4" :ar="form.description_ar" :en="form.description_en" :invalid-en="hasArabicLetters(form.description_en)" testid="slider-description">
+              <template #label="{ lang }">
+                 <label class="form-label" :for="`slider-description-${lang}`">{{ tx('الوصف', 'Description') }}</label>
+              </template>
+              <template #default="{ lang }">
+                 <textarea v-show="lang === 'ar'" id="slider-description-ar" v-model="form.description_ar" class="form-control" dir="rtl" rows="3" placeholder="وصف قصير للعرض بالعربي..." data-testid="slider-description-ar"></textarea>
+                 <textarea v-show="lang === 'en'" id="slider-description-en" v-model="form.description_en" class="form-control" dir="ltr" rows="3" placeholder="Short slider description in English..." data-testid="slider-description-en"></textarea>
+              </template>
+           </BilingualField>
 
            <div class="form-group mb-4">
               <label class="form-label">{{ tx('الرابط (اختياري)', 'Link (Optional)') }}</label>
@@ -727,9 +753,6 @@ const copyLink = (text) => {
 .action-btn.view { background: #f0f9ff; color: #0ea5e9; }
 .action-btn.view:hover { background: #e0f2fe; }
 .action-btn.edit { background: #f3f4f6; color: #660033; }
-.i18n-toggle { display: inline-flex; border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; background: var(--bg-card); margin: 0 auto 18px; }
-.i18n-btn { border: none; background: transparent; padding: 0.4rem 0.9rem; font-weight: 800; font-size: 0.85rem; cursor: pointer; color: var(--text-muted); min-width: 96px; font-family: inherit; }
-.i18n-btn.active { background: #660033; color: #fff; }
 
 .action-btn.edit:hover { background: #e5e7eb; }
 .action-btn.delete { background: #fef2f2; color: #ef4444; }
@@ -743,7 +766,6 @@ const copyLink = (text) => {
 .form-dialog { max-width: 650px; max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 25px 70px rgba(0, 0, 0, 0.25); }
 .form-dialog .modal-header { text-align: center; padding: 2rem 2rem 1.25rem; }
 .form-dialog .modal-body { display: flex; flex-direction: column; }
-.form-dialog .i18n-toggle { align-self: center; }
 .form-dialog .modal-body > * { flex-shrink: 0; }
 
 @keyframes modalPop { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }

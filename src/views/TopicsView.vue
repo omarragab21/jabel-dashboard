@@ -1,11 +1,17 @@
 <script setup>
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
+import ColumnPicker from '../components/ColumnPicker.vue';
 import { localizeMessage } from '../utils/uiMessages';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, onMounted, computed } from 'vue';
 import api from '../config/axios';
 import { useAdminText } from '../composables/useAdminText';
+import BilingualField from '../components/BilingualField.vue';
+import { provideBilingualForm } from '../composables/useBilingualForm';
+import { hasText } from '../utils/bilingualText';
 
-const { tx, locale } = useAdminText();
+const { tx } = useAdminText();
 
 // State
 const topics = ref([]);
@@ -16,9 +22,8 @@ const showViewModal = ref(false);
 const isEditing = ref(false);
 const currentTopic = ref(null);
 const isSubmitting = ref(false);
-// The form opens on the dashboard's language; Arabic tab sits on the right, English on the left.
-const formLang = () => (locale.value === 'en' ? 'en' : 'ar');
-const activeLang = ref(formLang());
+// Each Arabic / English field has its own language switch (BilingualField); this resets or reveals them all.
+const bilingual = provideBilingualForm();
 
 const form = ref({
     title_ar: '',
@@ -63,7 +68,7 @@ const openAddModal = () => {
         content_ar: '',
         content_en: '',
     };
-    activeLang.value = formLang();
+    bilingual.reset();
     showFormModal.value = true;
 };
 
@@ -78,7 +83,7 @@ const openEditModal = (topic) => {
         content_ar: contentObj?.ar ?? topic.content ?? '',
         content_en: contentObj?.en ?? '',
     };
-    activeLang.value = formLang();
+    bilingual.reset();
     showFormModal.value = true;
 };
 
@@ -89,23 +94,23 @@ const openViewModal = (topic) => {
 
 const submitForm = async () => {
     // Validate bilingual fields
-    if (!String(form.value.title_ar || '').trim()) {
-        activeLang.value = 'ar';
+    if (!hasText(form.value.title_ar)) {
+        bilingual.reveal();
         triggerAlert('عنوان الصفحة بالعربي مطلوب', 'error');
         return;
     }
-    if (!String(form.value.title_en || '').trim()) {
-        activeLang.value = 'en';
+    if (!hasText(form.value.title_en)) {
+        bilingual.reveal();
         triggerAlert('عنوان الصفحة بالإنجليزية مطلوب', 'error');
         return;
     }
-    if (!String(form.value.content_ar || '').trim()) {
-        activeLang.value = 'ar';
+    if (!hasText(form.value.content_ar)) {
+        bilingual.reveal();
         triggerAlert('المحتوى بالعربي مطلوب', 'error');
         return;
     }
-    if (!String(form.value.content_en || '').trim()) {
-        activeLang.value = 'en';
+    if (!hasText(form.value.content_en)) {
+        bilingual.reveal();
         triggerAlert('المحتوى بالإنجليزية مطلوب', 'error');
         return;
     }
@@ -183,6 +188,18 @@ const formatDate = (date) => {
     if (!date) return '-';
     return new Date(date).toISOString().split('T')[0];
 };
+
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+const bulk = useBulkSelection(() => filteredTopics.value);
+const bulkActions = computed(() => [
+  { key: 'publish', label: tx('نشر', 'Publish'), icon: 'check', applies: (t) => t.status !== 'published',
+    each: (t) => api.put(`/dashboard/topics/${t.id}`, { ...t, status: 'published' }), done: fetchTopics, success: (n) => tx(`تم نشر ${n} صفحة`, `${n} pages published`) },
+  { key: 'draft', label: tx('تحويل لمسودة', 'Move to draft'), icon: 'ban', applies: (t) => t.status === 'published',
+    each: (t) => api.put(`/dashboard/topics/${t.id}`, { ...t, status: 'draft' }), done: fetchTopics, success: (n) => tx(`تم تحويل ${n} صفحة لمسودة`, `${n} pages moved to draft`) },
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    confirm: (rows) => tx(`هتحذف ${rows.length} صفحة. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} pages? This cannot be undone.`),
+    each: (t) => api.delete(`/dashboard/topics/${t.id}`), done: fetchTopics, success: (n) => tx(`تم حذف ${n} صفحة`, `${n} pages deleted`) },
+]);
 </script>
 
 <template>
@@ -231,10 +248,12 @@ const formatDate = (date) => {
     </div>
 
     <!-- Table -->
+    <div class="col-toolbar"><ColumnPicker table-key="topics" /></div>
     <div class="table-container shadow-sm">
-      <table class="data-table">
+      <table class="data-table" data-col-key="topics" :data-bulk-table="bulk.tableId">
         <thead>
           <tr>
+            <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
             <th class="col-title text-right">{{ tx('العنوان', 'Title') }}</th>
             <th class="col-views">{{ tx('المشاهدات', 'Views') }}</th>
             <th class="col-status">{{ tx('الحالة', 'Status') }}</th>
@@ -242,10 +261,11 @@ const formatDate = (date) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading" class="state-row"><td colspan="4">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
-          <tr v-else-if="filteredTopics.length === 0" class="state-row"><td colspan="4">{{ tx('لا توجد صفحات حالياً', 'No pages yet') }}</td></tr>
+          <tr v-if="loading" class="state-row"><td colspan="5">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
+          <tr v-else-if="filteredTopics.length === 0" class="state-row"><td colspan="5">{{ tx('لا توجد صفحات حالياً', 'No pages yet') }}</td></tr>
           <template v-else>
-            <tr v-for="topic in filteredTopics" :key="topic.id" class="data-row">
+            <tr v-for="topic in filteredTopics" :key="topic.id" class="data-row" :class="{ 'is-selected': bulk.isSelected(topic.id) }" :data-bulk-id="topic.id">
+              <td class="bulk-col" @click.stop><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(topic.id)" :aria-label="tx('تحديد', 'Select')" data-testid="bulk-row" @click="bulk.toggle(topic.id, $event)" /></td>
               <td class="col-title text-right">
                 <span class="topic-title-text">{{ topic.title_i18n?.ar || topic.title }}</span>
               </td>
@@ -276,6 +296,7 @@ const formatDate = (date) => {
         </tbody>
       </table>
     </div>
+    <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="pages" :label-of="(t) => t.title_i18n?.ar || t.title || `#${t.id}`" />
 
     <!-- Form Modal -->
     <div class="modal-overlay" v-if="showFormModal" @click.self="showFormModal = false">
@@ -287,21 +308,25 @@ const formatDate = (date) => {
           </div>
           <form @submit.prevent="submitForm">
              <div class="modal-body">
-                <div class="i18n-toggle" role="tablist" aria-label="Language" dir="ltr">
-                  <button type="button" class="i18n-btn" :class="{ active: activeLang === 'en' }" @click="activeLang = 'en'">English</button>
-                  <button type="button" class="i18n-btn" :class="{ active: activeLang === 'ar' }" @click="activeLang = 'ar'">العربية</button>
-                </div>
                 <div class="form-grid">
-                   <div class="form-group full-width">
-                      <label>{{ tx('عنوان الصفحة', 'Page Title') }} <span class="req">*</span></label>
-                      <input v-show="activeLang === 'ar'" type="text" v-model="form.title_ar" placeholder="مثال: سياسة الخصوصية" />
-                      <input v-show="activeLang === 'en'" type="text" v-model="form.title_en" placeholder="Page title in English" />
-                   </div>
-                   <div class="form-group full-width">
-                      <label>{{ tx('المحتوى', 'Content') }} <span class="req">*</span></label>
-                      <textarea v-show="activeLang === 'ar'" v-model="form.content_ar" rows="6" placeholder="أدخل محتوى الصفحة هنا..."></textarea>
-                      <textarea v-show="activeLang === 'en'" v-model="form.content_en" rows="6" placeholder="Page content in English..."></textarea>
-                   </div>
+                   <BilingualField class="form-group full-width" required :ar="form.title_ar" :en="form.title_en" testid="topic-title">
+                      <template #label="{ lang }">
+                         <label :for="`topic-title-${lang}`">{{ tx('عنوان الصفحة', 'Page Title') }} <span class="req">*</span></label>
+                      </template>
+                      <template #default="{ lang }">
+                         <input v-show="lang === 'ar'" id="topic-title-ar" type="text" v-model="form.title_ar" dir="rtl" placeholder="مثال: سياسة الخصوصية" data-testid="topic-title-ar" />
+                         <input v-show="lang === 'en'" id="topic-title-en" type="text" v-model="form.title_en" dir="ltr" placeholder="Page title in English" data-testid="topic-title-en" />
+                      </template>
+                   </BilingualField>
+                   <BilingualField class="form-group full-width" required :ar="form.content_ar" :en="form.content_en" testid="topic-content">
+                      <template #label="{ lang }">
+                         <label :for="`topic-content-${lang}`">{{ tx('المحتوى', 'Content') }} <span class="req">*</span></label>
+                      </template>
+                      <template #default="{ lang }">
+                         <textarea v-show="lang === 'ar'" id="topic-content-ar" v-model="form.content_ar" dir="rtl" rows="6" placeholder="أدخل محتوى الصفحة هنا..." data-testid="topic-content-ar"></textarea>
+                         <textarea v-show="lang === 'en'" id="topic-content-en" v-model="form.content_en" dir="ltr" rows="6" placeholder="Page content in English..." data-testid="topic-content-en"></textarea>
+                      </template>
+                   </BilingualField>
                 </div>
              </div>
              <div class="modal-footer">
@@ -416,9 +441,6 @@ const formatDate = (date) => {
 
 .topic-title-text { font-weight: 700; color: #111827; }
 
-.i18n-toggle { display: inline-flex; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; background: #fff; margin: 0 auto 18px; }
-.i18n-btn { border: none; background: transparent; padding: 0.4rem 0.9rem; font-weight: 800; font-size: 0.85rem; cursor: pointer; color: #6b7280; min-width: 96px; font-family: 'IBM Plex Sans Arabic', sans-serif; }
-.i18n-btn.active { background: #660033; color: #fff; }
 .category-badge { background: #f3f4f6; color: #4b5563; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
 
 .status-btn { padding: 5px 15px; border-radius: 8px; border: none; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: 0.2s; }

@@ -1,3 +1,4 @@
+import { hasText } from '../../utils/bilingualText.js';
 const firstText = (...values) => values.find((value) => value !== undefined && value !== null && String(value).trim() !== '') ?? '';
 
 // Long-text fields come back as arrays of lines; the form keeps one point per line, so join with
@@ -311,6 +312,8 @@ export const toProductPayload = (form) => ({
 // Blank / missing optional numbers must reach the API as null, never NaN.
 const optionalNumber = (value) => (value === '' || value === null || value === undefined || Number.isNaN(Number(value)) ? null : Number(value));
 
+const orderField = (value) => (value === undefined || value === null || value === '' || !Number.isFinite(Number(value)) ? {} : { sort_order: Number(value) });
+
 export const toDiscountPayload = (form) => ({
   code: String(form.code || '').trim(),
   type: form.type || 'percentage',
@@ -328,6 +331,8 @@ export const toDiscountPayload = (form) => ({
   name_ar: String(form.name_ar || '').trim(),
   description_en: String(form.description_en || '').trim(),
   description_ar: String(form.description_ar || '').trim(),
+  // Position in the list (drag and drop). Sent only when the code already has one, so editing keeps it.
+  ...orderField(form.sort_order),
 });
 
 // ---- Bundles (الباقات): priced either by a fixed percentage off the products, or by a fixed price.
@@ -464,8 +469,9 @@ export const promotionDiscountLabel = (offer, currency = 'JOD') => (offer.type =
 /** What is wrong with the form, by field. An empty object means it can be saved. */
 export const validatePromotionForm = (form = {}) => {
   const errors = {};
-  if (!String(form.name_ar ?? '').trim()) errors.name_ar = 'required';
-  if (!String(form.name_en ?? '').trim()) errors.name_en = 'required';
+  // hasText: spaces, invisible characters or empty HTML do not count as a name.
+  if (!hasText(form.name_ar)) errors.name_ar = 'required';
+  if (!hasText(form.name_en)) errors.name_en = 'required';
   const type = form.type === 'fixed' ? 'fixed' : 'percentage';
   const value = Number(form.value);
   if (form.value === '' || form.value === null || form.value === undefined || !Number.isFinite(value) || value <= 0) errors.value = 'required';
@@ -498,6 +504,8 @@ export const toPromotionPayload = (form, allProductIds = []) => {
     start_date: apiDate(form.start_date),
     end_date: apiDate(form.end_date),
     product_ids: [...new Set(ids.map(String))],
+    // Position in the list (drag and drop). Sent only when the offer already has one, so editing keeps it.
+    ...orderField(form.sort_order),
   };
 };
 
@@ -515,6 +523,7 @@ export const promotionFormFrom = (offer, allProductIds = []) => {
     start_date: offer.start_date ? String(offer.start_date).slice(0, 10) : '',
     end_date: offer.end_date ? String(offer.end_date).slice(0, 10) : '',
     is_active: offer.is_active !== false,
+    sort_order: offer.sort_order,
   };
 };
 

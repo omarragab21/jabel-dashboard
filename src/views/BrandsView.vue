@@ -64,10 +64,12 @@
     </div>
 
     <!-- Table -->
+    <div class="col-toolbar"><ColumnPicker table-key="brands" /></div>
     <div class="table-container">
-      <table class="data-table">
+      <table class="data-table" data-col-key="brands" :data-bulk-table="bulk.tableId">
         <thead>
           <tr>
+            <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
             <th class="col-logo">{{ tx('اللوجو', 'Logo') }}</th>
             <th class="col-name">{{ tx('اسم العلامة التجارية', 'Brand Name') }}</th>
             <th class="col-status">{{ tx('الحالة', 'Status') }}</th>
@@ -77,13 +79,14 @@
         </thead>
         <tbody>
           <tr v-if="loading" class="state-row">
-            <td colspan="5">{{ tx('جاري التحميل...', 'Loading...') }}</td>
+            <td colspan="6">{{ tx('جاري التحميل...', 'Loading...') }}</td>
           </tr>
           <tr v-else-if="filteredBrands.length === 0" class="state-row">
-            <td colspan="5">{{ tx('لا توجد علامات تجارية مطابقة للبحث', 'No brands match your search') }}</td>
+            <td colspan="6">{{ tx('لا توجد علامات تجارية مطابقة للبحث', 'No brands match your search') }}</td>
           </tr>
           <template v-else>
-            <tr v-for="brand in filteredBrands" :key="brand.id" class="data-row">
+            <tr v-for="brand in filteredBrands" :key="brand.id" class="data-row" :class="{ 'is-selected': bulk.isSelected(brand.id) }" :data-bulk-id="brand.id">
+              <td class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(brand.id)" :aria-label="tx('تحديد', 'Select')" @click="bulk.toggle(brand.id, $event)" /></td>
               <td class="col-logo">
                 <div class="brand-logo-cell">
                   <div class="brand-image">
@@ -121,6 +124,7 @@
         </tbody>
       </table>
     </div>
+    <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="brands" />
 
     <!-- Form Modal (Add/Edit) -->
     <div class="modal-overlay" v-if="showFormModal" @click.self="closeModal">
@@ -135,11 +139,6 @@
           </button>
         </div>
 
-        <div class="i18n-toggle" role="tablist" aria-label="Language" dir="ltr">
-          <button type="button" class="i18n-btn" :class="{ active: activeLang === 'en' }" @click="activeLang = 'en'">English</button>
-          <button type="button" class="i18n-btn" :class="{ active: activeLang === 'ar' }" @click="activeLang = 'ar'">العربية</button>
-        </div>
-        
         <form @submit.prevent="submitForm" class="brand-form">
           <!-- Logo Upload -->
           <div class="form-group" style="text-align: center;">
@@ -164,15 +163,15 @@
           </div>
 
           <!-- Name -->
-          <div class="form-group" v-show="activeLang === 'ar'">
-            <label class="form-label">{{ tx('الاسم (عربي)', 'Name (Arabic)') }} <span class="req">*</span></label>
-            <input type="text" v-model="form.name_ar" class="form-control" :placeholder="tx('اسم العلامة التجارية بالعربي', 'Brand name in Arabic')" required />
-          </div>
-
-          <div class="form-group" v-show="activeLang === 'en'">
-            <label class="form-label">الاسم (English) <span class="req">*</span></label>
-            <input type="text" v-model="form.name_en" class="form-control" placeholder="Brand name in English" required />
-          </div>
+          <BilingualField class="form-group" required :ar="form.name_ar" :en="form.name_en" testid="brand-name">
+            <template #label="{ lang }">
+              <label class="form-label" :for="`brand-name-${lang}`">{{ tx('الاسم', 'Name') }} <span class="req">*</span></label>
+            </template>
+            <template #default="{ lang }">
+              <input v-show="lang === 'ar'" id="brand-name-ar" type="text" v-model="form.name_ar" class="form-control" dir="rtl" placeholder="اسم العلامة التجارية بالعربي" data-testid="brand-name-ar" />
+              <input v-show="lang === 'en'" id="brand-name-en" type="text" v-model="form.name_en" class="form-control" dir="ltr" placeholder="Brand name in English" data-testid="brand-name-en" />
+            </template>
+          </BilingualField>
 
           <!-- URL -->
           <div class="form-group">
@@ -220,6 +219,9 @@
 </template>
 
 <script setup>
+import ColumnPicker from '../components/ColumnPicker.vue';
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
 import { localizeMessage } from '../utils/uiMessages';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, computed, onMounted } from 'vue';
@@ -229,8 +231,11 @@ import { safeObjectUrl } from '../utils/adminSecurity';
 import ImageCropModal from '../components/ImageCropModal.vue';
 import ImageCropButton from '../components/ImageCropButton.vue';
 import { useImageCrop } from '../composables/useImageCrop';
+import BilingualField from '../components/BilingualField.vue';
+import { provideBilingualForm } from '../composables/useBilingualForm';
+import { hasText } from '../utils/bilingualText';
 
-const { tx, locale } = useAdminText();
+const { tx } = useAdminText();
 const { cropModal, closeCrop, finishCrop, prepareImage, recropImage } = useImageCrop();
 
 // State
@@ -239,11 +244,8 @@ const loading = ref(false);
 const searchQuery = ref('');
 const statusFilter = ref('');
 
-// The form opens on the dashboard's language; Arabic tab sits on the right, English on the left.
-
-const formLang = () => (locale.value === 'en' ? 'en' : 'ar');
-
-const activeLang = ref(formLang());
+// Each Arabic / English field has its own language switch (BilingualField); this resets or reveals them all.
+const bilingual = provideBilingualForm();
 
 // Computed
 const activeBrandsCount = computed(() => brands.value.filter(b => b.is_active).length);
@@ -258,6 +260,29 @@ const filteredBrands = computed(() => {
     return matchSearch && matchStatus;
   }).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 });
+
+// Bulk actions on the ticked rows
+const bulk = useBulkSelection(() => filteredBrands.value);
+const brandStatusForm = (brand, active) => {
+  const fd = new FormData();
+  fd.append('name', JSON.stringify({ ar: brand.name_i18n?.ar ?? brand.name ?? '', en: brand.name_i18n?.en ?? '' }));
+  fd.append('url', brand.url || '');
+  fd.append('is_active', active ? 1 : 0);
+  fd.append('sort_order', brand.sort_order || 0);
+  fd.append('_method', 'PUT');
+  return fd;
+};
+const bulkActions = computed(() => [
+  { key: 'activate', label: tx('تفعيل', 'Activate'), icon: 'check', applies: (b) => !b.is_active,
+    each: (b) => api.post(`/dashboard/brands/${b.id}`, brandStatusForm(b, true), { headers: { 'Content-Type': 'multipart/form-data' } }),
+    done: fetchBrands, success: (n) => tx(`تم تفعيل ${n} علامة`, `${n} brands activated`) },
+  { key: 'deactivate', label: tx('تعطيل', 'Deactivate'), icon: 'ban', applies: (b) => b.is_active,
+    each: (b) => api.post(`/dashboard/brands/${b.id}`, brandStatusForm(b, false), { headers: { 'Content-Type': 'multipart/form-data' } }),
+    done: fetchBrands, success: (n) => tx(`تم تعطيل ${n} علامة`, `${n} brands deactivated`) },
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    confirm: (rows) => tx(`هتحذف ${rows.length} علامة تجارية. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} brands? This cannot be undone.`),
+    each: (b) => api.delete(`/dashboard/brands/${b.id}`), done: fetchBrands, success: (n) => tx(`تم حذف ${n} علامة`, `${n} brands deleted`) },
+]);
 
 // Modals
 const showFormModal = ref(false);
@@ -327,7 +352,7 @@ const openAddModal = () => {
     sort_order: 0
   };
   imagePreview.value = null;
-  activeLang.value = formLang();
+  bilingual.reset();
   showFormModal.value = true;
 };
 
@@ -344,7 +369,7 @@ const openEditModal = (brand) => {
     sort_order: brand.sort_order || 0
   };
   imagePreview.value = brand.logo ? getImageUrl(brand.logo) : null;
-  activeLang.value = formLang();
+  bilingual.reset();
   showFormModal.value = true;
 };
 
@@ -352,7 +377,7 @@ const closeModal = () => {
   showFormModal.value = false;
   imagePreview.value = null;
   if (fileInput.value) fileInput.value.value = '';
-  activeLang.value = formLang();
+  bilingual.reset();
 };
 
 const handleDrop = (e) => {
@@ -390,13 +415,13 @@ const recropCurrentImage = async () => {
 
 const submitForm = async () => {
   // Validate bilingual fields
-  if (!String(form.value.name_ar || '').trim()) {
-    activeLang.value = 'ar';
+  if (!hasText(form.value.name_ar)) {
+    bilingual.reveal();
     triggerAlert('الاسم بالعربي مطلوب', 'error');
     return;
   }
-  if (!String(form.value.name_en || '').trim()) {
-    activeLang.value = 'en';
+  if (!hasText(form.value.name_en)) {
+    bilingual.reveal();
     triggerAlert('الاسم بالإنجليزية مطلوب', 'error');
     return;
   }
@@ -461,31 +486,6 @@ const confirmDelete = async (brand) => {
   justify-content: space-between;
 }
 
-.i18n-toggle {
-  display: inline-flex;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  overflow: hidden;
-  background: #fff;
-  margin: 0.75rem auto 1.25rem;
-}
-
-.i18n-btn {
-  border: none;
-  background: transparent;
-  padding: 0.4rem 0.9rem;
-  font-weight: 800;
-  font-size: 0.85rem;
-  cursor: pointer;
-  color: #6b7280;
-  min-width: 96px;
-  font-family: 'IBM Plex Sans Arabic', sans-serif;
-}
-
-.i18n-btn.active {
-  background: #660033;
-  color: #fff;
-}
 .page-title { font-size: 1.4rem; font-weight: 800; color: #111827; }
 .page-subtitle { font-size: 0.85rem; color: #6b7280; }
 .add-btn {

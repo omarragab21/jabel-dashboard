@@ -1,4 +1,7 @@
 <script setup>
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
+import ColumnPicker from '../components/ColumnPicker.vue';
 import { localizeMessage } from '../utils/uiMessages';
 import { ref, onMounted, computed } from 'vue';
 import { adminManagementService } from '../application/adminManagementService';
@@ -156,6 +159,19 @@ const triggerAlert = (message, type = 'success') => {
     showAlert.value = true;
     setTimeout(() => showAlert.value = false, 3000);
 };
+
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+const bulk = useBulkSelection(() => messages.value);
+const bulkActions = computed(() => [
+  { key: 'read', label: tx('تعيين كمقروءة', 'Mark as read'), icon: 'eye', applies: (m) => m.status !== 'read',
+    each: async (m) => {
+      const saved = await adminManagementService.markContactSeen(m.id);
+      if (saved?.status !== 'read') throw new Error(tx('لم يؤكد الخادم القراءة', 'Not confirmed by the server'));
+    }, done: fetchMessages, success: (n) => tx(`تم تعيين ${n} رسالة كمقروءة`, `${n} messages marked as read`) },
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    confirm: (rows) => tx(`هتحذف ${rows.length} رسالة. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} messages? This cannot be undone.`),
+    each: (m) => adminManagementService.deleteContact(m.id), done: fetchMessages, success: (n) => tx(`تم حذف ${n} رسالة`, `${n} messages deleted`) },
+]);
 </script>
 
 <template>
@@ -227,10 +243,12 @@ const triggerAlert = (message, type = 'success') => {
     </div>
 
     <!-- Table -->
+    <div class="col-toolbar"><ColumnPicker table-key="messages" /></div>
     <div class="table-container shadow-sm">
-       <table class="data-table">
+       <table class="data-table" data-col-key="messages" :data-bulk-table="bulk.tableId">
           <thead>
              <tr>
+                <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
                 <th class="col-name text-right">{{ tx('الاسم', 'Name') }}</th>
                 <th class="col-phone">{{ tx('رقم الجوال', 'Phone') }}</th>
                 <th class="col-email">{{ tx('البريد الإلكتروني', 'Email') }}</th>
@@ -240,10 +258,11 @@ const triggerAlert = (message, type = 'success') => {
              </tr>
           </thead>
           <tbody>
-             <tr v-if="loading" class="state-row"><td colspan="6">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
-             <tr v-else-if="messages.length === 0" class="state-row"><td colspan="6">{{ allMessages.length ? tx('لا توجد رسائل مطابقة للبحث', 'No messages match your search') : tx('لا توجد رسائل حالياً', 'No messages yet') }}</td></tr>
+             <tr v-if="loading" class="state-row"><td colspan="7">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
+             <tr v-else-if="messages.length === 0" class="state-row"><td colspan="7">{{ allMessages.length ? tx('لا توجد رسائل مطابقة للبحث', 'No messages match your search') : tx('لا توجد رسائل حالياً', 'No messages yet') }}</td></tr>
              <template v-else>
-                <tr v-for="msg in messages" :key="msg.id" class="data-row" :class="{ 'is-unread': msg.status === 'unread' }" :data-id="msg.id" :data-status="msg.status">
+                <tr v-for="msg in messages" :key="msg.id" class="data-row" :class="{ 'is-unread': msg.status === 'unread', 'is-selected': bulk.isSelected(msg.id) }" :data-id="msg.id" :data-status="msg.status" :data-bulk-id="msg.id">
+                   <td class="bulk-col" @click.stop><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(msg.id)" :aria-label="tx('تحديد', 'Select')" data-testid="bulk-row" @click="bulk.toggle(msg.id, $event)" /></td>
                    <td class="col-name text-right">
                       <div class="name-cell">
                          <span class="unread-dot" v-if="msg.status === 'unread'"></span>
@@ -280,6 +299,7 @@ const triggerAlert = (message, type = 'success') => {
           </tbody>
        </table>
     </div>
+     <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="messages" />
 
     <!-- View Modal -->
     <div class="modal-overlay" v-if="showViewModal" @click.self="showViewModal = false">

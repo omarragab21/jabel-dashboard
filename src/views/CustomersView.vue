@@ -84,10 +84,12 @@
       </div>
 
       <!-- Table -->
+      <div class="col-toolbar"><ColumnPicker table-key="customers" /></div>
       <div class="table-container">
-        <table class="data-table">
+        <table class="data-table" data-col-key="customers" :data-bulk-table="bulk.tableId">
           <thead>
             <tr>
+              <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
               <th class="col-name text-right">{{ tx('العميل', 'Customer') }}</th>
               <th class="col-phone">{{ tx('رقم الجوال', 'Phone') }}</th>
               <th class="col-city">{{ tx('المدينة', 'City') }}</th>
@@ -96,10 +98,11 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-if="loading" class="state-row"><td colspan="5">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
-            <tr v-else-if="filteredCustomers.length === 0" class="state-row"><td colspan="5">{{ tx('لا يوجد عملاء مطابقين', 'No matching customers found') }}</td></tr>
+            <tr v-if="loading" class="state-row"><td colspan="6">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
+            <tr v-else-if="filteredCustomers.length === 0" class="state-row"><td colspan="6">{{ tx('لا يوجد عملاء مطابقين', 'No matching customers found') }}</td></tr>
             <template v-else>
-              <tr v-for="customer in filteredCustomers" :key="customer.id" class="data-row">
+              <tr v-for="customer in filteredCustomers" :key="customer.id" class="data-row" :class="{ 'is-selected': bulk.isSelected(customer.id) }" :data-bulk-id="customer.id">
+                <td class="bulk-col" @click.stop><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(customer.id)" :aria-label="tx('تحديد', 'Select')" data-testid="bulk-row" @click="bulk.toggle(customer.id, $event)" /></td>
                 <td class="col-name text-right">
                   <div class="customer-cell">
                     <div class="customer-avatar">{{ initialOf(customer.name) }}</div>
@@ -131,6 +134,7 @@
           </tbody>
         </table>
       </div>
+      <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="customers" />
     </div>
 
     <!-- Delete Confirmation -->
@@ -167,6 +171,9 @@
 </template>
 
 <script setup>
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
+import ColumnPicker from '../components/ColumnPicker.vue';
 import { localizeMessage } from '../utils/uiMessages';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, computed, onMounted } from 'vue';
@@ -276,6 +283,14 @@ const filteredCustomers = computed(() => {
     return queryMatch && statusMatch;
   });
 });
+
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+const bulk = useBulkSelection(() => filteredCustomers.value);
+const bulkActions = computed(() => [
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    confirm: (rows) => tx(`هتحذف ${rows.length} عميل. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} customers? This cannot be undone.`),
+    each: (c) => adminManagementService.deleteUser(c.id), done: fetchCustomers, success: (n) => tx(`تم حذف ${n} عميل`, `${n} customers deleted`) },
+]);
 </script>
 
 <style scoped>

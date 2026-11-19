@@ -89,10 +89,12 @@
     </div>
 
     <!-- Table -->
+    <div class="col-toolbar"><ColumnPicker table-key="products" /></div>
     <div class="table-container">
-      <table class="data-table">
+      <table class="data-table" data-col-key="products" :data-bulk-table="bulk.tableId">
         <thead>
           <tr>
+            <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
             <th class="col-name">{{ tx('المنتج', 'Product') }}</th>
             <th class="col-price">{{ tx('السعر', 'Price') }}</th>
             <th class="col-stock">{{ tx('المخزون', 'Stock') }}</th>
@@ -102,10 +104,11 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading" class="state-row"><td colspan="6">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
-          <tr v-else-if="filteredProducts.length === 0" class="state-row"><td colspan="6">{{ tx('لا توجد منتجات مطابقة', 'No matching products found') }}</td></tr>
+          <tr v-if="loading" class="state-row"><td colspan="7">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
+          <tr v-else-if="filteredProducts.length === 0" class="state-row"><td colspan="7">{{ tx('لا توجد منتجات مطابقة', 'No matching products found') }}</td></tr>
           <template v-else>
-            <tr v-for="prod in filteredProducts" :key="prod.id" class="data-row">
+            <tr v-for="prod in filteredProducts" :key="prod.id" class="data-row" :class="{ 'is-selected': bulk.isSelected(prod.id) }" :data-bulk-id="prod.id">
+              <td class="bulk-col" @click.stop><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(prod.id)" :aria-label="tx('تحديد', 'Select')" data-testid="bulk-row" @click="bulk.toggle(prod.id, $event)" /></td>
               <td class="col-name">
                 <div class="prod-name-cell">
                   <div class="prod-image">
@@ -157,6 +160,7 @@
         </tbody>
       </table>
     </div>
+    <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="products" />
 
     <!-- Pagination -->
     <div class="pagination-container" v-if="totalProductsCount > 0">
@@ -185,11 +189,6 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
         <div class="form-header"><div class="modal-heading-row"><div class="header-icon-main"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><h3 class="modal-title-main">{{ isEdit ? tx('تعديل المنتج', 'Edit Product') : duplicateSource ? tx(`نسخ منتج: ${duplicateSource.name}`, `Duplicate: ${duplicateSource.name}`) : tx('إضافة منتج جديد', 'Add New Product') }}</h3></div><p class="modal-subtitle-main">{{ duplicateSource ? tx('بيانات وصور المنتج منسوخة؛ راجعها ثم احفظ لإضافتها كمنتج جديد.', 'The product data and images are copied; review them, then save to add a new product.') : tx('أدخل معلومات السلعة للجدول', 'Enter product information') }}</p></div>
-
-        <div class="i18n-toggle" role="tablist" aria-label="Language" dir="ltr">
-          <button type="button" class="i18n-btn" :class="{ active: activeLang === 'en' }" @click="activeLang = 'en'">English</button>
-          <button type="button" class="i18n-btn" :class="{ active: activeLang === 'ar' }" @click="activeLang = 'ar'">العربية</button>
-        </div>
 
         <!-- Tabs -->
         <div class="modal-tabs">
@@ -257,15 +256,15 @@
             </div>
 
             <!-- Basic fields -->
-            <div class="form-group" v-show="activeLang === 'ar'">
-              <label class="form-label">{{ tx('اسم المنتج (عربي)', 'Product name (Arabic)') }} <span class="req">*</span></label>
-              <input type="text" v-model="form.name_ar" class="form-control" placeholder="أدخل اسم المنتج بالعربي" />
-            </div>
-
-            <div class="form-group" v-show="activeLang === 'en'">
-              <label class="form-label">{{ tx('اسم المنتج (English)', 'Product name (English)') }} <span class="req">*</span></label>
-              <input type="text" v-model="form.name_en" class="form-control" placeholder="Product name in English (اسم المنتج بالإنجليزية)" />
-            </div>
+            <BilingualField class="form-group" required :ar="form.name_ar" :en="form.name_en" testid="product-name">
+              <template #label="{ lang }">
+                <label class="form-label" :for="`product-name-${lang}`">{{ tx('اسم المنتج', 'Product name') }} <span class="req">*</span></label>
+              </template>
+              <template #default="{ lang }">
+                <input v-show="lang === 'ar'" id="product-name-ar" type="text" v-model="form.name_ar" class="form-control" dir="rtl" placeholder="أدخل اسم المنتج بالعربي" data-testid="product-name-ar" />
+                <input v-show="lang === 'en'" id="product-name-en" type="text" v-model="form.name_en" class="form-control" dir="ltr" placeholder="Product name in English" data-testid="product-name-en" />
+              </template>
+            </BilingualField>
 
             <div class="form-row">
               <div class="form-group half-width">
@@ -327,12 +326,15 @@
             <!-- Basic fields -->
 
             <!-- Content sections: each one is a list of points (type + Enter) -->
-            <div class="form-group points-group" data-testid="overview-text">
+            <BilingualField class="form-group points-group" data-testid="overview-text" required :ar="form.description_ar" :en="form.description_en" testid="product-overview">
+              <template #label>
               <label class="form-label">{{ tabName('overview') }} <span class="req">*</span></label>
+              </template>
+              <template #default="{ lang }">
               <p class="points-hint">{{ tx(`نص قصير لا يتعدى سطرين، يظهر في تبويب «${tabName('overview')}».`, `A short text of up to two lines, shown in the “${tabName('overview')}” tab.`) }}</p>
               <div class="overview-box">
                 <textarea
-                  v-show="activeLang === 'ar'"
+                  v-show="lang === 'ar'"
                   v-model="form.description_ar"
                   dir="rtl"
                   rows="2"
@@ -342,7 +344,7 @@
                   @keydown.enter.prevent
                 ></textarea>
                 <textarea
-                  v-show="activeLang === 'en'"
+                  v-show="lang === 'en'"
                   v-model="form.description_en"
                   dir="ltr"
                   rows="2"
@@ -351,15 +353,19 @@
                   placeholder="Write a short product overview in up to two lines"
                   @keydown.enter.prevent
                 ></textarea>
-                <span class="overview-counter" dir="ltr">{{ (activeLang === 'ar' ? form.description_ar : form.description_en).length }} / {{ overviewMaxLength }}</span>
+                <span class="overview-counter" dir="ltr">{{ String((lang === 'ar' ? form.description_ar : form.description_en) || '').length }} / {{ overviewMaxLength }}</span>
               </div>
-            </div>
+              </template>
+            </BilingualField>
 
-            <div class="form-group points-group" data-testid="points-features">
+            <BilingualField class="form-group points-group" data-testid="points-features" :ar="form.features_ar" :en="form.features_en" testid="product-features">
+              <template #label>
               <label class="form-label">{{ tabName('features') }}</label>
+              </template>
+              <template #default="{ lang }">
               <p class="points-hint">{{ tx('تظهر أسفل السعر في صفحة المنتج بعلامة صح، وفي تبويب خاص لو أضفته من إعدادات «تفاصيل المنتج».', 'Shown under the price on the product page with a check mark, and in its own tab if you add one in “Product details” settings.') }}</p>
               <PointListInput
-                v-show="activeLang === 'ar'"
+                v-show="lang === 'ar'"
                 v-model="form.features_ar"
                 dir="rtl"
                 label="المميزات"
@@ -370,7 +376,7 @@
                 tip="اضغط زر الإدخال لإضافة نقطة جديدة"
               />
               <PointListInput
-                v-show="activeLang === 'en'"
+                v-show="lang === 'en'"
                 v-model="form.features_en"
                 dir="ltr"
                 label="Features"
@@ -380,13 +386,17 @@
                 empty-label="No points added yet"
                 tip="Press Enter to add a new point"
               />
-            </div>
+              </template>
+            </BilingualField>
 
-            <div class="form-group points-group" data-testid="points-tips">
+            <BilingualField class="form-group points-group" data-testid="points-tips" :ar="form.tips_ar" :en="form.tips_en" testid="product-tips">
+              <template #label>
               <label class="form-label">{{ tabName('installation') }}</label>
+              </template>
+              <template #default="{ lang }">
               <p class="points-hint">{{ tx(`تظهر في تبويب «${tabName('installation')}».`, `Shown in the “${tabName('installation')}” tab.`) }}</p>
               <PointListInput
-                v-show="activeLang === 'ar'"
+                v-show="lang === 'ar'"
                 v-model="form.tips_ar"
                 dir="rtl"
                 label="التركيب"
@@ -397,7 +407,7 @@
                 tip="اضغط زر الإدخال لإضافة نقطة جديدة"
               />
               <PointListInput
-                v-show="activeLang === 'en'"
+                v-show="lang === 'en'"
                 v-model="form.tips_en"
                 dir="ltr"
                 label="Installation"
@@ -407,13 +417,17 @@
                 empty-label="No points added yet"
                 tip="Press Enter to add a new point"
               />
-            </div>
+              </template>
+            </BilingualField>
 
-            <div class="form-group points-group" data-testid="points-shipping_info">
+            <BilingualField class="form-group points-group" data-testid="points-shipping_info" :ar="form.shipping_info_ar" :en="form.shipping_info_en" testid="product-shipping-info">
+              <template #label>
               <label class="form-label">{{ tabName('shipping') }}</label>
+              </template>
+              <template #default="{ lang }">
               <p class="points-hint">{{ tx(`تظهر في تبويب «${tabName('shipping')}».`, `Shown in the “${tabName('shipping')}” tab.`) }}</p>
               <PointListInput
-                v-show="activeLang === 'ar'"
+                v-show="lang === 'ar'"
                 v-model="form.shipping_info_ar"
                 dir="rtl"
                 label="الشحن والإرجاع"
@@ -424,7 +438,7 @@
                 tip="اضغط زر الإدخال لإضافة نقطة جديدة"
               />
               <PointListInput
-                v-show="activeLang === 'en'"
+                v-show="lang === 'en'"
                 v-model="form.shipping_info_en"
                 dir="ltr"
                 label="Shipping & Returns"
@@ -434,7 +448,8 @@
                 empty-label="No points added yet"
                 tip="Press Enter to add a new point"
               />
-            </div>
+              </template>
+            </BilingualField>
           </div>
 
           <div v-show="currentTab === 'attributes'" class="tab-pane attributes-tab-pane">
@@ -858,11 +873,17 @@
 </template>
 
 <script setup>
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
+import ColumnPicker from '../components/ColumnPicker.vue';
 import { localizeMessage } from '../utils/uiMessages';
 import { useCurrencyLabel } from '../composables/useCurrencyLabel';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import PointListInput from '../components/PointListInput.vue';
+import BilingualField from '../components/BilingualField.vue';
+import { provideBilingualForm } from '../composables/useBilingualForm';
+import { hasText } from '../utils/bilingualText';
 import { useAdminText } from '../composables/useAdminText';
 import adminCatalogService from '../application/adminCatalogService';
 import { productCategoryName, toLines, toProductPayload, validateProductImages } from '../domain/catalog/adminCatalog';
@@ -1187,8 +1208,8 @@ const valTitle = (value = {}) => (locale.value === 'en'
   ? (value.name_en || value.translations?.en?.name || value.label)
   : (value.name_ar || value.label));
 
-const formLang = () => (locale.value === 'en' ? 'en' : 'ar');
-const activeLang = ref(formLang());
+// Each Arabic / English field has its own language switch (BilingualField); this resets or reveals them all.
+const bilingual = provideBilingualForm();
 
 const form = ref({
   name_ar: '',
@@ -1458,7 +1479,7 @@ const openAddModal = () => {
   isEdit.value = false;
   editingId.value = null;
   currentTab.value = 'info';
-  activeLang.value = formLang();
+  bilingual.reset();
   imagePreviews.value = [];
   subCategories.value = [];
   customColorName.value = '';
@@ -1499,7 +1520,7 @@ const openEditModal = (prod) => {
   isEdit.value = true;
   editingId.value = prod.id;
   currentTab.value = 'info';
-  activeLang.value = formLang();
+  bilingual.reset();
   imagePreviews.value = [];
   customColorName.value = '';
   customColorHex.value = '#111827';
@@ -1841,13 +1862,15 @@ const validateProductForm = (f, { isEdit = false } = {}) => {
 };
 
 const submitForm = async () => {
-  if (!String(form.value.name_ar || '').trim()) {
-    activeLang.value = 'ar';
+  if (!hasText(form.value.name_ar)) {
+    currentTab.value = 'info';
+    bilingual.reveal();
     triggerAlert(tx('اسم المنتج بالعربي مطلوب', 'Arabic product name is required'), 'error');
     return;
   }
-  if (!String(form.value.name_en || '').trim()) {
-    activeLang.value = 'en';
+  if (!hasText(form.value.name_en)) {
+    currentTab.value = 'info';
+    bilingual.reveal();
     triggerAlert(tx('اسم المنتج بالإنجليزية مطلوب', 'English product name is required'), 'error');
     return;
   }
@@ -1994,6 +2017,13 @@ const confirmDelete = async (prod) => {
   }
 };
 
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+const bulk = useBulkSelection(() => filteredProducts.value);
+const bulkActions = computed(() => [
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    confirm: (rows) => tx(`هتحذف ${rows.length} منتج. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} products? This cannot be undone.`),
+    each: (p) => adminCatalogService.deleteProduct(p.id), done: () => { fetchProducts(); fetchStats(); }, success: (n) => tx(`تم حذف ${n} منتج`, `${n} products deleted`) },
+]);
 </script>
 
 <style scoped>
@@ -2117,9 +2147,6 @@ const confirmDelete = async (prod) => {
 .modal-title { font-size: 1.2rem; font-weight: 800; color: #111827; text-align: center; margin-bottom: 0.2rem; }
 .modal-subtitle { font-size: 0.8rem; color: #6b7280; text-align: center; margin-bottom: 1.5rem; }
 
-.i18n-toggle { display: inline-flex; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; background: #fff; margin: 0.75rem auto 1.25rem; }
-.i18n-btn { border: none; background: transparent; padding: 0.4rem 0.9rem; font-weight: 700; font-size: 0.85rem; cursor: pointer; color: #6b7280; min-width: 96px; }
-.i18n-btn.active { background: #660033; color: #fff; }
 
 /* Tabs */
 .modal-tabs { display: flex; gap: 1rem; border-bottom: 1px solid #e5e7eb; margin-bottom: 1.5rem; justify-content: center; }
@@ -2408,8 +2435,6 @@ const confirmDelete = async (prod) => {
 .form-modal .modal-title-main { font-size: 1.3rem; font-weight: 800; color: #111827; margin: 0; }
 .form-modal .modal-subtitle-main { font-size: 0.85rem; color: #9ca3af; margin-top: 0.4rem; }
 .form-modal .cat-form, .form-modal .prod-form, .form-modal .value-form { padding: 0 2.5rem 2.5rem 2.5rem; }
-.form-modal .i18n-toggle { display: flex; width: fit-content; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; background: #fff; margin: 0 auto 1.1rem; }
-.form-modal .i18n-btn { padding: 0.4rem 0.9rem; font-weight: 800; font-size: 0.85rem; min-width: 96px; font-family: 'IBM Plex Sans Arabic', sans-serif; }
 .form-modal .modal-tabs { margin: 0 2.5rem 1.5rem; }
 .form-modal .form-group { margin-bottom: 1.5rem; }
 .form-modal .form-label { font-size: 0.85rem; font-weight: 700; color: #374151; margin-bottom: 0.75rem; }

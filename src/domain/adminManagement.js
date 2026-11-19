@@ -1,5 +1,6 @@
 import { sanitizeAssetUrl } from '../utils/adminSecurity.js';
 import { sanitizeUrl } from '../utils/sanitize.js';
+import { toPermissionsPayload } from './admins/permissions.js';
 
 const firstText = (...values) => values.find((value) => value !== undefined && value !== null && String(value).trim() !== '') ?? '';
 
@@ -33,15 +34,21 @@ export const toAdminUser = (raw = {}) => {
   };
 };
 
-// Same fields the API validates on POST/PUT /v1/users (name, phone_number, email, role, status, password).
-export const toAdminUserPayload = (form = {}) => ({
-  name: String(form.name || form.name_en || form.name_ar || '').trim(),
-  email: String(form.email || '').trim(),
-  phone_number: String(form.phone ?? form.phone_number ?? '').trim(),
-  role: form.role || 'super_admin',
-  status: form.is_active === false ? 0 : 1,
-  ...(form.password ? { password: form.password } : {}),
-});
+// Fields sent on POST/PUT /v1/users: name, phone_number, email, role, status, password and `permissions`
+// ({ module: [actions] }, see domain/admins/permissions.js). `permissions` is left out when the form has none
+// (the profile screens and the enable/disable switch only change the account itself).
+export const toAdminUserPayload = (form = {}) => {
+  const role = form.role || 'super_admin';
+  return {
+    name: String(form.name || form.name_en || form.name_ar || '').trim(),
+    email: String(form.email || '').trim(),
+    phone_number: String(form.phone ?? form.phone_number ?? '').trim(),
+    role,
+    status: form.is_active === false ? 0 : 1,
+    ...(form.password ? { password: form.password } : {}),
+    ...(form.permissions ? { permissions: toPermissionsPayload(role, form.permissions) } : {}),
+  };
+};
 
 export const toAdminUserUpdatePayload = toAdminUserPayload;
 

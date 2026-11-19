@@ -1,4 +1,5 @@
 <script setup>
+import ColumnPicker from '../components/ColumnPicker.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAdminText } from '../composables/useAdminText';
@@ -172,8 +173,9 @@ onMounted(() => { loadProduct(); loadHistory(); });
           </div>
         </div>
         <div v-if="rangeInvalid" class="range-error" role="alert" data-testid="detail-range-error">{{ tx('تاريخ البداية لازم يكون قبل تاريخ النهاية', 'The start date must be before the end date') }}</div>
+        <div class="col-toolbar"><ColumnPicker table-key="inventory-product-movements" /></div>
         <div class="table-scroll">
-          <table class="data-table">
+          <table class="data-table" data-col-key="inventory-product-movements">
             <thead>
               <tr>
                 <th>{{ tx('النوع', 'Type') }}</th>

@@ -13,10 +13,12 @@
       </div>
     </div>
 
+    <div class="col-toolbar"><ColumnPicker table-key="countries" /></div>
     <div class="table-container">
-      <table class="data-table">
+      <table class="data-table" data-col-key="countries" :data-bulk-table="bulk.tableId">
         <thead>
           <tr>
+            <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
             <th>{{ tx('العلم', 'Flag') }}</th>
             <th>{{ tx('الاسم', 'Name') }}</th>
             <th>{{ tx('الكود', 'Code') }}</th>
@@ -26,7 +28,8 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="country in countries" :key="country.id">
+          <tr v-for="country in countries" :key="country.id" :class="{ 'is-selected': bulk.isSelected(country.id) }" :data-bulk-id="country.id">
+            <td class="bulk-col" @click.stop><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(country.id)" :aria-label="tx('تحديد', 'Select')" data-testid="bulk-row" @click="bulk.toggle(country.id, $event)" /></td>
             <td>{{ country.flag || '-' }}</td>
             <td>{{ localizedName(country) }}</td>
             <td>{{ country.code }}</td>
@@ -54,20 +57,23 @@
         </tbody>
       </table>
     </div>
+    <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="countries" />
 
     <!-- Modal -->
     <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
       <div class="modal-content">
         <h2>{{ isEdit ? tx('تعديل دولة', 'Edit Country') : tx('إضافة دولة', 'Add Country') }}</h2>
         <form @submit.prevent="handleSubmit">
-          <div class="form-group">
-            <label>{{ tx('الاسم', 'Name') }} *</label>
-            <input v-model="form.name" type="text" required />
-          </div>
-          <div class="form-group">
-            <label>{{ tx('الاسم بالإنجليزي', 'English Name') }}</label>
-            <input v-model="form.name_en" type="text" />
-          </div>
+          <!-- Arabic is required, English optional: a missing English name shows as a warning only. -->
+          <BilingualField class="form-group" required="ar" :ar="form.name" :en="form.name_en" testid="country-name">
+            <template #label="{ lang }">
+              <label :for="`country-name-${lang}`">{{ tx('الاسم', 'Name') }} *</label>
+            </template>
+            <template #default="{ lang }">
+              <input v-show="lang === 'ar'" id="country-name-ar" v-model="form.name" type="text" dir="rtl" data-testid="country-name-ar" />
+              <input v-show="lang === 'en'" id="country-name-en" v-model="form.name_en" type="text" dir="ltr" data-testid="country-name-en" />
+            </template>
+          </BilingualField>
           <div class="form-group">
             <label>{{ tx('الكود', 'Code') }} *</label>
             <input v-model="form.code" type="text" required maxlength="5" />
@@ -97,11 +103,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
+import ColumnPicker from '../components/ColumnPicker.vue';
+import { ref, onMounted, computed } from 'vue';
 import api from '../config/axios';
 import { useAdminText } from '../composables/useAdminText';
+import BilingualField from '../components/BilingualField.vue';
+import { provideBilingualForm } from '../composables/useBilingualForm';
+import { hasText } from '../utils/bilingualText';
 
 const { tx, locale } = useAdminText();
+// Each Arabic / English field has its own language switch (BilingualField); this reveals the missing one.
+const bilingual = provideBilingualForm();
 const localizedName = (item) => item?.name_i18n?.[locale.value] || (locale.value === 'en' ? item?.name_en || item?.name : item?.name || item?.name_en);
 
 const countries = ref([]);
@@ -136,6 +150,11 @@ const fetchCountries = async () => {
 };
 
 const handleSubmit = async () => {
+  // The Arabic name is required; its input may be hidden behind the English switch, so it is checked here.
+  if (!hasText(form.value.name)) {
+    bilingual.reveal();
+    return;
+  }
   try {
     if (isEdit.value) {
       await api.put(`/dashboard/countries/${editingId.value}`, form.value);
@@ -181,6 +200,14 @@ const resetForm = () => {
 };
 
 onMounted(fetchCountries);
+
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+const bulk = useBulkSelection(() => countries.value);
+const bulkActions = computed(() => [
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    confirm: (rows) => tx(`هتحذف ${rows.length} دولة. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} countries? This cannot be undone.`),
+    each: (c) => api.delete(`/dashboard/countries/${c.id}`), done: fetchCountries, success: (n) => tx(`تم حذف ${n} دولة`, `${n} countries deleted`) },
+]);
 </script>
 
 <style scoped>

@@ -1,4 +1,7 @@
 <script setup>
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
+import ColumnPicker from '../components/ColumnPicker.vue';
 import { localizeMessage } from '../utils/uiMessages';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, onMounted, computed } from 'vue';
@@ -147,6 +150,18 @@ const triggerAlert = (message, type = 'success') => {
     showAlert.value = true;
     setTimeout(() => showAlert.value = false, 3000);
 };
+
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+const bulk = useBulkSelection(() => branches.value);
+const bulkActions = computed(() => [
+  { key: 'activate', label: tx('تفعيل', 'Activate'), icon: 'check', applies: (b) => !b.is_active,
+    each: (b) => api.put(`/dashboard/branches/${b.id}`, { is_active: 1 }), done: fetchBranches, success: (n) => tx(`تم تفعيل ${n} فرع`, `${n} branches activated`) },
+  { key: 'deactivate', label: tx('تعطيل', 'Deactivate'), icon: 'ban', applies: (b) => b.is_active,
+    each: (b) => api.put(`/dashboard/branches/${b.id}`, { is_active: 0 }), done: fetchBranches, success: (n) => tx(`تم تعطيل ${n} فرع`, `${n} branches deactivated`) },
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    confirm: (rows) => tx(`هتحذف ${rows.length} فرع. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} branches? This cannot be undone.`),
+    each: (b) => api.delete(`/dashboard/branches/${b.id}`), done: fetchBranches, success: (n) => tx(`تم حذف ${n} فرع`, `${n} branches deleted`) },
+]);
 </script>
 
 <template>
@@ -209,10 +224,12 @@ const triggerAlert = (message, type = 'success') => {
     </div>
 
     <!-- Table -->
+    <div class="col-toolbar"><ColumnPicker table-key="branches" /></div>
     <div class="table-container shadow-sm">
-      <table class="data-table">
+      <table class="data-table" data-col-key="branches" :data-bulk-table="bulk.tableId">
         <thead>
           <tr>
+            <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
             <th class="col-name text-right">{{ tx('اسم الفرع', 'Branch Name') }}</th>
             <th class="col-city">{{ tx('المدينة', 'City') }}</th>
             <th class="col-address">{{ tx('العنوان', 'Address') }}</th>
@@ -224,10 +241,11 @@ const triggerAlert = (message, type = 'success') => {
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading" class="state-row"><td colspan="8">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
-          <tr v-else-if="branches.length === 0" class="state-row"><td colspan="8">{{ tx('لا توجد فروع حالياً', 'No branches yet') }}</td></tr>
+          <tr v-if="loading" class="state-row"><td colspan="9">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
+          <tr v-else-if="branches.length === 0" class="state-row"><td colspan="9">{{ tx('لا توجد فروع حالياً', 'No branches yet') }}</td></tr>
           <template v-else>
-            <tr v-for="branch in branches" :key="branch.id" class="data-row">
+            <tr v-for="branch in branches" :key="branch.id" class="data-row" :class="{ 'is-selected': bulk.isSelected(branch.id) }" :data-bulk-id="branch.id">
+              <td class="bulk-col" @click.stop><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(branch.id)" :aria-label="tx('تحديد', 'Select')" data-testid="bulk-row" @click="bulk.toggle(branch.id, $event)" /></td>
               <td class="col-name text-right">
                 <div class="branch-info">
                    <div class="branch-icon-sm">
@@ -268,6 +286,7 @@ const triggerAlert = (message, type = 'success') => {
         </tbody>
       </table>
     </div>
+    <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="branches" />
 
     <!-- Form Modal -->
     <div class="modal-overlay" v-if="showFormModal" @click.self="showFormModal = false">

@@ -2,7 +2,7 @@
 // ({ privacy, terms, returns, faq }) next to every other site setting. The website reads the same key.
 import api from '../config/axios';
 import { settingsService } from './settingsService';
-import { uploadedImageUrl } from '../domain/legalHero';
+import { uploadedImageUrl, resolveHeroType, normalizeHeroColor, heroProblem, DEFAULT_HERO_COLOR } from '../domain/legalHero';
 
 export const LEGAL_PAGE_IDS = ['privacy', 'terms', 'returns', 'faq'];
 const SETTING_KEY = 'legal_pages';
@@ -61,8 +61,10 @@ const toPage = (data, id) => ({
   tagline_ar: str(data?.tagline_ar),
   tagline_en: str(data?.tagline_en),
   banner: data?.banner === undefined ? { ...(DEFAULT_BANNERS[id] || {}) } : cleanBanner(asObject(data.banner)),
-  // Background photo of the page header (FAQ / returns); empty means the website's default photo.
+  // Cover of the page header: EITHER a photo (hero_image) OR a plain colour (hero_color), chosen by hero_type.
+  hero_type: resolveHeroType(data),
   hero_image: str(data?.hero_image).trim(),
+  hero_color: normalizeHeroColor(data?.hero_color) || DEFAULT_HERO_COLOR,
   sections: (Array.isArray(data?.sections) ? data.sections : [])
     .map((section, index) => ({ position: Number(section?.position) || index + 1, ...cleanSection(section) }))
     .sort((a, b) => a.position - b.position)
@@ -80,8 +82,17 @@ export const saveLegalPage = async (id, page) => {
   const all = await readAll();
   // A newly picked photo is uploaded first (same site-images endpoint the other settings images use); the
   // returned URL is what gets stored. A string keeps the saved photo, an empty value removes it.
-  let heroImage = str(page.hero_image).trim();
-  if (typeof File !== 'undefined' && page.hero_image instanceof File) {
+  const heroType = page.hero_type === 'color' ? 'color' : 'image';
+  const hasStagedFile = typeof File !== 'undefined' && page.hero_image instanceof File;
+  const problem = heroProblem({ type: heroType, color: page.hero_color, hasImage: hasStagedFile || Boolean(str(page.hero_image).trim()) });
+  if (problem) {
+    const error = new Error(problem);
+    error.code = `LEGAL_HERO_${problem}`;
+    throw error;
+  }
+  // Only the chosen kind is stored; the other one is emptied so the page never has both.
+  let heroImage = heroType === 'image' ? str(page.hero_image).trim() : '';
+  if (heroType === 'image' && hasStagedFile) {
     const formData = new FormData();
     formData.append('title', `legal_${id}_hero`);
     formData.append('image_file', page.hero_image);
@@ -90,7 +101,9 @@ export const saveLegalPage = async (id, page) => {
     if (!heroImage) throw new Error('Hero image upload returned no URL');
   }
   all[id] = {
+    hero_type: heroType,
     hero_image: heroImage,
+    hero_color: heroType === 'color' ? normalizeHeroColor(page.hero_color) : '',
     updated_at: page.updated_at,
     tagline_ar: str(page.tagline_ar).trim(),
     tagline_en: str(page.tagline_en).trim(),

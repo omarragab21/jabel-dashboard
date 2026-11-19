@@ -34,9 +34,10 @@
 
     <!-- Table -->
     <div class="table-container">
-      <table class="data-table">
+      <table class="data-table" :data-bulk-table="bulk.tableId">
         <thead>
           <tr>
+            <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
             <th class="col-code text-right">{{ tx('الكود', 'Code') }}</th>
             <th class="col-type">{{ tx('نوع الخصم', 'Discount type') }}</th>
             <th class="col-value">{{ tx('قيمة الخصم', 'Discount value') }}</th>
@@ -49,10 +50,11 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading" class="state-row"><td colspan="9">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
-          <tr v-else-if="filteredCoupons.length === 0" class="state-row"><td colspan="9">{{ tx('لا توجد أكواد خصم', 'No discount codes found') }}</td></tr>
+          <tr v-if="loading" class="state-row"><td colspan="10">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
+          <tr v-else-if="filteredCoupons.length === 0" class="state-row"><td colspan="10">{{ tx('لا توجد أكواد خصم', 'No discount codes found') }}</td></tr>
           <template v-else>
-            <tr v-for="coupon in filteredCoupons" :key="coupon.id" class="data-row">
+            <tr v-for="coupon in filteredCoupons" :key="coupon.id" class="data-row" :class="{ 'is-selected': bulk.isSelected(coupon.id) }" :data-bulk-id="coupon.id">
+              <td class="bulk-col" @click.stop><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(coupon.id)" :aria-label="tx('تحديد', 'Select')" data-testid="bulk-row" @click="bulk.toggle(coupon.id, $event)" /></td>
               <td class="col-code text-right">
                 <div class="code-cell">
                   <span class="coupon-code">{{ coupon.code }}</span>
@@ -105,6 +107,7 @@
         </tbody>
       </table>
     </div>
+    <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="coupons" />
 
     <!-- Add/Edit Modal (Figma Exact) -->
     <div class="modal-overlay" v-if="showFormModal" @click.self="showFormModal = false">
@@ -251,6 +254,8 @@
 </template>
 
 <script setup>
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
 import { localizeMessage } from '../utils/uiMessages';
 import { useCurrencyLabel } from '../composables/useCurrencyLabel';
 import { apiErrorMessage } from '../utils/apiMessage';
@@ -428,6 +433,14 @@ const confirmDelete = async (coupon) => {
     }
   }
 };
+
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+const bulk = useBulkSelection(() => filteredCoupons.value);
+const bulkActions = computed(() => [
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    confirm: (rows) => tx(`هتحذف ${rows.length} كود خصم. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} coupons? This cannot be undone.`),
+    each: (c) => api.delete(`/dashboard/coupons/${c.id}`), done: fetchCoupons, success: (n) => tx(`تم حذف ${n} كود خصم`, `${n} coupons deleted`) },
+]);
 </script>
 
 <style scoped>

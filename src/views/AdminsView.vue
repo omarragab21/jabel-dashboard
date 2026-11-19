@@ -1,4 +1,7 @@
 <script setup>
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
+import ColumnPicker from '../components/ColumnPicker.vue';
 import { localizeMessage } from '../utils/uiMessages';
 import { ref, computed, onMounted } from 'vue';
 import adminManagementService from '../application/adminManagementService';
@@ -6,11 +9,13 @@ import { useAdminText } from '../composables/useAdminText';
 import { useAdminProfile } from '../composables/useAdminProfile';
 import { safeObjectUrl } from '../utils/adminSecurity';
 import ImageCropModal from '../components/ImageCropModal.vue';
+import AdminPermissionsMatrix from '../components/AdminPermissionsMatrix.vue';
 import ImageCropButton from '../components/ImageCropButton.vue';
 import { useImageCrop } from '../composables/useImageCrop';
 import {
   ADMIN_ROLES, NAME_MAX, PASSWORD_MIN, roleLabel, validateAdminForm, filterAdmins, dayOf, serverErrorText,
 } from '../domain/admins/adminAccount';
+import { defaultPermissionsFor, normalizePermissions, countModules } from '../domain/admins/permissions';
 
 const { tx, locale } = useAdminText();
 const { profile: me } = useAdminProfile();
@@ -31,7 +36,9 @@ const avatarFile = ref(null);
 const showPassword = ref(false);
 const touched = ref(false);
 
-const emptyForm = () => ({ name: '', email: '', phone: '', password: '', role: ADMIN_ROLES[0], is_active: true });
+const emptyForm = () => ({ name: '', email: '', phone: '', password: '', role: ADMIN_ROLES[0], is_active: true, permissions: defaultPermissionsFor(ADMIN_ROLES[0]) });
+// The form has two tabs: the account details and إدارة الصلاحيات (which modules the admin can open and what they can do).
+const activeTab = ref('details');
 const form = ref(emptyForm());
 const errors = computed(() => (touched.value ? validateAdminForm(form.value, { isEdit: isEditing.value }) : {}));
 
@@ -84,8 +91,14 @@ const fetchAdmins = async () => {
 
 onMounted(fetchAdmins);
 
+// Choosing a role loads that role's permission preset, which the permissions tab then lets the admin adjust.
+const onRoleChange = () => { form.value.permissions = defaultPermissionsFor(form.value.role); };
+const resetPermissions = () => { form.value.permissions = defaultPermissionsFor(form.value.role); };
+const permissionsCount = computed(() => countModules(form.value.role === 'super_admin' ? defaultPermissionsFor('super_admin') : form.value.permissions));
+
 const openAddModal = () => {
   isEditing.value = false;
+  activeTab.value = 'details';
   currentAdmin.value = null;
   form.value = emptyForm();
   previewAvatar.value = null;
@@ -97,8 +110,11 @@ const openAddModal = () => {
 
 const openEditModal = (admin) => {
   isEditing.value = true;
+  activeTab.value = 'details';
   currentAdmin.value = admin;
-  form.value = { name: admin.name, email: admin.email, phone: admin.phone, password: '', role: admin.role, is_active: admin.is_active };
+  // Use what the API stored for this admin; accounts without stored permissions start from their role's preset.
+  const stored = normalizePermissions(admin.permissions);
+  form.value = { name: admin.name, email: admin.email, phone: admin.phone, password: '', role: admin.role, is_active: admin.is_active, permissions: countModules(stored) ? stored : defaultPermissionsFor(admin.role) };
   previewAvatar.value = admin.avatar || null;
   avatarFile.value = null;
   showPassword.value = false;
@@ -136,7 +152,12 @@ const serverStatus = (error) => {
 
 const submitForm = async () => {
   touched.value = true;
-  if (Object.keys(validateAdminForm(form.value, { isEdit: isEditing.value })).length) return;
+  const problems = Object.keys(validateAdminForm(form.value, { isEdit: isEditing.value }));
+  if (problems.length) {
+    // Show the tab that holds the first problem.
+    activeTab.value = problems.every((field) => field === 'permissions') ? 'permissions' : 'details';
+    return;
+  }
   isSubmitting.value = true;
   try {
     if (isEditing.value) {
@@ -186,7 +207,7 @@ const toggleAdminStatus = async (admin) => {
   togglingId.value = admin.id;
   const next = !admin.is_active;
   try {
-    await adminManagementService.updateUser(admin.id, { ...admin, email: '', is_active: next });
+    await adminManagementService.updateUser(admin.id, { ...admin, email: '', is_active: next, permissions: undefined });
     admin.is_active = next;
     triggerAlert(next ? 'تم تفعيل الحساب' : 'تم تعطيل الحساب');
   } catch (error) {
@@ -196,6 +217,18 @@ const toggleAdminStatus = async (admin) => {
     togglingId.value = null;
   }
 };
+
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+const bulk = useBulkSelection(() => visibleAdmins.value);
+const bulkActions = computed(() => [
+  { key: 'activate', label: tx('تفعيل', 'Activate'), icon: 'check', applies: (a) => !a.is_active,
+    each: (a) => adminManagementService.updateUser(a.id, { ...a, email: '', is_active: true, permissions: undefined }), done: fetchAdmins, success: (n) => tx(`تم تفعيل ${n} مدير`, `${n} admins activated`) },
+  { key: 'deactivate', label: tx('تعطيل', 'Deactivate'), icon: 'ban', applies: (a) => a.is_active,
+    each: (a) => adminManagementService.updateUser(a.id, { ...a, email: '', is_active: false, permissions: undefined }), done: fetchAdmins, success: (n) => tx(`تم تعطيل ${n} مدير`, `${n} admins deactivated`) },
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    confirm: (rows) => tx(`هتحذف ${rows.length} مدير. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} admins? This cannot be undone.`),
+    each: (a) => adminManagementService.deleteUser(a.id), done: fetchAdmins, success: (n) => tx(`تم حذف ${n} مدير`, `${n} admins deleted`) },
+]);
 </script>
 
 <template>
@@ -233,10 +266,12 @@ const toggleAdminStatus = async (admin) => {
     </div>
 
     <!-- Table -->
+    <div class="col-toolbar"><ColumnPicker table-key="admins" /></div>
     <div class="table-container">
-      <table class="data-table">
+      <table class="data-table" data-col-key="admins" :data-bulk-table="bulk.tableId">
         <thead>
           <tr>
+            <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
             <th class="col-avatar">{{ tx('الصورة', 'Photo') }}</th>
             <th>{{ tx('الاسم', 'Name') }}</th>
             <th>{{ tx('رقم الجوال', 'Phone') }}</th>
@@ -248,14 +283,15 @@ const toggleAdminStatus = async (admin) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading" class="state-row"><td colspan="8">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
-          <tr v-else-if="loadFailed" class="state-row"><td colspan="8">
+          <tr v-if="loading" class="state-row"><td colspan="9">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
+          <tr v-else-if="loadFailed" class="state-row"><td colspan="9">
             {{ tx('تعذّر تحميل المديرين.', 'Could not load the administrators.') }}
             <button type="button" class="link-btn" @click="fetchAdmins">{{ tx('إعادة المحاولة', 'Retry') }}</button>
           </td></tr>
-          <tr v-else-if="visibleAdmins.length === 0" class="state-row"><td colspan="8">{{ admins.length ? tx('لا يوجد مديرون مطابقون', 'No matching administrators') : tx('لا يوجد مديرون حالياً', 'No administrators yet') }}</td></tr>
+          <tr v-else-if="visibleAdmins.length === 0" class="state-row"><td colspan="9">{{ admins.length ? tx('لا يوجد مديرون مطابقون', 'No matching administrators') : tx('لا يوجد مديرون حالياً', 'No administrators yet') }}</td></tr>
           <template v-else>
-            <tr v-for="admin in visibleAdmins" :key="admin.id" class="data-row" :data-id="admin.id" :data-email="admin.email" :data-active="admin.is_active ? '1' : '0'">
+            <tr v-for="admin in visibleAdmins" :key="admin.id" class="data-row" :data-id="admin.id" :data-email="admin.email" :data-active="admin.is_active ? '1' : '0'" :class="{ 'is-selected': bulk.isSelected(admin.id) }" :data-bulk-id="admin.id">
+              <td class="bulk-col" @click.stop><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(admin.id)" :aria-label="tx('تحديد', 'Select')" data-testid="bulk-row" @click="bulk.toggle(admin.id, $event)" /></td>
               <td class="col-avatar">
                 <div class="admin-avatar">
                   <img v-if="admin.avatar" :src="admin.avatar" :alt="admin.name" />
@@ -300,10 +336,11 @@ const toggleAdminStatus = async (admin) => {
         </tbody>
       </table>
     </div>
+    <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="admins" />
 
     <!-- Add / Edit -->
     <div class="modal-overlay" v-if="showFormModal" @click.self="closeForm">
-      <div class="modal-content form-content" role="dialog" aria-modal="true" aria-labelledby="admin-form-title">
+      <div :class="['modal-content', 'form-content', { wide: activeTab === 'permissions' }]" role="dialog" aria-modal="true" aria-labelledby="admin-form-title">
         <button class="modal-close" type="button" :aria-label="tx('إغلاق', 'Close')" @click="closeForm">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
@@ -312,7 +349,18 @@ const toggleAdminStatus = async (admin) => {
           <p>{{ isEditing ? tx('عدّل بيانات حساب المدير', 'Update the administrator account') : tx('أدخل بيانات المدير الجديد وحدد صلاحياته', 'Enter the new administrator and choose a role') }}</p>
         </div>
 
+        <div class="form-tabs" role="tablist" data-testid="admin-tabs">
+          <button type="button" role="tab" :aria-selected="activeTab === 'details'" :class="['form-tab', { active: activeTab === 'details' }]" data-testid="tab-details" @click="activeTab = 'details'">
+            {{ tx('بيانات المدير', 'Account details') }}
+          </button>
+          <button type="button" role="tab" :aria-selected="activeTab === 'permissions'" :class="['form-tab', { active: activeTab === 'permissions' }]" data-testid="tab-permissions" @click="activeTab = 'permissions'">
+            {{ tx('إدارة الصلاحيات', 'Permissions') }}
+            <span :class="['tab-badge', { warn: errors.permissions }]" data-testid="tab-permissions-count">{{ permissionsCount }}</span>
+          </button>
+        </div>
+
         <form class="admin-form" novalidate @submit.prevent="submitForm">
+          <div v-show="activeTab === 'details'" class="tab-pane" data-testid="pane-details">
           <div class="form-group">
             <label class="form-label">{{ tx('الصورة الشخصية', 'Profile photo') }}</label>
             <div class="avatar-row">
@@ -354,7 +402,7 @@ const toggleAdminStatus = async (admin) => {
           <div class="form-group">
             <label class="form-label" for="adm-role">{{ tx('الصلاحية', 'Role') }}</label>
             <div class="select-wrapper">
-              <select id="adm-role" v-model="form.role" class="form-control" :class="{ invalid: errors.role }">
+              <select id="adm-role" v-model="form.role" class="form-control" :class="{ invalid: errors.role }" data-testid="role-select" @change="onRoleChange">
                 <option v-for="role in ADMIN_ROLES" :key="role" :value="role">{{ roleLabel(role, locale) }}</option>
               </select>
               <svg class="select-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
@@ -380,6 +428,17 @@ const toggleAdminStatus = async (admin) => {
               <span class="slider"></span>
               <span class="switch-text">{{ form.is_active ? tx('مفعّل', 'Active') : tx('غير مفعّل', 'Disabled') }}</span>
             </label>
+          </div>
+          </div>
+
+          <div v-show="activeTab === 'permissions'" class="tab-pane" data-testid="pane-permissions">
+            <AdminPermissionsMatrix
+              v-model="form.permissions"
+              :role="form.role"
+              :locked="form.role === 'super_admin'"
+              :show-error="touched"
+              @reset="resetPermissions"
+            />
           </div>
 
           <div class="form-footer-btns">
@@ -480,7 +539,15 @@ const toggleAdminStatus = async (admin) => {
 .modal-close { position: absolute; top: 1.3rem; inset-inline-end: auto; left: 1.3rem; background: transparent; color: #6b7280; border: none; width: 28px; height: 28px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 [dir='ltr'] .modal-close { left: auto; right: 1.3rem; }
 .modal-close:hover { background: #f3f4f6; }
-.form-content { max-width: 500px; max-height: 95vh; overflow-y: auto; }
+.form-content { max-width: 500px; max-height: 95vh; overflow-y: auto; transition: max-width 0.2s; }
+.form-content.wide { max-width: 780px; }
+.form-tabs { display: flex; gap: 0.25rem; padding: 0.5rem 1.5rem 0; border-bottom: 1px solid #e5e7eb; }
+.form-tab { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.65rem 1rem; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; background: none; color: #6b7280; font-family: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+.form-tab:hover { color: #374151; }
+.form-tab.active { color: #660033; border-bottom-color: #660033; }
+.tab-badge { min-width: 20px; padding: 0.05rem 0.45rem; border-radius: 999px; background: #f6e9ef; color: #660033; font-size: 0.7rem; font-weight: 800; text-align: center; }
+.tab-badge.warn { background: #fee2e2; color: #dc2626; }
+.tab-pane { display: flex; flex-direction: column; gap: 0.9rem; }
 .form-header { padding: 1.4rem 1.5rem 0.5rem; }
 .form-header h2 { margin: 0; font-size: 1.15rem; font-weight: 800; color: #111827; }
 .form-header p { margin: 0.25rem 0 0; font-size: 0.82rem; color: #6b7280; }

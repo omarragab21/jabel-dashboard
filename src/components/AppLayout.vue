@@ -397,7 +397,7 @@ const menuLabelKeys = {
   'أكواد الخصم': 'admin.nav.coupons',
   'إدارة العروض': 'admin.nav.offers',
   'إدارة الباقات': 'admin.nav.discounts',
-  'إعلانات السلايدر': 'admin.nav.sliders',
+  'البانرات الرئيسية': 'admin.nav.sliders',
   'بوابات الدفع': 'admin.nav.payments',
   'إدارة مناطق التوصيل': 'admin.nav.shipping',
   'الدول': 'admin.nav.countries',
@@ -618,7 +618,7 @@ const menuItems = [
   },
   {
     route: '/admin/sliders',
-    label: 'إعلانات السلايدر',
+    label: 'البانرات الرئيسية',
     icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
   },
   // {

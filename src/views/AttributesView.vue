@@ -20,9 +20,16 @@
       <div class="modal-content form-modal">
         <button class="modal-close" @click="closeAttributeModal">×</button>
         <div class="form-header"><div class="modal-heading-row"><div v-if="!editingAttributeId" class="header-icon-main"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><h3 class="modal-title-main">{{ editingAttributeId ? tx('تعديل خاصية منتج', 'Edit Product Attribute') : tx('إضافة خاصية منتج', 'Add Product Attribute') }}</h3></div><p class="modal-subtitle-main">{{ editingAttributeId ? tx('عدّل اسم الخاصية — القيم تُدار من زر إدارة القيم', 'Edit the attribute name; values are managed separately') : tx('أضف الخاصية ثم أضف قيمها من زر إدارة القيم. أي قيمة بكود لون تظهر كدائرة لون تلقائياً', 'Add the attribute, then add its values. Any value with a color code shows as a color circle automatically') }}</p></div>
-        <form class="value-form" @submit.prevent="submitAttribute">
-          <div class="form-group"><label class="form-label">{{ tx('الاسم بالعربي', 'Name (Arabic)') }} *</label><input v-model="attributeForm.name_ar" v-lang-only="'ar'" class="form-control" required :placeholder="tx('مثال: اللون', 'Example: Color')" /></div>
-          <div class="form-group"><label class="form-label">{{ tx('الاسم بالإنجليزية', 'Name (English)') }} *</label><input v-model="attributeForm.name_en" v-lang-only="'en'" class="form-control" required placeholder="Example: Color" /></div>
+        <form class="value-form" novalidate @submit.prevent="submitAttribute">
+          <BilingualField class="form-group" required :ar="attributeForm.name_ar" :en="attributeForm.name_en" testid="attribute-name">
+            <template #label="{ lang }">
+              <label class="form-label" :for="`attribute-name-${lang}`">{{ tx('الاسم', 'Name') }} *</label>
+            </template>
+            <template #default="{ lang }">
+              <input v-show="lang === 'ar'" id="attribute-name-ar" v-model="attributeForm.name_ar" v-lang-only="'ar'" class="form-control" dir="rtl" placeholder="مثال: اللون" data-testid="attribute-name-ar" />
+              <input v-show="lang === 'en'" id="attribute-name-en" v-model="attributeForm.name_en" v-lang-only="'en'" class="form-control" dir="ltr" placeholder="Example: Color" data-testid="attribute-name-en" />
+            </template>
+          </BilingualField>
           <label class="core-toggle" data-testid="attribute-core-toggle">
             <input type="checkbox" v-model="attributeForm.is_core" />
             <span class="core-toggle-text">
@@ -39,10 +46,12 @@
     </div>
 
     <!-- Table -->
+    <div class="col-toolbar"><ColumnPicker table-key="attributes" /></div>
     <div class="table-container">
-      <table class="data-table">
+      <table class="data-table" data-col-key="attributes" :data-bulk-table="bulk.tableId">
         <thead>
           <tr>
+            <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
             <th class="col-name">{{ tx('الخاصية', 'Attribute') }}</th>
             <th class="col-values">{{ tx('القيم المتوفرة', 'Available values') }}</th>
             <th class="col-status">{{ tx('الحالة', 'Status') }}</th>
@@ -51,13 +60,14 @@
         </thead>
         <tbody>
           <tr v-if="loading" class="state-row">
-            <td colspan="4">{{ tx('جاري التحميل...', 'Loading...') }}</td>
+            <td colspan="5">{{ tx('جاري التحميل...', 'Loading...') }}</td>
           </tr>
           <tr v-else-if="attributes.length === 0" class="state-row">
-            <td colspan="4">{{ tx('لا توجد خصائص مضافة مسبقاً', 'No attributes added yet') }}</td>
+            <td colspan="5">{{ tx('لا توجد خصائص مضافة مسبقاً', 'No attributes added yet') }}</td>
           </tr>
           <template v-else>
-            <tr v-for="attr in attributes" :key="attr.id" class="data-row">
+            <tr v-for="attr in attributes" :key="attr.id" class="data-row" :class="{ 'is-selected': bulk.isSelected(attr.id) }" :data-bulk-id="attr.id">
+              <td class="bulk-col" @click.stop><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(attr.id)" :aria-label="tx('تحديد', 'Select')" data-testid="bulk-row" @click="bulk.toggle(attr.id, $event)" /></td>
               <td class="col-name">
                 <div class="attr-name-cell">
                   <div class="attr-text">
@@ -110,6 +120,7 @@
         </tbody>
       </table>
     </div>
+    <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="attributes" :label-of="attributeName" />
 
     <!-- Modals -->
     <!-- Add/Edit Value Modal -->
@@ -120,7 +131,7 @@
         </button>
         <div class="form-header"><h3 class="modal-title-main">{{ isEditingValue ? tx('تعديل قيمة خاصية', 'Edit Attribute Value') : tx('إضافة قيمة جديدة', 'Add New Value') }}</h3><p class="modal-subtitle-main">{{ tx('أدخل اسم القيمة بالعربي والإنجليزي ليتم حفظها في الـ API', 'Enter the Arabic and English value names to save them to the API') }}</p></div>
         
-        <form @submit.prevent="submitValue" class="value-form">
+        <form @submit.prevent="submitValue" class="value-form" novalidate>
           
           <!-- Binding (Readonly) -->
           <div class="form-group">
@@ -145,14 +156,15 @@
           </div>
 
           <!-- Bilingual Value Names -->
-          <div class="form-group">
-            <label class="form-label">{{ tx('اسم القيمة بالعربي', 'Value name (Arabic)') }} <span class="req">*</span></label>
-            <input type="text" v-model="valueForm.name_ar" v-lang-only="'ar'" class="form-control" :placeholder="tx('مثال: أسود ملكي أو 90 سم', 'Example: Royal Black or 90 cm')" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label">{{ tx('اسم القيمة بالإنجليزية', 'Value name (English)') }} <span class="req">*</span></label>
-            <input type="text" v-model="valueForm.name_en" v-lang-only="'en'" class="form-control" placeholder="Example: Royal Black or 90 cm" dir="ltr" required />
-          </div>
+          <BilingualField class="form-group" required :ar="valueForm.name_ar" :en="valueForm.name_en" testid="value-name">
+            <template #label="{ lang }">
+              <label class="form-label" :for="`value-name-${lang}`">{{ tx('اسم القيمة', 'Value name') }} <span class="req">*</span></label>
+            </template>
+            <template #default="{ lang }">
+              <input v-show="lang === 'ar'" id="value-name-ar" type="text" v-model="valueForm.name_ar" v-lang-only="'ar'" class="form-control" dir="rtl" placeholder="مثال: أسود ملكي أو 90 سم" data-testid="value-name-ar" />
+              <input v-show="lang === 'en'" id="value-name-en" type="text" v-model="valueForm.name_en" v-lang-only="'en'" class="form-control" dir="ltr" placeholder="Example: Royal Black or 90 cm" data-testid="value-name-en" />
+            </template>
+          </BilingualField>
 
           <!-- Status -->
           <div class="form-group">
@@ -230,7 +242,13 @@
 </template>
 
 <script setup>
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
+import ColumnPicker from '../components/ColumnPicker.vue';
 import { vLangOnly } from '../directives/langOnly';
+import BilingualField from '../components/BilingualField.vue';
+import { provideBilingualForm } from '../composables/useBilingualForm';
+import { hasText } from '../utils/bilingualText';
 import { localizeMessage } from '../utils/uiMessages';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { computed, ref, onMounted } from 'vue';
@@ -242,6 +260,8 @@ import { loadSavedCoreIds, resolveCoreIds, saveCoreIds } from '../services/coreA
 
 const { locale } = useI18n();
 const { tx } = useAdminText();
+// Each Arabic / English field has its own language switch (BilingualField); this reveals the missing ones.
+const bilingual = provideBilingualForm();
 const isEnglish = computed(() => locale.value === 'en');
 
 const attributeName = (attribute) => {
@@ -370,6 +390,12 @@ const openAttributeModal = () => {
 const closeAttributeModal = () => { showAttributeModal.value = false; };
 
 const submitAttribute = async () => {
+  // The form has no browser "required" check (a hidden language input would block it), so check here.
+  if (!hasText(attributeForm.value.name_ar) || !hasText(attributeForm.value.name_en)) {
+    bilingual.reveal();
+    triggerAlert(tx('اسم الخاصية بالعربي والإنجليزي مطلوب', 'The attribute name is required in Arabic and English'), 'error');
+    return;
+  }
   isSubmitting.value = true;
   try {
     const { is_core: makeCore, ...attributeFields } = attributeForm.value;
@@ -408,7 +434,8 @@ const submitValue = async () => {
   try {
     const nameAr = String(valueForm.value.name_ar || '').trim();
     const nameEn = String(valueForm.value.name_en || '').trim();
-    if (!nameAr || !nameEn) {
+    if (!hasText(nameAr) || !hasText(nameEn)) {
+      bilingual.reveal();
       triggerAlert('اسم القيمة بالعربي والإنجليزي مطلوب', 'error');
       return;
     }
@@ -509,6 +536,13 @@ const deleteValueItem = async (val) => {
   }
 };
 
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+const bulk = useBulkSelection(() => attributes.value);
+const bulkActions = computed(() => [
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    confirm: (rows) => tx(`هتحذف ${rows.length} خاصية. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} attributes? This cannot be undone.`),
+    each: (a) => productAttributeService.delete(a.id), done: fetchAttributes, success: (n) => tx(`تم حذف ${n} خاصية`, `${n} attributes deleted`) },
+]);
 </script>
 
 <style scoped>
@@ -850,8 +884,6 @@ const deleteValueItem = async (val) => {
 .form-modal .modal-title-main { font-size: 1.3rem; font-weight: 800; color: #111827; margin: 0; }
 .form-modal .modal-subtitle-main { font-size: 0.85rem; color: #9ca3af; margin-top: 0.4rem; }
 .form-modal .cat-form, .form-modal .prod-form, .form-modal .value-form { padding: 0 2.5rem 2.5rem 2.5rem; }
-.form-modal .i18n-toggle { display: flex; width: fit-content; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; background: #fff; margin: 0 auto 1.1rem; }
-.form-modal .i18n-btn { padding: 0.4rem 0.9rem; font-weight: 800; font-size: 0.85rem; min-width: 96px; font-family: 'IBM Plex Sans Arabic', sans-serif; }
 .form-modal .modal-tabs { margin: 0 2.5rem 1.5rem; }
 .form-modal .form-group { margin-bottom: 1.5rem; }
 .form-modal .form-label { font-size: 0.85rem; font-weight: 700; color: #374151; margin-bottom: 0.75rem; }

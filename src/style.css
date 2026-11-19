@@ -360,3 +360,33 @@ input[type='number']::-webkit-outer-spin-button {
 .page-content .p-6[class*="-page"] {
   padding: 0 !important;
 }
+
+/* Drag-and-drop ordering of table rows (categories, offers, discount codes), see composables/useDragReorder.js */
+.data-row.is-dragging { opacity: 0.4; }
+.data-row.drop-before td { box-shadow: inset 0 3px 0 #660033; }
+.data-row.drop-after td { box-shadow: inset 0 -3px 0 #660033; }
+.col-drag { width: 44px; text-align: center; }
+/* Rows slide to their new place after a drag (and slide back if the save fails): <TransitionGroup tag="tbody" name="row-move"> */
+.row-move-move { transition: transform 0.35s ease; }
+@media (prefers-reduced-motion: reduce) { .row-move-move { transition: none; } }
+
+/* "الأعمدة" picker sits right above a table: components/ColumnPicker.vue */
+.col-toolbar { display: flex; justify-content: flex-end; margin: 0 0 0.5rem; }
+
+/* ---- Bulk selection (useBulkSelection + BulkActionBar): the tick column of every CRUD table ---- */
+th.bulk-col, td.bulk-col { width: 44px; min-width: 44px; padding-inline: 0.75rem 0.25rem !important; text-align: center !important; }
+.bulk-check {
+  appearance: none; -webkit-appearance: none; margin: 0; width: 18px; height: 18px; border: 1.6px solid #cbd5e1; border-radius: 5px;
+  background: #fff; cursor: pointer; display: inline-grid; place-content: center; vertical-align: middle;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.bulk-check:hover { border-color: #660033; }
+.bulk-check:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(102, 0, 51, 0.22); }
+.bulk-check::before { content: ''; width: 10px; height: 10px; transform: scale(0); transition: transform 0.12s ease; background: #fff;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%); }
+.bulk-check:checked, .bulk-check:indeterminate { background: #660033; border-color: #660033; }
+.bulk-check:checked::before { transform: scale(1); }
+.bulk-check:indeterminate::before { transform: scale(1); clip-path: none; height: 2px; border-radius: 2px; }
+tr.is-selected > td { background: #fdf4f8 !important; }
+tr.is-selected > td.bulk-col { box-shadow: inset 3px 0 0 #660033; }
+[dir="rtl"] tr.is-selected > td.bulk-col { box-shadow: inset -3px 0 0 #660033; }

@@ -91,10 +91,13 @@
     </div>
 
     <!-- Table -->
+    <div class="col-toolbar"><ColumnPicker table-key="categories" /></div>
     <div class="table-container">
-      <table class="data-table">
+      <table class="data-table" data-col-key="categories" :data-bulk-table="bulk.tableId">
         <thead>
           <tr>
+            <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
+            <th class="col-drag" :title="tx('الترتيب', 'Order')"></th>
             <th class="col-name">{{ tx('القسم', 'Category') }}</th>
             <th class="col-products">{{ tx('المنتجات', 'Products') }}</th>
             <th class="col-parent">{{ tx('الأقسام الفرعية', 'Sub-categories') }}</th>
@@ -102,15 +105,19 @@
             <th class="col-actions">{{ tx('الإجراءات', 'Actions') }}</th>
           </tr>
         </thead>
-        <tbody>
-          <tr v-if="loading" class="state-row">
-            <td colspan="5">{{ tx('جاري التحميل...', 'Loading...') }}</td>
+        <TransitionGroup tag="tbody" name="row-move">
+          <tr v-if="loading" key="state-loading" class="state-row">
+            <td colspan="7">{{ tx('جاري التحميل...', 'Loading...') }}</td>
           </tr>
-          <tr v-else-if="visibleRows.length === 0" class="state-row">
-            <td colspan="5">{{ tx('لا توجد أقسام مطابقة للبحث', 'No matching categories found') }}</td>
+          <tr v-else-if="visibleRows.length === 0" key="state-empty" class="state-row">
+            <td colspan="7">{{ tx('لا توجد أقسام مطابقة للبحث', 'No matching categories found') }}</td>
           </tr>
           <template v-else>
-            <tr v-for="cat in visibleRows" :key="cat.id" class="data-row" :class="{ 'is-sub': isSubRow(cat) }">
+            <tr v-for="cat in visibleRows" :key="cat.id" class="data-row" :class="{ 'is-sub': isSubRow(cat), 'is-selected': bulk.isSelected(cat.id) }" v-bind="drag.rowBindings(cat)" :data-testid="`category-row-${cat.id}`" :data-bulk-id="cat.id">
+              <td class="bulk-col" @click.stop><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(cat.id)" :aria-label="tx('تحديد', 'Select')" data-testid="bulk-row" @click="bulk.toggle(cat.id, $event)" /></td>
+              <td class="col-drag">
+                <DragHandle :enabled="drag.enabled.value" :disabled-hint="tx('امسح البحث والفلاتر لتغيير الترتيب', 'Clear the search and filters to reorder')" v-bind="drag.handleBindings(cat)" />
+              </td>
               <td class="col-name">
                 <div class="cat-name-cell">
                   <!-- Fixed slot at the start: the arrow of a main category with sub-categories, or the "child of" mark. -->
@@ -175,9 +182,10 @@
               </td>
             </tr>
           </template>
-        </tbody>
+        </TransitionGroup>
       </table>
     </div>
+    <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="categories" />
 
     <!-- Add / edit dialog (main category, sub-category, edit) -->
     <div class="cm-overlay" v-if="showFormModal" @click.self="closeModal" @keydown.esc="closeModal">
@@ -196,14 +204,6 @@
           <div class="cm-parent" v-if="form.parent_id" data-testid="category-parent">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg>
             <span>{{ tx('القسم الرئيسي:', 'Main category:') }} {{ formParentName }}</span>
-          </div>
-
-          <!-- Language -->
-          <div class="cm-lang" role="tablist" :aria-label="tx('اللغة', 'Language')">
-            <div class="cm-lang-switch" dir="ltr">
-              <button type="button" role="tab" class="cm-lang-btn" :class="{ active: activeLang === 'en', missing: !nameFilled('en') }" :aria-selected="activeLang === 'en'" @click="activeLang = 'en'">English</button>
-              <button type="button" role="tab" class="cm-lang-btn" :class="{ active: activeLang === 'ar', missing: !nameFilled('ar') }" :aria-selected="activeLang === 'ar'" @click="activeLang = 'ar'">العربية</button>
-            </div>
           </div>
 
           <!-- Image -->
@@ -233,24 +233,26 @@
 
 
           <!-- Name -->
-          <div class="cm-field" v-show="activeLang === 'ar'">
-            <label class="cm-label" for="cm-name-ar">{{ isSubForm ? tx('اسم القسم الفرعي', 'Sub-category name') : tx('اسم القسم', 'Category name') }} <span class="cm-req">*</span></label>
-            <input id="cm-name-ar" type="text" v-model="form.name_ar" class="cm-input" :placeholder="isSubForm ? 'مثال: هواتف ذكية' : 'مثال: إلكترونيات'" data-testid="category-name-ar" />
-          </div>
-          <div class="cm-field" v-show="activeLang === 'en'">
-            <label class="cm-label" for="cm-name-en">{{ isSubForm ? tx('اسم القسم الفرعي', 'Sub-category name') : tx('اسم القسم', 'Category name') }} (English) <span class="cm-req">*</span></label>
-            <input id="cm-name-en" type="text" v-model="form.name_en" class="cm-input" dir="ltr" :placeholder="isSubForm ? 'e.g. Smartphones' : 'e.g. Electronics'" data-testid="category-name-en" />
-          </div>
+          <BilingualField class="cm-field" required :ar="form.name_ar" :en="form.name_en" testid="category-name">
+            <template #label="{ lang }">
+              <label class="cm-label" :for="lang === 'ar' ? 'cm-name-ar' : 'cm-name-en'">{{ isSubForm ? tx('اسم القسم الفرعي', 'Sub-category name') : tx('اسم القسم', 'Category name') }} <span class="cm-req">*</span></label>
+            </template>
+            <template #default="{ lang }">
+              <input v-show="lang === 'ar'" id="cm-name-ar" type="text" v-model="form.name_ar" class="cm-input" dir="rtl" :placeholder="isSubForm ? 'مثال: هواتف ذكية' : 'مثال: إلكترونيات'" data-testid="category-name-ar" />
+              <input v-show="lang === 'en'" id="cm-name-en" type="text" v-model="form.name_en" class="cm-input" dir="ltr" :placeholder="isSubForm ? 'e.g. Smartphones' : 'e.g. Electronics'" data-testid="category-name-en" />
+            </template>
+          </BilingualField>
 
           <!-- Description -->
-          <div class="cm-field" v-show="activeLang === 'ar'">
-            <label class="cm-label" for="cm-desc-ar">{{ tx('الوصف', 'Description') }}</label>
-            <textarea id="cm-desc-ar" v-model="form.description_ar" class="cm-textarea" placeholder="وصف القسم (اختياري)" rows="3"></textarea>
-          </div>
-          <div class="cm-field" v-show="activeLang === 'en'">
-            <label class="cm-label" for="cm-desc-en">{{ tx('الوصف', 'Description') }} (English)</label>
-            <textarea id="cm-desc-en" v-model="form.description_en" class="cm-textarea" dir="ltr" placeholder="Category description (optional)" rows="3"></textarea>
-          </div>
+          <BilingualField class="cm-field" :ar="form.description_ar" :en="form.description_en" testid="category-description">
+            <template #label="{ lang }">
+              <label class="cm-label" :for="lang === 'ar' ? 'cm-desc-ar' : 'cm-desc-en'">{{ tx('الوصف', 'Description') }}</label>
+            </template>
+            <template #default="{ lang }">
+              <textarea v-show="lang === 'ar'" id="cm-desc-ar" v-model="form.description_ar" class="cm-textarea" dir="rtl" placeholder="وصف القسم (اختياري)" rows="3"></textarea>
+              <textarea v-show="lang === 'en'" id="cm-desc-en" v-model="form.description_en" class="cm-textarea" dir="ltr" placeholder="Category description (optional)" rows="3"></textarea>
+            </template>
+          </BilingualField>
 
           <!-- Status -->
           <div class="cm-field">
@@ -376,6 +378,9 @@
 </template>
 
 <script setup>
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
+import ColumnPicker from '../components/ColumnPicker.vue';
 import { localizeMessage } from '../utils/uiMessages';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, computed, onMounted } from 'vue';
@@ -387,6 +392,13 @@ import { safeObjectUrl } from '../utils/adminSecurity';
 import ImageCropModal from '../components/ImageCropModal.vue';
 import ImageCropButton from '../components/ImageCropButton.vue';
 import { useImageCrop } from '../composables/useImageCrop';
+import { useDragReorder } from '../composables/useDragReorder';
+import { reorderFailureMessage } from '../utils/reorderMessages';
+import DragHandle from '../components/DragHandle.vue';
+import BilingualField from '../components/BilingualField.vue';
+import { provideBilingualForm } from '../composables/useBilingualForm';
+import { hasText } from '../utils/bilingualText';
+import { sortByOrder, positionChanges, orderPersisted, applyPositions } from '../domain/reorder';
 
 const { locale, tx } = useAdminText();
 const { cropModal, closeCrop, finishCrop, prepareImage, recropImage } = useImageCrop();
@@ -429,6 +441,10 @@ const parentOf = (category) => {
   return categories.value.find(item => Number(item.id) === Number(category.parent_id)) || null;
 };
 
+// Order of categories: by their position (sort_order), then by id. Main categories and the sub-categories of each
+// main category are separate lists, each numbered 1..N.
+const byOrder = (a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) || Number(a.id) - Number(b.id);
+
 // Filtered categories: every main category is followed by its own sub-categories.
 const filteredCategories = computed(() => {
   const matches = categories.value.filter(cat => {
@@ -436,7 +452,7 @@ const filteredCategories = computed(() => {
     const matchStatus = statusFilter.value === '' ? true : (cat.is_active.toString() === statusFilter.value);
     return matchSearch && matchStatus;
   });
-  const bySort = (a, b) => (a.sort_order || 0) - (b.sort_order || 0) || Number(a.id) - Number(b.id);
+  const bySort = byOrder;
   const parentIds = new Set(categories.value.filter(cat => !cat.parent_id).map(cat => Number(cat.id)));
   const isSub = (cat) => cat.parent_id && parentIds.has(Number(cat.parent_id));
   const mains = matches.filter(cat => !isSub(cat)).sort(bySort);
@@ -473,6 +489,53 @@ const visibleRows = computed(() => filteredCategories.value.filter(
   cat => !isSubRow(cat) || isFiltering.value || Boolean(expandedIds.value[cat.parent_id]),
 ));
 
+// Drag and drop: rows move inside their own list (the main categories, or the sub-categories of one main
+// category), and the new positions 1..N are saved. Off while a search or filter hides part of the list.
+const groupOfCategory = (cat) => (cat.parent_id ? `sub-${Number(cat.parent_id)}` : 'main');
+const siblingsOf = (cat) => sortByOrder(categories.value.filter(item => groupOfCategory(item) === groupOfCategory(cat)), 'sort_order', (a, b) => Number(a.id) - Number(b.id));
+
+// The category as the edit form holds it (no image: an unchanged image stays as it is on the server).
+const formFromCategory = (cat) => {
+  const nameObj = cat.name_i18n && typeof cat.name_i18n === 'object' ? cat.name_i18n : null;
+  const descObj = cat.description_i18n && typeof cat.description_i18n === 'object' ? cat.description_i18n : null;
+  return {
+    name_ar: nameObj?.ar ?? cat.name ?? '',
+    name_en: nameObj?.en ?? '',
+    description_ar: descObj?.ar ?? cat.description ?? '',
+    description_en: descObj?.en ?? '',
+    parent_id: cat.parent_id || '',
+    is_active: cat.is_active,
+    sort_order: cat.sort_order ?? 0,
+  };
+};
+
+// The table shows the new order at once. If the API does not take it, every row slides back to where it was and a
+// message says why; if it does, the rows simply stay.
+const reorderCategories = async (list) => {
+  const changes = positionChanges(list);
+  if (!changes.length) return;
+  const rollback = applyPositions(changes);
+  try {
+    for (const { item, position } of changes) {
+      await adminCatalogService.updateCategory(item.id, toCategoryPayload({ ...formFromCategory(item), sort_order: position }));
+    }
+    await fetchCategories({ silent: true, strict: true });
+    if (!orderPersisted(list, categories.value)) throw Object.assign(new Error('ORDER_NOT_PERSISTED'), { code: 'ORDER_NOT_PERSISTED' });
+    triggerAlert('تم تحديث ترتيب الأقسام');
+  } catch (error) {
+    rollback();
+    triggerAlert(reorderFailureMessage(error), 'error');
+    await fetchCategories({ silent: true });
+  }
+};
+
+const drag = useDragReorder({
+  canDrag: computed(() => !isFiltering.value && categories.value.length > 1),
+  groupOf: groupOfCategory,
+  siblings: siblingsOf,
+  onReorder: reorderCategories,
+});
+
 // Modals
 const showFormModal = ref(false);
 const showViewModal = ref(false);
@@ -481,9 +544,8 @@ const editingId = ref(null);
 const viewCategory = ref(null);
 const fileInput = ref(null);
 const isSubmitting = ref(false);
-// The form opens on the dashboard's language; Arabic tab sits on the right, English on the left.
-const formLang = () => (locale.value === 'en' ? 'en' : 'ar');
-const activeLang = ref(formLang());
+// Each Arabic / English field has its own language switch (BilingualField); this resets or reveals them all.
+const bilingual = provideBilingualForm();
 const editingName = ref('');
 const CATEGORY_HAS_PRODUCTS = 'لا يمكن حذف هذا القسم لأنه مرتبط بمنتجات. انقل المنتجات إلى قسم آخر أو احذفها أولًا.';
 const deleteTarget = ref(null);
@@ -534,8 +596,8 @@ const triggerAlert = (msg, type = 'success') => {
 };
 
 // Fetch data
-const fetchCategories = async () => {
-  loading.value = true;
+const fetchCategories = async ({ silent = false, strict = false } = {}) => {
+  if (!silent) loading.value = true;
   try {
     const [categoryList, productList] = await Promise.all([
       adminCatalogService.listCategories({ include_inactive: 1, show_all: 1 }),
@@ -543,8 +605,10 @@ const fetchCategories = async () => {
     ]);
     categories.value = visibleCategories(categoryList);
     allProducts.value = visibleProducts(productList);
-  } catch {
-    triggerAlert('فشل جلب الأقسام', 'error');
+  } catch (error) {
+    // A silent refresh (after a reorder) keeps the table as it is; only the reorder itself reports the problem.
+    if (strict) throw error;
+    if (!silent) triggerAlert('فشل جلب الأقسام', 'error');
   } finally {
     loading.value = false;
   }
@@ -572,7 +636,7 @@ const submitLabel = computed(() => {
   if (isEdit.value) return tx('حفظ التغييرات', 'Save changes');
   return isSubForm.value ? tx('إضافة القسم الفرعي', 'Add sub-category') : tx('إضافة القسم', 'Add category');
 });
-const nameFilled = (lang) => Boolean(String(lang === 'ar' ? form.value.name_ar : form.value.name_en).trim());
+const nameFilled = (lang) => hasText(lang === 'ar' ? form.value.name_ar : form.value.name_en);
 const missingFields = computed(() => {
   const missing = [];
   if (!isEdit.value && !hasImage(imagePreview.value)) missing.push(isSubForm.value ? tx('صورة القسم الفرعي', 'sub-category image') : tx('صورة القسم', 'category image'));
@@ -591,7 +655,7 @@ const openAddModal = () => {
   editingId.value = null;
   form.value = getBaseForm();
   imagePreview.value = null;
-  activeLang.value = formLang();
+  bilingual.reset();
   showFormModal.value = true;
 };
 
@@ -605,20 +669,9 @@ const openEditModal = (cat) => {
   isEdit.value = true;
   editingId.value = cat.id;
   editingName.value = localizedName(cat.name_i18n, cat.name);
-  const nameObj = cat.name_i18n && typeof cat.name_i18n === 'object' ? cat.name_i18n : null;
-  const descObj = cat.description_i18n && typeof cat.description_i18n === 'object' ? cat.description_i18n : null;
-  form.value = {
-    name_ar: nameObj?.ar ?? cat.name ?? '',
-    name_en: nameObj?.en ?? '',
-    description_ar: descObj?.ar ?? cat.description ?? '',
-    description_en: descObj?.en ?? '',
-    parent_id: cat.parent_id || '',
-    is_active: cat.is_active,
-    sort_order: cat.sort_order ?? 0,
-    image: null
-  };
+  form.value = { ...formFromCategory(cat), image: null };
   imagePreview.value = cat.image || null;
-  activeLang.value = formLang();
+  bilingual.reset();
   showFormModal.value = true;
 };
 
@@ -637,7 +690,7 @@ const closeModal = () => {
   imageError.value = '';
   form.value = getBaseForm();
   imagePreview.value = null;
-  activeLang.value = formLang();
+  bilingual.reset();
 };
 
 // Image Upload
@@ -675,13 +728,13 @@ const recropCurrentImage = async () => {
 // Submit form
 const submitForm = async () => {
   if (isSubmitting.value) return;
-  if (!String(form.value.name_ar || '').trim()) {
-    activeLang.value = 'ar';
+  if (!nameFilled('ar')) {
+    bilingual.reveal();
     triggerAlert('اسم القسم بالعربي مطلوب', 'error');
     return;
   }
-  if (!String(form.value.name_en || '').trim()) {
-    activeLang.value = 'en';
+  if (!nameFilled('en')) {
+    bilingual.reveal();
     triggerAlert('اسم القسم بالإنجليزية مطلوب', 'error');
     return;
   }
@@ -753,6 +806,18 @@ const runDelete = async () => {
     isDeleting.value = false;
   }
 };
+
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+const bulk = useBulkSelection(() => visibleRows.value);
+const bulkActions = computed(() => [
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    concurrency: 1, order: (rows) => [...rows].sort((a, b) => Number(isSubRow(b)) - Number(isSubRow(a))),
+    confirm: (rows) => tx(`هتحذف ${rows.length} قسم. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} categories? This cannot be undone.`),
+    each: async (c) => {
+      if (allProducts.value.length && (productCounts.value[Number(c.id)] || 0) > 0) throw new Error(tx('مرتبط بمنتجات', 'has products'));
+      await adminCatalogService.deleteCategory(c.id);
+    }, done: () => fetchCategories(), success: (n) => tx(`تم حذف ${n} قسم`, `${n} categories deleted`) },
+]);
 </script>
 
 <style scoped>
@@ -934,6 +999,7 @@ const runDelete = async () => {
 .state-row td { text-align: center; color: #6b7280; padding: 2rem; }
 
 /* Columns alignment based on Figma */
+.col-drag { width: 44px; text-align: center; padding-inline: 0.4rem !important; }
 .col-name { text-align: right; width: 45%; }
 .col-products { text-align: center; width: 15%; }
 .col-parent { text-align: center; width: 15%; }
@@ -1124,19 +1190,6 @@ const runDelete = async () => {
 }
 .cm-change { padding: 4px 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.92); font-size: 12px; font-weight: 600; color: rgba(47, 43, 61, 0.9); }
 
-.cm-lang { display: flex; align-items: center; justify-content: center; }
-.cm-lang-icon { color: rgba(47, 43, 61, 0.55); }
-.cm-lang-switch { display: inline-flex; overflow: hidden; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; }
-.cm-lang-btn {
-  position: relative; min-width: 96px; padding: 0.4rem 0.9rem; border: none;
-  background: transparent; color: #6b7280;
-  font-family: inherit; font-size: 0.85rem; font-weight: 800; cursor: pointer;
-}
-.cm-lang-btn.active { background: #660033; color: #fff; }
-.cm-lang-btn.missing::after {
-  content: ''; position: absolute; top: 5px; inset-inline-end: 5px;
-  width: 5px; height: 5px; border-radius: 50%; background: #dc2626;
-}
 .cm-image-error { margin: -8px 0 0; padding: 8px 12px; border-radius: 6px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 13px; }
 .cm-missing { margin: 0; font-size: 12px; color: rgba(47, 43, 61, 0.6); }
 
@@ -1156,7 +1209,7 @@ const runDelete = async () => {
 .cm-btn-primary:hover:not(:disabled) { background: #4d0026; }
 .cm-btn-danger { background: #ef4444; border: none; color: #fff; }
 .cm-btn-danger:hover:not(:disabled) { background: #dc2626; }
-.cm-btn:focus-visible, .cm-lang-btn:focus-visible, .cm-close:focus-visible { outline: 2px solid #660033; outline-offset: 2px; }
+.cm-btn:focus-visible, .cm-close:focus-visible { outline: 2px solid #660033; outline-offset: 2px; }
 
 /* View */
 .cm-view-hero { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 8px 0; }

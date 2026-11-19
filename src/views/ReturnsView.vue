@@ -101,8 +101,9 @@
       </div>
 
       <template v-else>
+        <div class="col-toolbar"><ColumnPicker table-key="returns" /></div>
         <div class="table-scroll">
-          <table class="returns-table">
+          <table class="returns-table" data-col-key="returns">
             <thead>
               <tr>
                 <th>{{ tx('رقم الإرجاع', 'Return no.') }}</th>
@@ -172,6 +173,7 @@
 </template>
 
 <script setup>
+import ColumnPicker from '../components/ColumnPicker.vue';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, computed, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';

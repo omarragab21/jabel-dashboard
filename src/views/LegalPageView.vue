@@ -9,7 +9,9 @@ import ImageCropModal from '../components/ImageCropModal.vue';
 import ImageCropButton from '../components/ImageCropButton.vue';
 import { useImageCrop } from '../composables/useImageCrop';
 import { safeObjectUrl, sanitizeAssetUrl } from '../utils/adminSecurity';
+import BilingualField from '../components/BilingualField.vue';
 import api from '../config/axios';
+import { normalizeHeroColor, heroProblem, DEFAULT_HERO_COLOR } from '../domain/legalHero';
 
 const route = useRoute();
 const { tx } = useAdminText();
@@ -45,7 +47,7 @@ const bannerMeta = computed(() => ({
     },
 }[pageId.value]));
 
-const page = ref({ hero_image: '', updated_at: '', tagline_ar: '', tagline_en: '', banner: { title_ar: '', title_en: '', text_ar: '', text_en: '' }, sections: [] });
+const page = ref({ hero_type: 'color', hero_image: '', hero_color: DEFAULT_HERO_COLOR, updated_at: '', tagline_ar: '', tagline_en: '', banner: { title_ar: '', title_en: '', text_ar: '', text_en: '' }, sections: [] });
 const loading = ref(true);
 const loadFailed = ref(false);
 const savedBefore = ref(true);
@@ -101,7 +103,11 @@ const recropHero = async () => {
     if (error) triggerAlert(error, 'error');
     if (file) stageHero(file);
 };
-const resetHero = () => { page.value.hero_image = ''; heroPreview.value = ''; };
+// The cover is a photo OR a colour. Switching the kind keeps what was picked for the other one until saving.
+const heroColorValid = computed(() => Boolean(normalizeHeroColor(page.value.hero_color)));
+const heroPickerValue = computed(() => normalizeHeroColor(page.value.hero_color) || DEFAULT_HERO_COLOR);
+const setHeroType = (type) => { page.value.hero_type = type; };
+const onHeroPicker = (e) => { page.value.hero_color = e.target.value; };
 
 const addSection = () => { page.value.sections.push(emptySection()); };
 const moveSection = (index, step) => {
@@ -126,6 +132,10 @@ const triggerAlert = (message, type = 'success') => {
 
 const validate = () => {
     if (!/^\d{4}-\d{2}$/.test(page.value.updated_at)) return tx('حدد شهر آخر تحديث', 'Pick the last-updated month');
+    const heroIssue = heroProblem({ type: page.value.hero_type, color: page.value.hero_color, hasImage: Boolean(heroShown.value) });
+    if (heroIssue === 'IMAGE_REQUIRED') return tx('صورة الغلاف: اختر صورة، أو بدّل إلى «لون» واختر لوناً', 'Cover: choose an image, or switch to “Color” and pick a color');
+    if (heroIssue === 'COLOR_INVALID') return tx('صورة الغلاف: اللون غير صالح، اكتب كود لون مثل #0F172A أو اخترْه من المربع', 'Cover: the color is not valid, type a code like #0F172A or pick it from the box');
+    if (heroIssue) return tx('اختر نوع الغلاف: صورة أو لون', 'Choose the cover type: image or color');
     if (!page.value.sections.length) return isQa.value ? tx('أضف سؤالاً واحداً على الأقل', 'Add at least one question') : tx('أضف قسماً واحداً على الأقل', 'Add at least one section');
     const bad = page.value.sections.findIndex((s) => [s.title_ar, s.title_en, s.text_ar, s.text_en].some((v) => !String(v || '').trim()));
     if (bad >= 0) return isQa.value ? tx(`السؤال ${bad + 1}: السؤال والجواب مطلوبان بالعربي والإنجليزي`, `Question ${bad + 1}: the question and answer are required in Arabic and English`) : tx(`القسم ${bad + 1}: العنوان والنص مطلوبان بالعربي والإنجليزي`, `Section ${bad + 1}: title and text are required in Arabic and English`);
@@ -167,7 +177,6 @@ const save = async () => {
         <p>{{ tx('عدّل النص فقط؛ تصميم الصفحة ثابت في الموقع.', 'Edit the text only; the page design is fixed on the website.') }}</p>
       </div>
       <div class="header-actions">
-        <a :href="titles.url" target="_blank" rel="noopener" class="ghost-btn">{{ tx('معاينة في الموقع', 'View on website') }}</a>
         <button class="save-btn" :disabled="isSaving || loading || loadFailed" @click="save" data-testid="legal-save">
           {{ isSaving ? tx('جاري الحفظ...', 'Saving...') : tx('حفظ التغييرات', 'Save changes') }}
         </button>
@@ -190,35 +199,44 @@ const save = async () => {
           <label>{{ tx('آخر تحديث (الشهر والسنة)', 'Last updated (month and year)') }}</label>
           <input type="month" lang="en-GB" v-model="page.updated_at" class="ltr-input" data-testid="legal-updated" />
         </div>
-        <div class="form-group"></div>
-        <div class="form-group">
-          <label>{{ tx('الجملة تحت العنوان (عربي)', 'Line under the title (Arabic)') }}</label>
-          <input type="text" v-model="page.tagline_ar" maxlength="200" />
-        </div>
-        <div class="form-group">
-          <label>{{ tx('الجملة تحت العنوان (إنجليزي)', 'Line under the title (English)') }}</label>
-          <input type="text" v-model="page.tagline_en" maxlength="200" class="ltr-input" />
-        </div>
+        <BilingualField class="form-group" :ar="page.tagline_ar" :en="page.tagline_en" testid="legal-tagline">
+          <template #label><label>{{ tx('الجملة تحت العنوان', 'Line under the title') }}</label></template>
+          <template #default="{ lang }">
+            <input v-show="lang === 'ar'" type="text" v-model="page.tagline_ar" maxlength="200" dir="rtl" data-testid="legal-tagline-ar" />
+            <input v-show="lang === 'en'" type="text" v-model="page.tagline_en" maxlength="200" class="ltr-input" dir="ltr" data-testid="legal-tagline-en" />
+          </template>
+        </BilingualField>
       </div>
 
       <section v-if="hasHero" class="section-block" data-testid="legal-hero">
         <div class="section-head">
           <span class="section-step">▣</span>
-          <h3>{{ tx('صورة الغلاف', 'Cover image') }}<small> · {{ tx('اختياري', 'Optional') }}</small></h3>
+          <h3>{{ tx('صورة الغلاف', 'Cover image') }}<small> · {{ tx('صورة أو لون', 'Image or color') }}</small></h3>
         </div>
-        <p class="banner-hint">{{ tx('الصورة التي تظهر خلف عنوان الصفحة في الموقع. لو لم تختر صورة يظهر خلف العنوان لون داكن سادة.', 'The photo shown behind the page title on the website. If you pick none, a plain dark background is shown.') }}</p>
-        <div class="hero-card">
+        <p class="banner-hint">{{ tx('الخلفية التي تظهر خلف عنوان الصفحة في الموقع: إمّا صورة وإمّا لون، اختر واحداً منهما.', 'The background shown behind the page title on the website: either an image or a color, pick one.') }}</p>
+        <div class="hero-type" role="radiogroup" :aria-label="tx('نوع الغلاف', 'Cover type')">
+          <button type="button" role="radio" :aria-checked="page.hero_type === 'image'" :class="['hero-type-btn', { active: page.hero_type === 'image' }]" data-testid="legal-hero-type-image" @click="setHeroType('image')">{{ tx('صورة', 'Image') }}</button>
+          <button type="button" role="radio" :aria-checked="page.hero_type === 'color'" :class="['hero-type-btn', { active: page.hero_type === 'color' }]" data-testid="legal-hero-type-color" @click="setHeroType('color')">{{ tx('لون', 'Color') }}</button>
+        </div>
+        <div v-if="page.hero_type === 'image'" class="hero-card" data-testid="legal-hero-image-panel">
           <div class="hero-frame">
             <img v-if="heroShown" :src="heroShown" :alt="tx('صورة الغلاف', 'Cover image')" />
             <span v-else>{{ tx('لا توجد صورة', 'No image') }}</span>
           </div>
           <div class="hero-actions">
             <label class="ghost-btn hero-pick">
-              {{ tx('اختيار صورة', 'Choose image') }}
+              {{ heroShown ? tx('تغيير الصورة', 'Change image') : tx('اختيار صورة', 'Choose image') }}
               <input type="file" accept="image/*" hidden @change="onHeroChange" data-testid="legal-hero-input" />
             </label>
             <ImageCropButton v-if="heroShown" @crop="recropHero" />
-            <button v-if="heroShown" type="button" class="ghost-btn" @click="resetHero">{{ tx('إزالة الصورة', 'Remove image') }}</button>
+          </div>
+        </div>
+        <div v-else class="hero-card" data-testid="legal-hero-color-panel">
+          <div class="hero-frame hero-frame-color" :style="{ backgroundColor: heroPickerValue }"></div>
+          <div class="hero-actions">
+            <input type="color" class="hero-color-picker" :value="heroPickerValue" @input="onHeroPicker" :aria-label="tx('اختيار اللون', 'Pick a color')" data-testid="legal-hero-color-picker" />
+            <input type="text" v-model="page.hero_color" maxlength="7" dir="ltr" placeholder="#0F172A" :class="['hero-color-text', { invalid: !heroColorValid }]" data-testid="legal-hero-color-input" />
+            <small v-if="!heroColorValid" class="hero-color-error">{{ tx('كود لون غير صالح', 'Invalid color code') }}</small>
           </div>
         </div>
       </section>
@@ -230,22 +248,20 @@ const save = async () => {
         </div>
         <p class="banner-hint">{{ bannerMeta.hint }}</p>
         <div class="form-grid">
-          <div class="form-group">
-            <label>{{ tx('العنوان (عربي)', 'Title (Arabic)') }}</label>
-            <input type="text" v-model="page.banner.title_ar" maxlength="150" data-testid="legal-banner-title-ar" />
-          </div>
-          <div class="form-group">
-            <label>{{ tx('العنوان (إنجليزي)', 'Title (English)') }}</label>
-            <input type="text" v-model="page.banner.title_en" maxlength="150" class="ltr-input" data-testid="legal-banner-title-en" />
-          </div>
-          <div class="form-group">
-            <label>{{ tx('النص (عربي)', 'Text (Arabic)') }}</label>
-            <textarea v-model="page.banner.text_ar" rows="3" maxlength="400" data-testid="legal-banner-text-ar"></textarea>
-          </div>
-          <div class="form-group">
-            <label>{{ tx('النص (إنجليزي)', 'Text (English)') }}</label>
-            <textarea v-model="page.banner.text_en" rows="3" maxlength="400" class="ltr-input" data-testid="legal-banner-text-en"></textarea>
-          </div>
+          <BilingualField class="form-group full-row" :ar="page.banner.title_ar" :en="page.banner.title_en" testid="legal-banner-title">
+            <template #label><label>{{ tx('العنوان', 'Title') }}</label></template>
+            <template #default="{ lang }">
+              <input v-show="lang === 'ar'" type="text" v-model="page.banner.title_ar" maxlength="150" dir="rtl" data-testid="legal-banner-title-ar" />
+              <input v-show="lang === 'en'" type="text" v-model="page.banner.title_en" maxlength="150" class="ltr-input" dir="ltr" data-testid="legal-banner-title-en" />
+            </template>
+          </BilingualField>
+          <BilingualField class="form-group full-row" :ar="page.banner.text_ar" :en="page.banner.text_en" testid="legal-banner-text">
+            <template #label><label>{{ tx('النص', 'Text') }}</label></template>
+            <template #default="{ lang }">
+              <textarea v-show="lang === 'ar'" v-model="page.banner.text_ar" rows="3" maxlength="400" dir="rtl" data-testid="legal-banner-text-ar"></textarea>
+              <textarea v-show="lang === 'en'" v-model="page.banner.text_en" rows="3" maxlength="400" class="ltr-input" dir="ltr" data-testid="legal-banner-text-en"></textarea>
+            </template>
+          </BilingualField>
         </div>
       </section>
 
@@ -260,22 +276,20 @@ const save = async () => {
           </div>
         </div>
         <div class="form-grid">
-          <div class="form-group">
-            <label>{{ isQa ? tx('السؤال (عربي)', 'Question (Arabic)') : tx('العنوان (عربي)', 'Title (Arabic)') }}</label>
-            <input type="text" v-model="section.title_ar" maxlength="200" />
-          </div>
-          <div class="form-group">
-            <label>{{ isQa ? tx('السؤال (إنجليزي)', 'Question (English)') : tx('العنوان (إنجليزي)', 'Title (English)') }}</label>
-            <input type="text" v-model="section.title_en" maxlength="200" class="ltr-input" />
-          </div>
-          <div class="form-group">
-            <label>{{ isQa ? tx('الجواب (عربي)', 'Answer (Arabic)') : tx('النص (عربي)', 'Text (Arabic)') }}</label>
-            <textarea v-model="section.text_ar" rows="6" maxlength="4000"></textarea>
-          </div>
-          <div class="form-group">
-            <label>{{ isQa ? tx('الجواب (إنجليزي)', 'Answer (English)') : tx('النص (إنجليزي)', 'Text (English)') }}</label>
-            <textarea v-model="section.text_en" rows="6" maxlength="4000" class="ltr-input"></textarea>
-          </div>
+          <BilingualField class="form-group full-row" :ar="section.title_ar" :en="section.title_en" :testid="`legal-section-${index + 1}-title`">
+            <template #label><label>{{ isQa ? tx('السؤال', 'Question') : tx('العنوان', 'Title') }}</label></template>
+            <template #default="{ lang }">
+              <input v-show="lang === 'ar'" type="text" v-model="section.title_ar" maxlength="200" dir="rtl" :data-testid="`legal-section-${index + 1}-title-ar`" />
+              <input v-show="lang === 'en'" type="text" v-model="section.title_en" maxlength="200" class="ltr-input" dir="ltr" :data-testid="`legal-section-${index + 1}-title-en`" />
+            </template>
+          </BilingualField>
+          <BilingualField class="form-group full-row" :ar="section.text_ar" :en="section.text_en" :testid="`legal-section-${index + 1}-text`">
+            <template #label><label>{{ isQa ? tx('الجواب', 'Answer') : tx('النص', 'Text') }}</label></template>
+            <template #default="{ lang }">
+              <textarea v-show="lang === 'ar'" v-model="section.text_ar" rows="6" maxlength="4000" dir="rtl" :data-testid="`legal-section-${index + 1}-text-ar`"></textarea>
+              <textarea v-show="lang === 'en'" v-model="section.text_en" rows="6" maxlength="4000" class="ltr-input" dir="ltr" :data-testid="`legal-section-${index + 1}-text-en`"></textarea>
+            </template>
+          </BilingualField>
         </div>
       </section>
 
@@ -307,6 +321,7 @@ const save = async () => {
 .info-alert { background: #eff6ff; color: #1e40af; padding: 15px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; border: 1px solid #dbeafe; }
 .mb-4 { margin-bottom: 1rem; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.form-grid > .full-row { grid-column: 1 / -1; }
 .form-group label { display: block; font-weight: 700; font-size: 0.9rem; color: #374151; margin-bottom: 10px; }
 .form-group input, .form-group textarea { width: 100%; padding: 14px 18px; border: 1px solid #f3f4f6; border-radius: 12px; outline: none; font-family: inherit; font-size: 0.95rem; background: #fafafa; color: #1f2937; box-sizing: border-box; }
 .form-group input:focus, .form-group textarea:focus { border-color: #660033; background: white; box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05); }
@@ -331,6 +346,14 @@ const save = async () => {
 .hero-frame img { width: 100%; height: 100%; object-fit: cover; }
 .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .hero-pick { display: inline-block; }
+.hero-type { display: inline-flex; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; margin-bottom: 18px; }
+.hero-type-btn { border: none; background: white; color: #374151; padding: 9px 26px; font-family: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+.hero-type-btn.active { background: #660033; color: white; }
+.hero-frame-color { border-style: solid; }
+.hero-color-picker { width: 48px; height: 42px; padding: 2px; border: 1px solid #e5e7eb; border-radius: 10px; background: white; cursor: pointer; }
+.hero-color-text { width: 130px; padding: 10px 14px; border: 1px solid #e5e7eb; border-radius: 10px; font-family: monospace; font-size: 0.95rem; text-transform: uppercase; outline: none; }
+.hero-color-text.invalid { border-color: #dc2626; }
+.hero-color-error { color: #dc2626; font-weight: 600; }
 @media (max-width: 768px) {
   .form-grid { grid-template-columns: 1fr; }
   .content-card { padding: 20px; }

@@ -7,16 +7,15 @@
 //   POST   /v1/profile                      { name, phone_number }  (it also accepts `email`; the page keeps it read-only)
 //   PUT    /v1/profile/password             { current_password, password, password_confirmation }
 
-export const ADMIN_ROLES = ['super_admin'];
+import { ROLE_KEYS, roleLabel, countModules } from './permissions.js';
+
+// Roles an administrator can have. Each one starts from a permission preset (see permissions.js) that the
+// "إدارة الصلاحيات" tab of the form can adjust. The API accepts only `super_admin` as a role today.
+export const ADMIN_ROLES = ROLE_KEYS;
 export const PASSWORD_MIN = 8;
 export const NAME_MAX = 100;
 
-const ROLE_LABELS = { super_admin: ['أدمن', 'Admin'] };
-
-export const roleLabel = (role, lang = 'ar') => {
-  const pair = ROLE_LABELS[String(role || '').toLowerCase()];
-  return pair ? pair[lang === 'ar' ? 0 : 1] : String(role || '');
-};
+export { roleLabel };
 
 const clean = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
 
@@ -41,6 +40,8 @@ export const validateAdminForm = (form = {}, { isEdit = false } = {}) => {
   if (!String(form.phone || '').trim()) errors.phone = 'required';
   else if (!isValidPhone(form.phone)) errors.phone = 'invalid';
   if (!ADMIN_ROLES.includes(form.role)) errors.role = 'required';
+  // Every role except the full-access admin needs at least one module, otherwise the account could open nothing.
+  else if (form.role !== 'super_admin' && !countModules(form.permissions)) errors.permissions = 'required';
   const password = String(form.password || '');
   if (!isEdit && !password) errors.password = 'required';
   else if (password && password.length < PASSWORD_MIN) errors.password = 'short';

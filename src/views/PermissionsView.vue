@@ -1,4 +1,7 @@
 <script setup>
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
+import ColumnPicker from '../components/ColumnPicker.vue';
 import { localizeMessage } from '../utils/uiMessages';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, onMounted, computed } from 'vue';
@@ -141,6 +144,14 @@ const triggerAlert = (message, type = 'success') => {
     showAlert.value = true;
     setTimeout(() => showAlert.value = false, 3000);
 };
+
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+const bulk = useBulkSelection(() => permissions.value);
+const bulkActions = computed(() => [
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    confirm: (rows) => tx(`هتحذف ${rows.length} صلاحية. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} permissions? This cannot be undone.`),
+    each: (p) => api.delete(`/dashboard/permissions/${p.id}`), done: fetchData, success: (n) => tx(`تم حذف ${n} صلاحية`, `${n} permissions deleted`) },
+]);
 </script>
 
 <template>
@@ -209,10 +220,12 @@ const triggerAlert = (message, type = 'success') => {
     </div>
 
     <!-- Table -->
+    <div class="col-toolbar"><ColumnPicker table-key="permissions" /></div>
     <div class="table-container shadow-sm">
-      <table class="data-table">
+      <table class="data-table" data-col-key="permissions" :data-bulk-table="bulk.tableId">
         <thead>
           <tr>
+            <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
             <th class="col-id">{{ tx('رقم الصلاحية', 'Permission ID') }}</th>
             <th class="col-name text-right">{{ tx('اسم الصلاحية', 'Permission Name') }}</th>
             <th class="col-desc">{{ tx('الوصف', 'Description') }}</th>
@@ -222,11 +235,12 @@ const triggerAlert = (message, type = 'success') => {
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading" class="state-row"><td colspan="6">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
-          <tr v-else-if="loadError" class="state-row" data-testid="permissions-error"><td colspan="6">{{ tx('تعذّر تحميل الصلاحيات، الخدمة غير متاحة على الخادم حالياً.', 'Could not load permissions. The service is not available on the server right now.') }} <button type="button" class="retry-link" @click="fetchData">{{ tx('إعادة المحاولة', 'Retry') }}</button></td></tr>
-          <tr v-else-if="permissions.length === 0" class="state-row"><td colspan="6">{{ tx('لا توجد صلاحيات حالياً', 'No permissions yet') }}</td></tr>
+          <tr v-if="loading" class="state-row"><td colspan="7">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
+          <tr v-else-if="loadError" class="state-row" data-testid="permissions-error"><td colspan="7">{{ tx('تعذّر تحميل الصلاحيات، الخدمة غير متاحة على الخادم حالياً.', 'Could not load permissions. The service is not available on the server right now.') }} <button type="button" class="retry-link" @click="fetchData">{{ tx('إعادة المحاولة', 'Retry') }}</button></td></tr>
+          <tr v-else-if="permissions.length === 0" class="state-row"><td colspan="7">{{ tx('لا توجد صلاحيات حالياً', 'No permissions yet') }}</td></tr>
           <template v-else>
-            <tr v-for="permission in permissions" :key="permission.id" class="data-row">
+            <tr v-for="permission in permissions" :key="permission.id" class="data-row" :class="{ 'is-selected': bulk.isSelected(permission.id) }" :data-bulk-id="permission.id">
+              <td class="bulk-col" @click.stop><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(permission.id)" :aria-label="tx('تحديد', 'Select')" data-testid="bulk-row" @click="bulk.toggle(permission.id, $event)" /></td>
               <td class="col-id">#{{ permission.id }}</td>
               <td class="col-name text-right">
                 <div class="flex-center gap-2">
@@ -265,6 +279,7 @@ const triggerAlert = (message, type = 'success') => {
         </tbody>
       </table>
     </div>
+    <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="permissions" />
 
     <!-- Form Modal -->
     <div class="modal-overlay" v-if="showFormModal" @click.self="showFormModal = false">

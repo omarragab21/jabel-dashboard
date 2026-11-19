@@ -33,10 +33,13 @@
     </div>
 
     <!-- Table -->
+    <div class="col-toolbar"><ColumnPicker table-key="discounts" /></div>
     <div class="table-container">
-      <table class="data-table">
+      <table class="data-table" data-col-key="discounts" :data-bulk-table="bulk.tableId">
         <thead>
           <tr>
+            <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
+            <th class="col-drag" :title="tx('الترتيب', 'Order')"></th>
             <th class="col-code">{{ tx('الكود', 'Code') }}</th>
             <th>{{ tx('نوع الخصم', 'Discount type') }}</th>
             <th>{{ tx('قيمة الخصم', 'Discount value') }}</th>
@@ -48,11 +51,15 @@
             <th class="col-actions">{{ tx('الإجراءات', 'Actions') }}</th>
           </tr>
         </thead>
-        <tbody>
-          <tr v-if="loading" class="state-row"><td colspan="9">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
-          <tr v-else-if="filteredOffers.length === 0" class="state-row"><td colspan="9">{{ tx('لا توجد أكواد خصم مطابقة', 'No matching discount codes found') }}</td></tr>
+        <TransitionGroup tag="tbody" name="row-move">
+          <tr v-if="loading" key="state-loading" class="state-row"><td colspan="11">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
+          <tr v-else-if="filteredOffers.length === 0" key="state-empty" class="state-row"><td colspan="11">{{ tx('لا توجد أكواد خصم مطابقة', 'No matching discount codes found') }}</td></tr>
           <template v-else>
-            <tr v-for="offer in filteredOffers" :key="offer.id" class="data-row" :data-code="offer.code">
+            <tr v-for="offer in filteredOffers" :key="offer.id" class="data-row" :data-code="offer.code" v-bind="drag.rowBindings(offer)" :class="{ 'is-selected': bulk.isSelected(offer.id) }" :data-bulk-id="offer.id">
+              <td class="bulk-col" @click.stop><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(offer.id)" :aria-label="tx('تحديد', 'Select')" data-testid="bulk-row" @click="bulk.toggle(offer.id, $event)" /></td>
+              <td class="col-drag">
+                <DragHandle :enabled="drag.enabled.value" v-bind="drag.handleBindings(offer)" />
+              </td>
               <td class="col-code">
                 <div class="code-cell">
                   <span class="code-badge">{{ offer.code || '-' }}</span>
@@ -89,9 +96,10 @@
               </td>
             </tr>
           </template>
-        </tbody>
+        </TransitionGroup>
       </table>
     </div>
+    <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="discount-codes" />
 
     <!-- Add / View / Edit -->
     <div class="modal-overlay" v-if="showFormModal" @click.self="showFormModal = false">
@@ -171,21 +179,18 @@
             </div>
           </fieldset>
 
-          <div class="lang-row">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
-              <div class="i18n-toggle" role="tablist" aria-label="Language" dir="ltr">
-                <button type="button" class="i18n-btn" :class="{ active: activeLang === 'en' }" @click="activeLang = 'en'">English</button>
-                <button type="button" class="i18n-btn" :class="{ active: activeLang === 'ar' }" @click="activeLang = 'ar'">العربية</button>
-              </div>
-            </div>
-
-          <fieldset class="form-fieldset" :disabled="isView">
-            <div class="form-group">
-              <label class="form-label" for="dc-desc">{{ tx('وصف الكود', 'Code description') }}</label>
-              <input v-show="activeLang === 'ar'" id="dc-desc" type="text" v-model="form.description_ar" class="form-control" placeholder="مثال: خصم 25% على الطلبات فوق 100 د.أ" />
-              <input v-show="activeLang === 'en'" type="text" v-model="form.description_en" class="form-control" placeholder="e.g. 25% off on orders over 100 JOD" dir="ltr" />
-            </div>
-          </fieldset>
+          <!-- The language switch stays usable in view mode: only the inputs sit in the disabled fieldset. -->
+          <BilingualField class="form-group dc-desc-field" :ar="form.description_ar" :en="form.description_en" testid="discount-description">
+            <template #label="{ lang }">
+              <label class="form-label" :for="lang === 'ar' ? 'dc-desc' : 'dc-desc-en'">{{ tx('وصف الكود', 'Code description') }}</label>
+            </template>
+            <template #default="{ lang }">
+              <fieldset class="form-fieldset" :disabled="isView">
+                <input v-show="lang === 'ar'" id="dc-desc" type="text" v-model="form.description_ar" class="form-control" dir="rtl" placeholder="مثال: خصم 25% على الطلبات فوق 100 د.أ" data-testid="discount-description-ar" />
+                <input v-show="lang === 'en'" id="dc-desc-en" type="text" v-model="form.description_en" class="form-control" dir="ltr" placeholder="e.g. 25% off on orders over 100 JOD" data-testid="discount-description-en" />
+              </fieldset>
+            </template>
+          </BilingualField>
 
           <div class="form-footer-btns">
             <button type="button" class="btn-cancel-form" @click="showFormModal = false">{{ isView ? tx('إغلاق', 'Close') : tx('إلغاء', 'Cancel') }}</button>
@@ -226,6 +231,9 @@
 </template>
 
 <script setup>
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
+import ColumnPicker from '../components/ColumnPicker.vue';
 import { localizeMessage } from '../utils/uiMessages';
 import { useCurrencyLabel } from '../composables/useCurrencyLabel';
 import { apiErrorMessage } from '../utils/apiMessage';
@@ -233,8 +241,14 @@ import { ref, computed, onMounted } from 'vue';
 import { useAdminText } from '../composables/useAdminText';
 import adminCatalogService from '../application/adminCatalogService';
 import { toDiscountPayload } from '../domain/catalog/adminCatalog';
+import { useDragReorder } from '../composables/useDragReorder';
+import DragHandle from '../components/DragHandle.vue';
+import { sortByOrder, positionChanges, orderPersisted, applyPositions } from '../domain/reorder';
+import { reorderFailureMessage } from '../utils/reorderMessages';
+import BilingualField from '../components/BilingualField.vue';
+import { provideBilingualForm } from '../composables/useBilingualForm';
 
-const { tx, locale } = useAdminText();
+const { tx } = useAdminText();
 const { cur } = useCurrencyLabel();
 
 // States
@@ -252,11 +266,8 @@ const currentId = ref(null);
 const deleteTarget = ref(null);
 const isDeleting = ref(false);
 
-// The form opens on the dashboard's language; Arabic tab sits on the right, English on the left.
-
-const formLang = () => (locale.value === 'en' ? 'en' : 'ar');
-
-const activeLang = ref(formLang());
+// Each Arabic / English field has its own language switch (BilingualField); this resets or reveals them all.
+const bilingual = provideBilingualForm();
 
 const initialForm = {
     name_ar: '',
@@ -327,13 +338,17 @@ const copyText = (txt) => {
 };
 
 // Fetch Data
-const fetchOffers = async () => {
-  loading.value = true;
+const fetchOffers = async ({ silent = false, strict = false } = {}) => {
+  if (!silent) loading.value = true;
   try {
     offers.value = await adminCatalogService.listDiscountCodes({ include_inactive: 1, show_all: 1 });
-  } catch {
-    offers.value = [];
-    triggerAlert('فشل تحميل أكواد الخصم من الخادم', 'error');
+  } catch (error) {
+    // A silent refresh (after a reorder) keeps the table as it is; only the reorder itself reports the problem.
+    if (strict) throw error;
+    if (!silent) {
+      offers.value = [];
+      triggerAlert('فشل تحميل أكواد الخصم من الخادم', 'error');
+    }
   } finally {
     loading.value = false;
   }
@@ -344,13 +359,42 @@ onMounted(() => {
 });
 
 // Filtering
+// The codes in their saved order (sort_order). An API that sends no order keeps them as they arrive.
+const sortedOffers = computed(() => sortByOrder(offers.value, 'sort_order'));
+
 const filteredOffers = computed(() => {
-  return offers.value.filter(o => {
+  return sortedOffers.value.filter(o => {
     const q = searchQuery.value.toLowerCase().trim();
     if (!q) return true;
     return [o.code, o.name_i18n?.ar, o.name_i18n?.en, o.name, o.description]
       .some((field) => String(field ?? '').toLowerCase().includes(q));
   });
+});
+
+// Drag and drop: grab a row by its handle and drop it above or below another one; every code keeps its own
+// position 1..N (sort_order). Off while a search hides part of the list.
+// The table shows the new order at once. If the API does not take it, every row slides back to where it was and a
+// message says why; if it does, the rows simply stay.
+const reorderCodes = async (list) => {
+  const changes = positionChanges(list);
+  if (!changes.length) return;
+  const rollback = applyPositions(changes);
+  try {
+    for (const { item, position } of changes) await adminCatalogService.updateDiscountCode(item.id, { sort_order: position });
+    await fetchOffers({ silent: true, strict: true });
+    if (!orderPersisted(list, offers.value)) throw Object.assign(new Error('ORDER_NOT_PERSISTED'), { code: 'ORDER_NOT_PERSISTED' });
+    triggerAlert('تم تحديث ترتيب أكواد الخصم');
+  } catch (error) {
+    rollback();
+    triggerAlert(reorderFailureMessage(error), 'error');
+    await fetchOffers({ silent: true });
+  }
+};
+
+const drag = useDragReorder({
+  canDrag: computed(() => !String(searchQuery.value || '').trim() && offers.value.length > 1),
+  siblings: () => sortedOffers.value,
+  onReorder: reorderCodes,
 });
 
 // Actions
@@ -359,7 +403,7 @@ const openAddModal = () => {
     isView.value = false;
     currentId.value = null;
     form.value = { ...initialForm };
-    activeLang.value = formLang();
+    bilingual.reset();
     showFormModal.value = true;
 };
 
@@ -389,7 +433,7 @@ const openEditModal = (offer) => {
     isView.value = false;
     currentId.value = offer.id;
     form.value = toForm(offer);
-    activeLang.value = formLang();
+    bilingual.reset();
     showFormModal.value = true;
 };
 
@@ -475,6 +519,18 @@ const executeDelete = async () => {
         isDeleting.value = false;
     }
 };
+
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+const bulk = useBulkSelection(() => filteredOffers.value);
+const bulkActions = computed(() => [
+  { key: 'activate', label: tx('تفعيل', 'Activate'), icon: 'check', applies: (o) => !o.is_active,
+    each: (o) => adminCatalogService.updateDiscountCode(o.id, { is_active: true }), done: () => fetchOffers({ silent: true }), success: (n) => tx(`تم تفعيل ${n} كود`, `${n} codes activated`) },
+  { key: 'deactivate', label: tx('تعطيل', 'Deactivate'), icon: 'ban', applies: (o) => o.is_active,
+    each: (o) => adminCatalogService.updateDiscountCode(o.id, { is_active: false }), done: () => fetchOffers({ silent: true }), success: (n) => tx(`تم تعطيل ${n} كود`, `${n} codes deactivated`) },
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    confirm: (rows) => tx(`هتحذف ${rows.length} كود خصم. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} discount codes? This cannot be undone.`),
+    each: (o) => adminCatalogService.deleteDiscountCode(o.id), done: () => fetchOffers({ silent: true }), success: (n) => tx(`تم حذف ${n} كود خصم`, `${n} discount codes deleted`) },
+]);
 </script>
 
 <style scoped>
@@ -503,6 +559,7 @@ const executeDelete = async () => {
 .data-table th { font-size: 0.75rem; font-weight: 700; color: #6b7280; background: #fff; }
 .data-table td { font-size: 0.82rem; color: #1f2937; }
 .data-table tbody tr:last-child td { border-bottom: 0; }
+.col-drag { width: 44px; text-align: center; padding-inline: 0.4rem !important; }
 .data-row:hover td { background: #fafafa; }
 .state-row td { text-align: center; color: #6b7280; padding: 2.5rem; }
 .col-code { padding-right: 1.25rem !important; }
@@ -544,6 +601,7 @@ const executeDelete = async () => {
 .modal-subtitle-main { font-size: 0.82rem; color: #6b7280; margin: 0.25rem 0 0; }
 .offer-form { padding: 0.5rem 1.5rem 1.5rem; }
 .form-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.dc-desc-field { margin-top: 1.25rem; }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.1rem; }
 .form-group { display: flex; flex-direction: column; min-width: 0; }
@@ -563,10 +621,6 @@ const executeDelete = async () => {
 .select-wrapper select { appearance: none; padding-left: 2.2rem; cursor: pointer; }
 .select-icon { position: absolute; left: 0.9rem; top: 50%; transform: translateY(-50%); color: #6b7280; pointer-events: none; }
 
-.lang-row { display: flex; align-items: center; gap: 0.6rem; margin: 1.25rem 0 0.9rem; color: #6b7280; }
-.i18n-toggle { display: inline-flex; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; background: #fff; }
-.i18n-btn { border: none; background: transparent; padding: 0.35rem 0.85rem; font-weight: 700; font-size: 0.78rem; cursor: pointer; color: #6b7280; font-family: inherit; }
-.i18n-btn.active { background: #660033; color: #fff; }
 
 .form-footer-btns { margin-top: 1.5rem; display: flex; gap: 0.6rem; justify-content: flex-end; }
 .btn-cancel-form { padding: 0.65rem 1.1rem; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; color: #374151; font-family: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; }

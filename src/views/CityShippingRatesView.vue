@@ -22,10 +22,12 @@
       </select>
     </div>
 
+    <div class="col-toolbar"><ColumnPicker table-key="city-shipping-rates" /></div>
     <div class="table-container">
-      <table class="data-table">
+      <table class="data-table" data-col-key="city-shipping-rates" :data-bulk-table="bulk.tableId">
         <thead>
           <tr>
+            <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
             <th>{{ tx('المدينة', 'City') }}</th>
             <th>{{ tx('الدولة', 'Country') }}</th>
             <th>{{ tx('سعر الشحن', 'Shipping Cost') }}</th>
@@ -34,7 +36,8 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="rate in rates" :key="rate.id">
+          <tr v-for="rate in rates" :key="rate.id" :class="{ 'is-selected': bulk.isSelected(rate.id) }" :data-bulk-id="rate.id">
+            <td class="bulk-col" @click.stop><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(rate.id)" :aria-label="tx('تحديد', 'Select')" data-testid="bulk-row" @click="bulk.toggle(rate.id, $event)" /></td>
             <td>{{ localizedName(rate.city) }}</td>
             <td>{{ localizedName(rate.city?.country) }}</td>
             <td>{{ rate.shipping_cost + ' ' + currency }}</td>
@@ -61,6 +64,7 @@
         </tbody>
       </table>
     </div>
+    <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="shipping-rates" :label-of="(r) => r.city?.name_i18n?.ar || r.city?.name || r.city_name || `#${r.id}`" />
 
     <!-- Edit Modal -->
     <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
@@ -133,7 +137,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
+import ColumnPicker from '../components/ColumnPicker.vue';
+import { ref, onMounted, computed } from 'vue';
 import api from '../config/axios';
 import { useAdminText } from '../composables/useAdminText';
 
@@ -255,6 +262,14 @@ onMounted(() => {
   fetchCountries();
   fetchRates();
 });
+
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+const bulk = useBulkSelection(() => rates.value);
+const bulkActions = computed(() => [
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    confirm: (rows) => tx(`هتحذف ${rows.length} سعر شحن. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} shipping rates? This cannot be undone.`),
+    each: (r) => api.delete(`/dashboard/city-shipping-rates/${r.id}`), done: fetchRates, success: (n) => tx(`تم حذف ${n} سعر شحن`, `${n} shipping rates deleted`) },
+]);
 </script>
 
 <style scoped>

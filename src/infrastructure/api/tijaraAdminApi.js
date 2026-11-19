@@ -14,16 +14,21 @@ const withClearedPoints = (payload) => {
   return next;
 };
 
+// Arrays become key[0], key[1] ... and plain objects key[name] (nested as deep as needed), which PHP/Laravel reads back
+// as the same arrays: { permissions: { orders: ['read'] } } -> permissions[orders][0]=read.
+const appendField = (body, key, value) => {
+  if (value === undefined || value === null) return;
+  if (Array.isArray(value)) value.forEach((item, index) => appendField(body, `${key}[${index}]`, item));
+  else if (typeof value === 'object' && !(typeof Blob !== 'undefined' && value instanceof Blob)) Object.entries(value).forEach(([name, item]) => appendField(body, `${key}[${name}]`, item));
+  else body.append(key, value);
+};
+
 const multipart = (payload, files = {}) => {
   const body = new FormData();
   Object.entries(payload).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
     if (value === '' && !CLEARABLE_FIELDS.includes(key)) return;
-    if (Array.isArray(value)) {
-      value.forEach((item, index) => body.append(`${key}[${index}]`, item));
-    } else {
-      body.append(key, value);
-    }
+    appendField(body, key, value);
   });
   Object.entries(files).forEach(([key, value]) => {
     if (Array.isArray(value)) value.forEach((file) => body.append(`${key}[]`, file));

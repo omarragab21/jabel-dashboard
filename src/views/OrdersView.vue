@@ -81,10 +81,12 @@
     </div>
 
     <!-- Table -->
+    <div class="col-toolbar"><ColumnPicker table-key="orders" /></div>
     <div class="table-container">
-      <table class="data-table">
+      <table class="data-table" data-col-key="orders" :data-bulk-table="bulk.tableId">
         <thead>
           <tr>
+            <th class="bulk-col"><input type="checkbox" class="bulk-check" :checked="bulk.allSelected" :indeterminate="bulk.someSelected" :aria-label="tx('تحديد الكل', 'Select all')" data-testid="bulk-all" @change="bulk.toggleAll()" /></th>
             <th class="col-order-num">{{ tx('رقم الطلب', 'Order number') }}</th>
             <th class="col-customer">{{ tx('العميل', 'Customer') }}</th>
             <th class="col-products">{{ tx('المنتجات', 'Products') }}</th>
@@ -95,10 +97,11 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading" class="state-row"><td colspan="7">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
-          <tr v-else-if="filteredOrders.length === 0" class="state-row"><td colspan="7">{{ tx('لا توجد طلبات مطابقة', 'No matching orders found') }}</td></tr>
+          <tr v-if="loading" class="state-row"><td colspan="8">{{ tx('جاري التحميل...', 'Loading...') }}</td></tr>
+          <tr v-else-if="filteredOrders.length === 0" class="state-row"><td colspan="8">{{ tx('لا توجد طلبات مطابقة', 'No matching orders found') }}</td></tr>
           <template v-else>
-            <tr v-for="order in filteredOrders" :key="order.id" class="data-row" :data-order="order.orderNumber" :data-status="order.status">
+            <tr v-for="order in filteredOrders" :key="order.id" class="data-row" :data-order="order.orderNumber" :data-status="order.status" :class="{ 'is-selected': bulk.isSelected(order.id) }" :data-bulk-id="order.id">
+              <td class="bulk-col" @click.stop><input type="checkbox" class="bulk-check" :checked="bulk.isSelected(order.id)" :aria-label="tx('تحديد', 'Select')" data-testid="bulk-row" @click="bulk.toggle(order.id, $event)" /></td>
               <td class="col-order-num">
                 <span class="order-number" dir="ltr">#{{ order.orderNumber }}</span>
                 <i v-if="order.isGift" class="fas fa-gift gift-badge-icon" title="طلب هدية"></i>
@@ -150,6 +153,7 @@
         </tbody>
       </table>
     </div>
+    <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="orders" :label-of="(o) => `#${o.orderNumber || o.id}`" />
 
     <!-- View Modal Details -->
     <div class="modal-overlay" v-if="showViewModal" @click.self="showViewModal = false;">
@@ -451,6 +455,9 @@
 </template>
 
 <script setup>
+import BulkActionBar from '../components/BulkActionBar.vue';
+import { useBulkSelection } from '../composables/useBulkSelection';
+import ColumnPicker from '../components/ColumnPicker.vue';
 import { localizeMessage } from '../utils/uiMessages';
 import { useCurrencyLabel } from '../composables/useCurrencyLabel';
 import { apiErrorMessage } from '../utils/apiMessage';
@@ -702,6 +709,13 @@ const confirmDelete = async (order) => {
   }
 };
 
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+const bulk = useBulkSelection(() => filteredOrders.value);
+const bulkActions = computed(() => [
+  { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
+    confirm: (rows) => tx(`هتحذف ${rows.length} طلب. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} orders? This cannot be undone.`),
+    each: (o) => adminOrderService.deleteOrder(o.id), done: () => { fetchOrders(); window.dispatchEvent(new CustomEvent('orders-updated')); }, success: (n) => tx(`تم حذف ${n} طلب`, `${n} orders deleted`) },
+]);
 </script>
 
 <style scoped>

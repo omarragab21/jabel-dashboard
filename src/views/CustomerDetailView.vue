@@ -61,7 +61,8 @@
 
       <!-- سجل الطلبات -->
       <div v-else-if="activeTab === 'orders'" class="table-card" data-testid="panel-orders">
-        <table v-if="orders.length" class="data-table">
+        <div v-if="orders.length" class="col-toolbar"><ColumnPicker table-key="customer-orders" /></div>
+        <table v-if="orders.length" class="data-table" data-col-key="customer-orders">
           <thead>
             <tr>
               <th class="text-start">{{ tx('رقم الطلب', 'Order number') }}</th>
@@ -114,7 +115,8 @@
 
       <!-- التقييمات -->
       <div v-else class="table-card" data-testid="panel-reviews">
-        <table v-if="reviews.length" class="data-table">
+        <div v-if="reviews.length" class="col-toolbar"><ColumnPicker table-key="customer-reviews" /></div>
+        <table v-if="reviews.length" class="data-table" data-col-key="customer-reviews">
           <thead>
             <tr>
               <th class="text-start">{{ tx('المنتج', 'Product') }}</th>
@@ -143,6 +145,7 @@
 </template>
 
 <script setup>
+import ColumnPicker from '../components/ColumnPicker.vue';
 import { useCurrencyLabel } from '../composables/useCurrencyLabel';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
