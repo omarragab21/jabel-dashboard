@@ -87,6 +87,7 @@ export const PERMISSION_GROUPS = [
       { key: 'settings_contact', route: '/admin/settings/contact', label: ['التواصل والبريد', 'Contact & email'], actions: READ_UPDATE },
       { key: 'settings_location', route: '/admin/settings/location', label: ['العنوان وساعات العمل', 'Address & working hours'], actions: READ_UPDATE },
       { key: 'settings_branding', route: '/admin/settings/branding', label: ['الهوية البصرية', 'Branding'], actions: READ_UPDATE },
+      { key: 'settings_seo', route: '/admin/settings/seo', label: ['السيو ومعاينة الروابط', 'SEO & link preview'], actions: READ_UPDATE },
       { key: 'settings_newsbar', route: '/admin/settings/newsbar', label: ['شريط الأخبار', 'News bar'], actions: READ_UPDATE },
       { key: 'settings_about', route: '/admin/settings/about', label: ['من نحن', 'About us'], actions: READ_UPDATE },
       { key: 'settings_status', route: '/admin/settings/status', label: ['حالة الموقع', 'Website status'], actions: READ_UPDATE },
@@ -131,7 +132,7 @@ export const ROLE_PRESETS = {
   }),
   marketing_manager: preset({
     dashboard: 'all', discounts: 'all', offers: 'all', sliders: 'all', customers: ['read'], products: ['read'],
-    settings_homepage: 'all', settings_newsbar: 'all', settings_about: 'all',
+    settings_homepage: 'all', settings_seo: 'all', settings_newsbar: 'all', settings_about: 'all',
   }),
   customer_support: preset({
     dashboard: 'all', orders: ['read', 'update'], returns: ['read', 'update'], customers: ['read'],

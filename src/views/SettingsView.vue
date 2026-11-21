@@ -19,6 +19,7 @@ import BilingualField from '../components/BilingualField.vue';
 import { DEFAULT_TAB_TITLES, PRODUCT_TABS_KEY, normalizeTab, parseProductTabs, resolveProductTabs } from '../domain/productTabs';
 import { SOCIAL_KEYS, normalizeSocialLink } from '../domain/socialLinks';
 import { NEWS_BAR_KEY, newNewsId, normalizeNewsItem, parseNewsItems, seedNewsItems } from '../domain/newsBar';
+import { JABEL_SEO } from '../domain/seoDefaults';
 import { HOME_SECTIONS_KEY, SECTION_LIMITS, newSectionId, normalizeHomeSection, parseHomeSections, seedHomeSections, sectionProblem } from '../domain/homeSections';
 
 // Only what the colour picker shows while no colour is chosen (nothing is saved from it).
@@ -42,6 +43,7 @@ const sectionMeta = computed(() => ({
     location: { title: tx('العنوان وساعات العمل', 'Address & working hours'), subtitle: tx('عنوان المتجر ومواعيد العمل', 'Store address and opening hours') },
     newsbar: { title: tx('شريط الأخبار', 'News bar'), subtitle: tx('الأخبار التي تظهر في الشريط الأزرق تحت قائمة الموقع، بالعربي والإنجليزي', 'The news shown in the blue bar under the website menu, in Arabic and English') },
     branding: { title: tx('الهوية البصرية', 'Visual identity'), subtitle: tx('الشعارات وأيقونة المتصفح والألوان الأساسية', 'Logos, browser icon and brand colours') },
+    seo: { title: tx('السيو ومعاينة الروابط', 'SEO & link preview'), subtitle: tx('النص والصورة اللي بتظهر في جوجل وعند مشاركة رابط الموقع على واتساب وتيليجرام وفيسبوك', 'The text and image shown on Google and when the site link is shared on WhatsApp, Telegram and Facebook') },
     about: { title: tx('من نحن', 'About us'), subtitle: tx('محتوى صفحة «من نحن» في الموقع', 'Content of the website About page') },
     status: { title: tx('حالة الموقع', 'Website status'), subtitle: tx('يعمل الموقع أو هو قيد الإنشاء أو قيد التحديث: ما تختاره يظهر للزوار بدلاً من الموقع', 'Live, under construction or updating: what you pick is shown to visitors instead of the site') },
     preview: { title: tx('معاينة الموقع', 'Site preview'), subtitle: tx('رابط الموقع الحقيقي الذي يفتحه زر «معاينة الموقع» أعلى لوحة التحكم', 'The live website link opened by the «Preview site» button at the top of the dashboard') },
@@ -80,6 +82,14 @@ const settings = ref({
     logo: null,
     favicon: null,
     footer_logo: null,
+    // SEO: what Google and link previews show (title, description, keywords per language, one share image).
+    seo_title_ar: '',
+    seo_title_en: '',
+    seo_description_ar: '',
+    seo_description_en: '',
+    seo_keywords_ar: '',
+    seo_keywords_en: '',
+    seo_image: null,
     // Brand colours applied on the website (empty = the website's built-in colours). Stored in the site settings API.
     primary_color: '',
     secondary_color: '',
@@ -303,6 +313,9 @@ const settingsImageCropOptions = (key) => {
     if (key === 'logo' || key === 'footer_logo') {
         return { defaultRatio: 'free', fileName: key, title: tx('قص وضبط الشعار (Crop & Resize)', 'Crop & resize logo') };
     }
+    if (key === 'seo_image') {
+        return { defaultRatio: '2:1', fileName: 'seo_image', title: tx('قص وضبط صورة مشاركة الرابط (Crop & Resize)', 'Crop & resize link-share image') };
+    }
     return {
         defaultRatio: key === aboutHeroField.key ? '16:9' : '4:3',
         fileName: key,
@@ -378,6 +391,40 @@ const deleteAboutSection = async (section) => {
     delete aboutImagePreviews.value[section.image];
     await saveSettings(tx(`تم حذف القسم ${section.number} من صفحة «من نحن»`, `Section ${section.number} was removed from the About page`));
 };
+
+// ── SEO & link preview ───────────────────────────────────────────────────────
+// Google shows about 60 characters of the title and 160 of the description; link previews cut at similar lengths.
+const SEO_TITLE_GOOD = 60;
+const SEO_DESCRIPTION_GOOD = 160;
+const seoPreviewLang = ref(typeof document !== 'undefined' && document.documentElement.lang === 'en' ? 'en' : 'ar');
+// The uploaded share image; until one is uploaded the website uses the main logo, so the preview shows that.
+const seoImageUploaded = computed(() => aboutImagePreviews.value.seo_image || resolveSettingAsset(settings.value.seo_image));
+const seoImagePreview = computed(() => seoImageUploaded.value || resolveSettingAsset(settings.value.logo));
+// Fills the empty SEO fields with Jabel's own text (Al-Jabal Pharmacies); fields that already have text are kept.
+const useSuggestedSeo = () => {
+    for (const lang of ['ar', 'en']) {
+        for (const field of ['title', 'description', 'keywords']) {
+            const key = `seo_${field}_${lang}`;
+            if (!String(settings.value[key] || '').trim()) settings.value[key] = JABEL_SEO[lang][field];
+        }
+    }
+    triggerAlert(tx('تم ملء النص المقترح لجبل — اضغط «حفظ التغييرات» ليظهر في الموقع.', 'Jabel\'s suggested text was filled in — press Save to publish it.'));
+};
+const seoHost = computed(() => {
+    try { return new URL(normalizePreviewUrl(settings.value.site_preview_url)).host; } catch { return 'your-site.com'; }
+});
+// The text as visitors will get it in the chosen language (the other language fills in when this one is empty).
+const seoPreview = computed(() => {
+    const lang = seoPreviewLang.value;
+    const other = lang === 'ar' ? 'en' : 'ar';
+    const pick = (key) => String(settings.value[`${key}_${lang}`] || '').trim() || String(settings.value[`${key}_${other}`] || '').trim();
+    return {
+        title: pick('seo_title'),
+        description: pick('seo_description'),
+        siteName: String(settings.value[`site_name_${lang}`] || settings.value[`site_name_${other}`] || settings.value.site_name || '').trim(),
+    };
+});
+const seoLength = (key) => String(settings.value[key] || '').trim().length;
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const colorPickerValue = (key, fallback) => (HEX_COLOR.test(settings.value[key] || '') ? settings.value[key] : fallback);
@@ -1012,6 +1059,96 @@ const triggerAlert = (message, type = 'success') => {
             </div>
         </div>
 
+        <!-- SEO & link preview: what Google and link previews show -->
+        <div v-if="section === 'seo'" class="tab-pane fade-in" data-testid="seo-pane">
+            <div class="seo-suggest">
+                <p>{{ tx('النص المقترح لصيدليات الجبل (Dr. Jable): فيتامينات، عناية بالبشرة والشعر، أم وطفل، توصيل سريع. الحقول المكتوبة بالفعل لا تتغيّر.', 'Suggested text for Al-Jabal Pharmacies (Dr. Jable): vitamins, skin and hair care, mother and baby, fast delivery. Fields that already have text are kept.') }}</p>
+                <button type="button" class="btn-outline-upload" data-testid="seo-use-suggested" @click="useSuggestedSeo">{{ tx('استخدم النص المقترح لجبل', 'Use the suggested Jabel text') }}</button>
+            </div>
+            <div class="form-grid">
+                <BilingualField class="form-group full-width" :ar="settings.seo_title_ar" :en="settings.seo_title_en" testid="seo-title">
+                    <template #label><label>{{ tx('عنوان الموقع في جوجل ومشاركة الرابط', 'Site title on Google and link sharing') }}</label></template>
+                    <template #default="{ lang }">
+                        <input v-show="lang === 'ar'" type="text" v-model="settings.seo_title_ar" dir="rtl" maxlength="120" placeholder="مثال: جبل | أجهزة مطبخ بمعايير إيطالية فاخرة" data-testid="seo-title-ar" />
+                        <input v-show="lang === 'en'" type="text" v-model="settings.seo_title_en" dir="ltr" maxlength="120" placeholder="e.g. Jabel | Premium Italian kitchen appliances" class="ltr-input" data-testid="seo-title-en" />
+                        <small class="field-hint" :class="{ 'seo-over': seoLength(`seo_title_${lang}`) > SEO_TITLE_GOOD }">{{ seoLength(`seo_title_${lang}`) }} / {{ SEO_TITLE_GOOD }} — {{ tx('الأفضل ألا يزيد عن 60 حرفًا حتى لا يُقصّ في جوجل.', 'Best kept under 60 characters so Google does not cut it.') }}</small>
+                    </template>
+                </BilingualField>
+
+                <BilingualField class="form-group full-width" :ar="settings.seo_description_ar" :en="settings.seo_description_en" testid="seo-description">
+                    <template #label><label>{{ tx('الوصف (الرسالة اللي تظهر تحت العنوان)', 'Description (the message shown under the title)') }}</label></template>
+                    <template #default="{ lang }">
+                        <textarea v-show="lang === 'ar'" v-model="settings.seo_description_ar" rows="3" maxlength="300" dir="rtl" placeholder="مثال: الرائد الأول في توفير الأجهزة المنزلية الإيطالية الفاخرة في المملكة العربية السعودية." data-testid="seo-description-ar"></textarea>
+                        <textarea v-show="lang === 'en'" v-model="settings.seo_description_en" rows="3" maxlength="300" dir="ltr" placeholder="e.g. The leading provider of premium Italian home appliances in Saudi Arabia." class="ltr-input" data-testid="seo-description-en"></textarea>
+                        <small class="field-hint" :class="{ 'seo-over': seoLength(`seo_description_${lang}`) > SEO_DESCRIPTION_GOOD }">{{ seoLength(`seo_description_${lang}`) }} / {{ SEO_DESCRIPTION_GOOD }} — {{ tx('الأفضل ألا يزيد عن 160 حرفًا.', 'Best kept under 160 characters.') }}</small>
+                    </template>
+                </BilingualField>
+
+                <BilingualField class="form-group full-width" :ar="settings.seo_keywords_ar" :en="settings.seo_keywords_en" testid="seo-keywords">
+                    <template #label><label>{{ tx('الكلمات المفتاحية', 'Keywords') }}</label></template>
+                    <template #default="{ lang }">
+                        <input v-show="lang === 'ar'" type="text" v-model="settings.seo_keywords_ar" dir="rtl" placeholder="جبل, أجهزة مطبخ, أفران غاز إيطالية" data-testid="seo-keywords-ar" />
+                        <input v-show="lang === 'en'" type="text" v-model="settings.seo_keywords_en" dir="ltr" placeholder="Jabel, kitchen appliances, Italian gas ovens" class="ltr-input" data-testid="seo-keywords-en" />
+                        <small class="field-hint">{{ tx('افصل بين الكلمات بفاصلة.', 'Separate the words with commas.') }}</small>
+                    </template>
+                </BilingualField>
+
+                <div class="form-group full-width">
+                    <label>{{ tx('صورة مشاركة الرابط', 'Link-share image') }}</label>
+                    <div class="about-image-card">
+                        <div class="about-image-preview-frame">
+                            <img v-if="seoImagePreview" :src="seoImagePreview" :alt="tx('صورة مشاركة الرابط', 'Link-share image')" class="seo-image-contain" />
+                            <span v-else>{{ tx('لا توجد صورة مرفوعة', 'No image uploaded') }}</span>
+                        </div>
+                        <div class="about-image-card-actions">
+                            <div class="upload-btn-wrapper">
+                                <button class="btn-outline-upload" type="button">{{ tx('اختيار صورة', 'Choose image') }}</button>
+                                <input type="file" @change="onSettingsImageChange('seo_image', $event)" accept="image/*" data-testid="seo-image-input" />
+                            </div>
+                            <ImageCropButton v-if="settingsImageSource('seo_image')" @crop="recropSettingsImage('seo_image')" />
+                            <span>JPG / PNG · 1200×630</span>
+                        </div>
+                    </div>
+                    <small class="field-hint">{{ tx('الصورة اللي بتظهر فوق الرسالة لما حد يشارك رابط الموقع. لحد ما ترفع صورة، بيُستخدم الشعار الأساسي (الهوية البصرية). الأفضل صورة عريضة (نسبة 2:1) فيها الشعار.', 'The image shown above the message when someone shares the site link. Until you upload one, the main logo (Visual identity) is used. A wide image (2:1) with the logo works best.') }}</small>
+                </div>
+
+                <div class="form-group full-width seo-preview" data-testid="seo-preview">
+                    <div class="seo-preview-head">
+                        <label>{{ tx('معاينة', 'Preview') }}</label>
+                        <div class="seo-lang-switch" role="tablist">
+                            <button type="button" role="tab" :class="{ active: seoPreviewLang === 'ar' }" :aria-selected="seoPreviewLang === 'ar'" @click="seoPreviewLang = 'ar'">عربي</button>
+                            <button type="button" role="tab" :class="{ active: seoPreviewLang === 'en' }" :aria-selected="seoPreviewLang === 'en'" @click="seoPreviewLang = 'en'">English</button>
+                        </div>
+                    </div>
+                    <div class="seo-preview-grid">
+                        <div class="seo-card">
+                            <span class="seo-card-label">{{ tx('نتيجة جوجل', 'Google result') }}</span>
+                            <div class="seo-google" :dir="seoPreviewLang === 'ar' ? 'rtl' : 'ltr'">
+                                <span class="seo-google-host">{{ seoHost }}</span>
+                                <span class="seo-google-title">{{ seoPreview.title || seoPreview.siteName || tx('عنوان الموقع سيظهر هنا', 'Your site title appears here') }}</span>
+                                <span class="seo-google-desc">{{ seoPreview.description || tx('وصف الموقع سيظهر هنا', 'Your site description appears here') }}</span>
+                            </div>
+                        </div>
+                        <div class="seo-card">
+                            <span class="seo-card-label">{{ tx('مشاركة الرابط (واتساب / تيليجرام)', 'Link share (WhatsApp / Telegram)') }}</span>
+                            <div class="seo-share" :dir="seoPreviewLang === 'ar' ? 'rtl' : 'ltr'">
+                                <div class="seo-share-image">
+                                    <img v-if="seoImagePreview" :src="seoImagePreview" alt="" />
+                                    <span v-else>{{ tx('بدون صورة', 'No image') }}</span>
+                                </div>
+                                <div class="seo-share-body">
+                                    <strong>{{ seoPreview.title || seoPreview.siteName || tx('عنوان الموقع', 'Site title') }}</strong>
+                                    <span>{{ seoPreview.description || tx('وصف الموقع', 'Site description') }}</span>
+                                    <small>{{ seoHost }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <small class="field-hint">{{ tx('بعد الحفظ، واتساب وتيليجرام بيحتفظوا بنسخة قديمة من المعاينة لفترة؛ جرّب الرابط في محادثة جديدة أو استخدم أداة إعادة الفحص من فيسبوك.', 'After saving, WhatsApp and Telegram keep an old copy of the preview for a while; try the link in a new chat or use the Facebook re-scrape tool.') }}</small>
+                </div>
+            </div>
+        </div>
+
         <!-- About Us Tab -->
         <div v-if="section === 'about'" class="tab-pane fade-in">
             <div class="about-settings-stack">
@@ -1219,6 +1356,35 @@ const triggerAlert = (message, type = 'success') => {
 .form-group label { display: block; font-weight: 700; font-size: 0.9rem; color: #374151; margin-bottom: 10px; text-align: right; }
 .form-group input, .form-group textarea { width: 100%; padding: 14px 18px; border: 1px solid #f3f4f6; border-radius: 12px; outline: none; transition: 0.3s; font-family: inherit; font-size: 0.95rem; background: #fafafa; color: #1f2937; }
 .form-group input:focus, .form-group textarea:focus { border-color: #660033; background: white; box-shadow: 0 0 0 4px rgba(0,0,0, 0.05); }
+
+
+/* SEO & link preview */
+.seo-suggest { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; padding: 14px 16px; border: 1px dashed #e5e7eb; border-radius: 14px; background: #fafafa; }
+.seo-suggest p { margin: 0; font-size: 0.82rem; color: #6b7280; line-height: 1.6; }
+.seo-suggest .btn-outline-upload { flex-shrink: 0; }
+@media (max-width: 700px) { .seo-suggest { flex-direction: column; align-items: stretch; } }
+.seo-image-contain { object-fit: contain !important; background: #fff; }
+.seo-over { color: #b45309 !important; }
+.seo-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.seo-preview-head label { margin-bottom: 0; }
+.seo-lang-switch { display: inline-flex; padding: 3px; border-radius: 10px; background: #f1f5f9; }
+.seo-lang-switch button { border: none; background: transparent; padding: 6px 14px; border-radius: 8px; font-family: inherit; font-size: 0.8rem; font-weight: 700; color: #64748b; cursor: pointer; }
+.seo-lang-switch button.active { background: #fff; color: #111827; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.seo-preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.seo-card { border: 1px solid #edf0f4; border-radius: 14px; padding: 14px; background: #fafbfc; min-width: 0; }
+.seo-card-label { display: block; margin-bottom: 10px; font-size: 0.72rem; font-weight: 800; color: #9ca3af; }
+.seo-google { display: flex; flex-direction: column; gap: 4px; background: #fff; border-radius: 10px; padding: 14px 16px; border: 1px solid #eef0f3; }
+.seo-google-host { font-size: 0.78rem; color: #4d5156; direction: ltr; text-align: start; }
+.seo-google-title { font-size: 1.1rem; line-height: 1.35; color: #1a0dab; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.seo-google-desc { font-size: 0.85rem; line-height: 1.5; color: #4d5156; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.seo-share { overflow: hidden; border-radius: 12px; background: #fff; border: 1px solid #eef0f3; }
+.seo-share-image { aspect-ratio: 1.91 / 1; display: flex; align-items: center; justify-content: center; background: #eef1f5; color: #9ca3af; font-size: 0.78rem; overflow: hidden; }
+.seo-share-image img { width: 100%; height: 100%; object-fit: contain; background: #fff; display: block; }
+.seo-share-body { display: flex; flex-direction: column; gap: 3px; padding: 10px 14px 12px; border-inline-start: 3px solid #660033; }
+.seo-share-body strong { font-size: 0.9rem; color: #111827; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.seo-share-body span { font-size: 0.8rem; color: #6b7280; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.seo-share-body small { font-size: 0.72rem; color: #9ca3af; direction: ltr; text-align: start; }
+@media (max-width: 900px) { .seo-preview-grid { grid-template-columns: 1fr; } }
 
 .ltr-input { direction: ltr; text-align: left; }
 .req { color: #dc2626; }
