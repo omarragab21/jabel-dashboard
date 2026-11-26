@@ -293,7 +293,7 @@ import api from '../config/axios';
 import RiyalIcon from '../components/RiyalIcon.vue';
 import { useTheme } from '../composables/useTheme';
 import { freshness } from '../utils/dataFreshness';
-import { toOverview, toChartSeries, CHART_RANGES } from '../domain/dashboard/overview';
+import { toOverview, toChartSeries, CHART_RANGES, ORDER_STATUS_SLICES } from '../domain/dashboard/overview';
 
 Chart.register(...registerables);
 
@@ -393,9 +393,39 @@ const writeDashboardCache = (data, version, owner) => {
   }
 };
 
+// TEMPORARY: GET /v1/dashboard/overview currently fails with a 500 on the backend
+// (RelationNotFoundException: undefined relationship [translations] on Product).
+// Until the backend is fixed, the overview is assembled from endpoints that work
+// (orders list and products list). Remove this and use the plain request again once
+// the backend overview returns 200.
+const fallbackOverview = async () => {
+  const safe = (request) => request.then((res) => res.data).catch(() => null);
+  const [orders, products] = await Promise.all([
+    safe(api.get('/v1/dashboard/orders', { params: { per_page: 50 }, timeout: 20000 })),
+    safe(api.get('/v1/dashboard/products', { params: { per_page: 1 }, timeout: 20000 })),
+  ]);
+  const rows = Array.isArray(orders?.data) ? orders.data : [];
+  const distribution = { total: Number(orders?.meta?.total) || rows.length };
+  ORDER_STATUS_SLICES.forEach(({ key }) => {
+    distribution[key] = rows.filter((order) => String(order.status || '').toLowerCase() === key).length;
+  });
+  return {
+    data: {
+      metrics: { total_products: Number(products?.meta?.total) || 0 },
+      order_distribution: distribution,
+      recent_orders: rows.slice(0, 5),
+    },
+  };
+};
+
+const fetchOverview = () => api.get('/v1/dashboard/overview', { timeout: 20000 }).catch(async (err) => {
+  if (err.response?.status >= 500) return { data: await fallbackOverview() };
+  throw err;
+});
+
 const fetchSnapshot = async () => {
   const [overviewRes, dailyRes, monthlyRes] = await Promise.all([
-    api.get('/v1/dashboard/overview', { timeout: 20000 }),
+    fetchOverview(),
     ...CHART_RANGES.map((range) => api.get('/v1/dashboard/overview/chart', { params: { range }, timeout: 20000 })),
   ]);
   return { overview: overviewRes.data?.data || {}, daily: dailyRes.data || {}, monthly: monthlyRes.data || {} };
