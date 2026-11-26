@@ -17,7 +17,7 @@ export const CROP_ASPECT_PRESETS = Object.freeze([
 ]);
 
 // Absolute or relative backend storage URL -> captures the /…storage/… path.
-const BACKEND_STORAGE_URL = /^(?:https?:\/\/backend-jabal\.be-kite\.com)?(\/(?:public\/)?storage\/.+)$/i;
+const BACKEND_STORAGE_URL = /^(?:https?:\/\/backend-tijara-plus-stage\.be-kite\.com)?(\/(?:public\/)?storage\/.+)$/i;
 
 // Animated GIFs would lose their animation and .ico favicons their sizes, so
 // they are uploaded as they are instead of going through the crop.
