@@ -313,7 +313,7 @@ onMounted(fetchReturn);
   font-family: 'IBM Plex Sans Arabic', sans-serif;
 }
 
-:global(.dark) .return-detail-page {
+.dark .return-detail-page {
   --rt-text: #f1f5f9;
   --rt-body: #cbd5e1;
   --rt-muted: #94a3b8;

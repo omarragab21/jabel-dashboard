@@ -1,5 +1,7 @@
 <template>
   <div class="offers-page" data-testid="offers-page">
+    <!-- The list; the create / edit form below replaces it as a page of its own (/admin/offers/new, /admin/offers/:id/edit) -->
+    <div v-show="!showModal" class="list-view" style="display: contents">
     <!-- Header -->
     <div class="page-header">
       <div class="header-titles">
@@ -61,6 +63,7 @@
 
     <!-- Filters Row -->
     <div class="filters-row">
+      <ColumnPicker table-key="offers" class="toolbar-columns" />
       <div class="search-box">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" v-model="searchQuery" :placeholder="tx('بحث باسم العرض...', 'Search offers...')" class="search-input" data-testid="offers-search" />
@@ -91,7 +94,6 @@
     </div>
 
     <!-- Table -->
-    <div class="col-toolbar"><ColumnPicker table-key="offers" /></div>
     <div class="table-container">
       <table class="data-table" data-col-key="offers" :data-bulk-table="bulk.tableId">
         <thead>
@@ -198,19 +200,17 @@
       </div>
     </div>
 
-    <!-- Create / Edit -->
-    <div class="modal-overlay" v-if="showModal" @click.self="closeModal">
-      <div class="modal-content form-content" role="dialog" aria-modal="true" data-testid="offer-modal">
-        <button class="modal-close" type="button" :aria-label="tx('إغلاق', 'Close')" @click="closeModal">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-        <div class="form-header">
-          <div class="header-icon-main">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
-          </div>
-          <h3 class="modal-title-main">{{ editingId ? tx('تعديل العرض', 'Edit offer') : tx('إنشاء عرض جديد', 'Create offer') }}</h3>
-          <p class="modal-subtitle-main">{{ tx('أدخل تفاصيل العرض الترويجي', 'Enter the promotional offer details') }}</p>
-        </div>
+    </div><!-- /list-view -->
+
+    <!-- Create / edit page -->
+    <EditorPage
+      v-if="showModal"
+      testid="offer-modal"
+      :back-label="tx('إدارة العروض', 'Offers')"
+      :title="editingId ? tx('تعديل العرض', 'Edit offer') : tx('إنشاء عرض جديد', 'Create offer')"
+      :subtitle="tx('أدخل تفاصيل العرض الترويجي', 'Enter the promotional offer details')"
+      @back="closeModal"
+    >
 
         <div v-if="editingId && usageFor(editingOffer)" class="usage-box" data-testid="offer-usage-info">
           <strong>{{ tx('الاستخدامات', 'Usage') }}</strong>
@@ -341,8 +341,7 @@
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </EditorPage>
 
     <!-- Alert Message -->
     <div class="alert-toast" :class="[alertType, { show: showAlert }]" role="status" data-testid="offers-toast">
@@ -356,6 +355,8 @@
 </template>
 
 <script setup>
+import EditorPage from '../components/EditorPage.vue';
+import { useEditorRoute } from '../composables/useEditorRoute';
 import BulkActionBar from '../components/BulkActionBar.vue';
 import { useBulkSelection } from '../composables/useBulkSelection';
 import ColumnPicker from '../components/ColumnPicker.vue';
@@ -430,7 +431,7 @@ const imageFile = ref(null);
 const imagePreview = ref(null);
 const fileInputRef = ref(null);
 
-const backendOrigin = (import.meta.env.VITE_API_BASE_URL || 'https://backend-jabal.be-kite.com/api')
+const backendOrigin = (import.meta.env.VITE_API_BASE_URL || 'https://backend-tijara-plus-stage.be-kite.com/api')
   .replace(/\/api\/?$/, '');
 
 // Stored images come back as /storage/... paths on the backend host.
@@ -596,6 +597,22 @@ const openEdit = async (offer) => {
 };
 
 const closeModal = () => { if (!saving.value) showModal.value = false; };
+
+// The form has its own address: /admin/offers/new and /admin/offers/:id/edit.
+useEditorRoute({
+  base: '/admin/offers',
+  isOpen: showModal,
+  editId: editingId,
+  openAdd: () => openCreate(),
+  openEdit,
+  close: () => { showModal.value = false; },
+  findItem: async (id) => {
+    // The edit form reads the product list too (which products the offer covers).
+    await Promise.all([offers.value.length ? null : fetchOffers(), products.value.length ? null : fetchProducts()]);
+    return offers.value.find((offer) => String(offer.id) === id) || null;
+  },
+  notFound: () => triggerAlert(tx('العرض غير موجود', 'Offer not found'), 'error'),
+});
 
 // Drag and drop: grab a row by its handle and drop it above or below another one (also across pages); every offer
 // keeps its own position 1..N (sort_order). Off while a search or filter hides part of the list.
@@ -836,13 +853,13 @@ const bulkActions = computed(() => [
 
 /* Delete Modal */
 .delete-modal { max-width: 460px; padding: 28px; text-align: center; }
-.delete-icon { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #dc2626; background: #fef2f2; }
+.delete-icon { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #660033; background: rgba(102, 0, 51, 0.08); }
 .delete-copy h2 { margin: 0 0 8px; color: #111827; font-size: 1.2rem; }
 .delete-copy p { margin: 0; color: #6b7280; line-height: 1.7; font-size: 0.92rem; }
 .delete-footer { display: flex; gap: 1rem; padding: 24px 0 0; }
 .delete-footer button { min-height: 44px; }
-.btn-delete-confirm { background: #dc2626; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 700; cursor: pointer; flex: 1; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-.btn-delete-confirm:hover { background: #b91c1c; }
+.btn-delete-confirm { background: #660033; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 700; cursor: pointer; flex: 1; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-delete-confirm:hover { background: #4d0026; }
 .btn-delete-confirm:disabled, .btn-cancel-form:disabled { opacity: 0.6; cursor: not-allowed; }
 .delete-spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.45); border-top-color: white; border-radius: 50%; animation: delete-spin 0.7s linear infinite; }
 @keyframes delete-spin { to { transform: rotate(360deg); } }
@@ -854,7 +871,7 @@ const bulkActions = computed(() => [
 .modal-title-main { font-size: 1.3rem; font-weight: 800; color: #111827; margin: 0; }
 .modal-subtitle-main { font-size: 0.85rem; color: #9ca3af; margin-top: 0.4rem; }
 
-.offer-form { padding: 0 2.5rem 2.5rem 2.5rem; }
+.offer-form { padding: 0; }
 .form-section { margin-bottom: 1.5rem; }
 .form-label { display: block; font-size: 0.85rem; font-weight: 700; color: #374151; margin-bottom: 0.75rem; text-align: right; }
 .req { color: #dc2626; }
@@ -936,7 +953,7 @@ const bulkActions = computed(() => [
 @media (max-width: 768px) {
   .stats-grid { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }
-  .offer-form { padding: 0 1.25rem 1.5rem; }
+  .offer-form { padding: 0; }
   .page-header { align-items: flex-start; flex-direction: column; gap: 1rem; }
 }
 

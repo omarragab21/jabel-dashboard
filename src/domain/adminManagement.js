@@ -4,9 +4,12 @@ import { toPermissionsPayload } from './admins/permissions.js';
 
 const firstText = (...values) => values.find((value) => value !== undefined && value !== null && String(value).trim() !== '') ?? '';
 
+// The single `title` / `description` the API sends is in the admin's language (Arabic here). It may stand in for a
+// missing Arabic text, but never for a missing English one: that would copy Arabic letters into the English field.
+const ARABIC_LETTERS = /[\u0600-\u06FF]/;
 const localized = (translations, field, fallback = '') => ({
   ar: firstText(translations?.ar?.[field], fallback),
-  en: firstText(translations?.en?.[field], fallback),
+  en: firstText(translations?.en?.[field], ARABIC_LETTERS.test(String(fallback ?? '')) ? '' : fallback),
 });
 
 const imageUrl = (value) => {
@@ -27,7 +30,7 @@ export const toAdminUser = (raw = {}) => {
     name_i18n: nameI18n,
     email: raw.email || '',
     phone: raw.phone_number ?? raw.phone ?? '',
-    role: raw.role || 'admin',
+    role: raw.role || '',
     is_active: status !== false && status !== 0 && status !== '0',
     avatar: imageUrl(raw.image_url || raw.avatar || raw.image),
     createdAt: raw.created_at || raw.createdAt || '',
@@ -56,6 +59,12 @@ export const toAdminSlider = (raw = {}) => {
   raw = raw || {};
   const titleI18n = raw.title_i18n || localized(raw.translations, 'title', raw.title);
   const descriptionI18n = raw.description_i18n || localized(raw.translations, 'description', raw.description);
+  // Each language keeps its own button text (no copying Arabic into English): an empty text hides the button.
+  const buttonFromTranslations = localized(raw.translations, 'button_text', '');
+  const buttonTextI18n = raw.button_text_i18n || {
+    ar: firstText(buttonFromTranslations.ar, raw.button_text_ar, buttonFromTranslations.en ? '' : raw.button_text),
+    en: firstText(buttonFromTranslations.en, raw.button_text_en),
+  };
   const rawStatus = raw.status ?? raw.is_active;
   const status = rawStatus === 'scheduled' ? 'scheduled' : (rawStatus === false || rawStatus === 0 || rawStatus === '0' || rawStatus === 'inactive' ? 'inactive' : 'active');
   return {
@@ -65,6 +74,8 @@ export const toAdminSlider = (raw = {}) => {
     description_i18n: descriptionI18n,
     title: firstText(raw.title, titleI18n.ar, titleI18n.en),
     description: firstText(raw.description, descriptionI18n.ar, descriptionI18n.en),
+    button_text_i18n: buttonTextI18n,
+    button_text: firstText(raw.button_text, buttonTextI18n.ar, buttonTextI18n.en),
     image: imageUrl(raw.image_url || raw.image),
     link: raw.link ? sanitizeUrl(raw.link, '') : '',
     status,
@@ -77,6 +88,9 @@ export const toAdminSliderPayload = (form = {}) => ({
   title_ar: String(form.title_ar || '').trim(),
   description_en: String(form.description_en || '').trim(),
   description_ar: String(form.description_ar || '').trim(),
+  // Sent even when empty so clearing the text removes the button on the site.
+  button_text_en: String(form.button_text_en || '').trim(),
+  button_text_ar: String(form.button_text_ar || '').trim(),
   link: form.link ? sanitizeUrl(String(form.link).trim(), '') : '',
   status: form.status === 'active' || form.status === true ? 1 : 0,
   order: Number(form.order) || 0,

@@ -1,4 +1,6 @@
 <script setup>
+import EditorPage from '../components/EditorPage.vue';
+import { useEditorRoute } from '../composables/useEditorRoute';
 import BulkActionBar from '../components/BulkActionBar.vue';
 import { useBulkSelection } from '../composables/useBulkSelection';
 import ColumnPicker from '../components/ColumnPicker.vue';
@@ -13,7 +15,7 @@ import AdminPermissionsMatrix from '../components/AdminPermissionsMatrix.vue';
 import ImageCropButton from '../components/ImageCropButton.vue';
 import { useImageCrop } from '../composables/useImageCrop';
 import {
-  ADMIN_ROLES, NAME_MAX, PASSWORD_MIN, roleLabel, validateAdminForm, filterAdmins, dayOf, serverErrorText,
+  ADMIN_ROLES, NAME_MAX, PASSWORD_MIN, roleLabel, validateAdminForm, filterAdmins, dayOf, serverErrorText, canManageAdmin, assignableRoles,
 } from '../domain/admins/adminAccount';
 import { defaultPermissionsFor, normalizePermissions, countModules } from '../domain/admins/permissions';
 
@@ -36,7 +38,7 @@ const avatarFile = ref(null);
 const showPassword = ref(false);
 const touched = ref(false);
 
-const emptyForm = () => ({ name: '', email: '', phone: '', password: '', role: ADMIN_ROLES[0], is_active: true, permissions: defaultPermissionsFor(ADMIN_ROLES[0]) });
+const emptyForm = () => ({ name: '', email: '', phone: '', password: '', role: 'admin', is_active: true, permissions: defaultPermissionsFor('admin') });
 // The form has two tabs: the account details and إدارة الصلاحيات (which modules the admin can open and what they can do).
 const activeTab = ref('details');
 const form = ref(emptyForm());
@@ -46,6 +48,9 @@ const deleteTarget = ref(null);
 const isDeleting = ref(false);
 const togglingId = ref(null);
 
+// Only a super admin may touch a super admin account or hand out the super admin role.
+const canManage = (admin) => canManageAdmin(me.value, admin);
+const formRoles = computed(() => assignableRoles(me.value));
 const isMe = (admin) => String(admin.id) === String(me.value.id) || (!!admin.email && admin.email === me.value.email);
 
 const visibleAdmins = computed(() => filterAdmins(admins.value.filter((admin) => !isMe(admin)), { search: searchQuery.value, role: roleFilter.value }));
@@ -124,6 +129,23 @@ const openEditModal = (admin) => {
 
 const closeForm = () => { if (!isSubmitting.value) showFormModal.value = false; };
 
+// The form has its own address: /admin/admins/new and /admin/admins/:id/edit.
+useEditorRoute({
+  base: '/admin/admins',
+  isOpen: showFormModal,
+  editId: () => (isEditing.value ? currentAdmin.value?.id : ''),
+  openAdd: () => openAddModal(),
+  openEdit: openEditModal,
+  close: () => { showFormModal.value = false; },
+  findItem: async (id) => {
+    if (!admins.value.length) await fetchAdmins();
+    const admin = admins.value.find((item) => String(item.id) === id);
+    // Only accounts this admin may edit (their own, or one their role can manage).
+    return admin && (isMe(admin) || canManage(admin)) ? admin : null;
+  },
+  notFound: () => triggerAlert(tx('المدير غير موجود', 'Administrator not found'), 'error'),
+});
+
 const cropOptions = () => ({ defaultRatio: '1:1', fileName: 'avatar', title: tx('قص وضبط الصورة الشخصية (Crop & Resize)', 'Crop & resize profile image') });
 
 const handleAvatarChange = async (e) => {
@@ -173,9 +195,8 @@ const submitForm = async () => {
     fetchAdmins();
   } catch (error) {
     const known = serverErrorText(error, locale.value);
-    // Editing an account currently answers 500 from the server; say so instead of showing its stack message.
     const fallback = isEditing.value
-      ? tx('تعذّر حفظ التعديل: الخادم لا يقبل تعديل بيانات المدير حالياً (خطأ 500 في PUT /users).', 'Could not save: the server rejects administrator edits for now (500 on PUT /users).')
+      ? tx(`تعذّر حفظ التعديل${serverStatus(error)}`, `Could not save the changes${serverStatus(error)}`)
       : tx(`تعذّرت إضافة المدير${serverStatus(error)}`, `Could not add the administrator${serverStatus(error)}`);
     triggerAlert(known || fallback, 'error');
   } finally {
@@ -233,6 +254,8 @@ const bulkActions = computed(() => [
 
 <template>
   <div class="admins-page">
+    <!-- The list; the add / edit form below replaces it as a page of its own (/admin/admins/new, /admin/admins/:id/edit) -->
+    <div v-show="!showFormModal" class="list-view" style="display: contents">
     <!-- Header -->
     <div class="page-header">
       <div class="header-titles">
@@ -252,6 +275,7 @@ const bulkActions = computed(() => [
 
     <!-- Filters -->
     <div class="filters-card">
+      <ColumnPicker table-key="admins" class="toolbar-columns" />
       <div class="search-box">
         <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" v-model="searchQuery" data-testid="search" :placeholder="tx('البحث في المديرين...', 'Search administrators...')" />
@@ -266,7 +290,6 @@ const bulkActions = computed(() => [
     </div>
 
     <!-- Table -->
-    <div class="col-toolbar"><ColumnPicker table-key="admins" /></div>
     <div class="table-container">
       <table class="data-table" data-col-key="admins" :data-bulk-table="bulk.tableId">
         <thead>
@@ -310,7 +333,7 @@ const bulkActions = computed(() => [
               <td class="col-actions">
                 <div class="actions-group">
                   <button
-                    v-if="!isMe(admin)"
+                    v-if="!isMe(admin) && canManage(admin)"
                     :class="['action-btn', admin.is_active ? 'disable' : 'enable']"
                     type="button"
                     data-testid="toggle-admin"
@@ -322,10 +345,10 @@ const bulkActions = computed(() => [
                     <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
                   </button>
                   <span v-else class="action-slot"></span>
-                  <button class="action-btn edit" type="button" data-testid="edit-admin" :title="isMe(admin) ? tx('تعديل بياناتي', 'Edit my details') : tx('تعديل', 'Edit')" @click="openEditModal(admin)">
+                  <button v-if="isMe(admin) || canManage(admin)" class="action-btn edit" type="button" data-testid="edit-admin" :title="isMe(admin) ? tx('تعديل بياناتي', 'Edit my details') : tx('تعديل', 'Edit')" @click="openEditModal(admin)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   </button>
-                  <button v-if="!isMe(admin)" class="action-btn delete" type="button" data-testid="delete-admin" :title="tx('حذف', 'Delete')" @click="confirmDelete(admin)">
+                  <button v-if="!isMe(admin) && canManage(admin)" class="action-btn delete" type="button" data-testid="delete-admin" :title="tx('حذف', 'Delete')" @click="confirmDelete(admin)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                   </button>
                   <span v-else class="action-slot"></span>
@@ -337,17 +360,18 @@ const bulkActions = computed(() => [
       </table>
     </div>
     <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="admins" />
+    </div><!-- /list-view -->
 
-    <!-- Add / Edit -->
-    <div class="modal-overlay" v-if="showFormModal" @click.self="closeForm">
-      <div :class="['modal-content', 'form-content', { wide: activeTab === 'permissions' }]" role="dialog" aria-modal="true" aria-labelledby="admin-form-title">
-        <button class="modal-close" type="button" :aria-label="tx('إغلاق', 'Close')" @click="closeForm">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-        <div class="form-header">
-          <h2 id="admin-form-title">{{ isEditing ? tx('تعديل بيانات المدير', 'Edit administrator') : tx('إضافة مدير جديد', 'Add a new administrator') }}</h2>
-          <p>{{ isEditing ? tx('عدّل بيانات حساب المدير', 'Update the administrator account') : tx('أدخل بيانات المدير الجديد وحدد صلاحياته', 'Enter the new administrator and choose a role') }}</p>
-        </div>
+    <!-- Add / edit page -->
+    <EditorPage
+      v-if="showFormModal"
+      testid="admin-editor"
+      :back-label="tx('إدارة المديرين', 'Administrators')"
+      :title="isEditing ? tx('تعديل بيانات المدير', 'Edit administrator') : tx('إضافة مدير جديد', 'Add a new administrator')"
+      :subtitle="isEditing ? tx('عدّل بيانات حساب المدير', 'Update the administrator account') : tx('أدخل بيانات المدير الجديد وحدد صلاحياته', 'Enter the new administrator and choose a role')"
+      @back="closeForm"
+    >
+      <div class="form-content editor-form">
 
         <div class="form-tabs" role="tablist" data-testid="admin-tabs">
           <button type="button" role="tab" :aria-selected="activeTab === 'details'" :class="['form-tab', { active: activeTab === 'details' }]" data-testid="tab-details" @click="activeTab = 'details'">
@@ -403,7 +427,7 @@ const bulkActions = computed(() => [
             <label class="form-label" for="adm-role">{{ tx('الصلاحية', 'Role') }}</label>
             <div class="select-wrapper">
               <select id="adm-role" v-model="form.role" class="form-control" :class="{ invalid: errors.role }" data-testid="role-select" @change="onRoleChange">
-                <option v-for="role in ADMIN_ROLES" :key="role" :value="role">{{ roleLabel(role, locale) }}</option>
+                <option v-for="role in formRoles" :key="role" :value="role">{{ roleLabel(role, locale) }}</option>
               </select>
               <svg class="select-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
@@ -450,7 +474,7 @@ const bulkActions = computed(() => [
           </div>
         </form>
       </div>
-    </div>
+    </EditorPage>
 
     <!-- Delete -->
     <div class="modal-overlay" v-if="deleteTarget" @click.self="cancelDelete">
@@ -541,6 +565,9 @@ const bulkActions = computed(() => [
 .modal-close:hover { background: #f3f4f6; }
 .form-content { max-width: 500px; max-height: 95vh; overflow-y: auto; transition: max-width 0.2s; }
 .form-content.wide { max-width: 780px; }
+.form-content.editor-form { max-width: none; max-height: none; overflow: visible; }
+.editor-form .form-tabs { padding: 0; }
+.editor-form .admin-form { padding: 0.75rem 0 0; }
 .form-tabs { display: flex; gap: 0.25rem; padding: 0.5rem 1.5rem 0; border-bottom: 1px solid #e5e7eb; }
 .form-tab { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.65rem 1rem; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; background: none; color: #6b7280; font-family: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
 .form-tab:hover { color: #374151; }
@@ -594,8 +621,8 @@ const bulkActions = computed(() => [
 .delete-modal h2 { margin: 0 0 0.5rem; color: #111827; font-size: 1.1rem; font-weight: 800; }
 .delete-modal p { margin: 0; color: #6b7280; line-height: 1.7; font-size: 0.88rem; }
 .delete-footer { display: flex; gap: 0.6rem; margin-top: 1.25rem; }
-.btn-delete-confirm { background: #ef4444; color: #fff; border: none; padding: 0.65rem 1.1rem; border-radius: 8px; font-family: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; }
-.btn-delete-confirm:hover { background: #dc2626; }
+.btn-delete-confirm { background: #660033; color: #fff; border: none; padding: 0.65rem 1.1rem; border-radius: 8px; font-family: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; }
+.btn-delete-confirm:hover { background: #4d0026; }
 .btn-delete-confirm:disabled, .btn-cancel-form:disabled { opacity: 0.6; cursor: not-allowed; }
 .spinner { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,0.45); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

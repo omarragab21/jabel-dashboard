@@ -1,10 +1,14 @@
 <script setup>
+import EditorPage from '../components/EditorPage.vue';
+import { useEditorRoute } from '../composables/useEditorRoute';
 import BulkActionBar from '../components/BulkActionBar.vue';
 import { useBulkSelection } from '../composables/useBulkSelection';
 import ColumnPicker from '../components/ColumnPicker.vue';
 import { localizeMessage } from '../utils/uiMessages';
 import { apiErrorMessage } from '../utils/apiMessage';
+import { useDialog } from '../composables/useDialog';
 import { ref, onMounted, computed } from 'vue';
+const appDialog = useDialog();
 import api from '../config/axios';
 import { useAdminText } from '../composables/useAdminText';
 import BilingualField from '../components/BilingualField.vue';
@@ -87,6 +91,22 @@ const openEditModal = (topic) => {
     showFormModal.value = true;
 };
 
+const closeForm = () => { showFormModal.value = false; };
+
+// The form has its own address: /admin/topics/new and /admin/topics/:id/edit.
+useEditorRoute({
+  base: '/admin/topics',
+  isOpen: showFormModal,
+  editId: () => (isEditing.value ? currentTopic.value?.id : ''),
+  openAdd: () => openAddModal(),
+  openEdit: openEditModal,
+  close: closeForm,
+  findItem: async (id) => {
+    if (!topics.value.length) await fetchTopics();
+    return topics.value.find((topic) => String(topic.id) === id) || null;
+  },
+});
+
 const openViewModal = (topic) => {
     currentTopic.value = topic;
     showViewModal.value = true;
@@ -146,7 +166,7 @@ const submitForm = async () => {
 };
 
 const confirmDelete = async (topic) => {
-    if (confirm(tx(`هل أنت متأكد من حذف صفحة "${topic.title_i18n?.ar || topic.title}"؟`, `Are you sure you want to delete the page "${topic.title_i18n?.en || topic.title}"?`))) {
+    if (await appDialog.confirm(tx(`هل أنت متأكد من حذف صفحة "${topic.title_i18n?.ar || topic.title}"؟`, `Are you sure you want to delete the page "${topic.title_i18n?.en || topic.title}"?`), { title: tx('تأكيد الحذف', 'Confirm delete'), confirmText: tx('حذف', 'Delete'), cancelText: tx('إلغاء', 'Cancel') })) {
         try {
             await api.delete(`/dashboard/topics/${topic.id}`);
             triggerAlert('تم حذف الصفحة بنجاح');
@@ -204,6 +224,8 @@ const bulkActions = computed(() => [
 
 <template>
   <div class="topics-page p-6">
+    <!-- The list; the add / edit form below replaces it as a page of its own (/admin/topics/new, /admin/topics/:id/edit) -->
+    <div v-show="!showFormModal" class="list-view">
     <!-- Breadcrumbs -->
     <div class="breadcrumb mb-4">
        <span>{{ tx('لوحة التحكم الرئيسية', 'Dashboard') }}</span>
@@ -241,6 +263,7 @@ const bulkActions = computed(() => [
 
     <!-- Filter Bar -->
     <div class="filter-card shadow-sm mb-6">
+       <ColumnPicker table-key="topics" class="toolbar-columns" />
        <div class="search-wrapper">
           <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" v-model="searchQuery" :placeholder="tx('البحث عن صفحة...', 'Search pages...')" class="search-input" />
@@ -248,7 +271,6 @@ const bulkActions = computed(() => [
     </div>
 
     <!-- Table -->
-    <div class="col-toolbar"><ColumnPicker table-key="topics" /></div>
     <div class="table-container shadow-sm">
       <table class="data-table" data-col-key="topics" :data-bulk-table="bulk.tableId">
         <thead>
@@ -298,15 +320,18 @@ const bulkActions = computed(() => [
     </div>
     <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="pages" :label-of="(t) => t.title_i18n?.ar || t.title || `#${t.id}`" />
 
-    <!-- Form Modal -->
-    <div class="modal-overlay" v-if="showFormModal" @click.self="showFormModal = false">
-       <div class="modal-content form-modal fade-in">
-          <div class="modal-header">
-             <h2>{{ isEditing ? tx('تعديل الصفحة', 'Edit Page') : tx('إضافة صفحة جديدة', 'Add Page') }}</h2>
-             <p>{{ tx('أدخل تفاصيل محتوى الصفحة أدناه', 'Enter the page content details below') }}</p>
-             <button class="close-btn-top" @click="showFormModal = false">×</button>
-          </div>
-          <form @submit.prevent="submitForm">
+    </div><!-- /list-view -->
+
+    <!-- Add / edit page -->
+    <EditorPage
+      v-if="showFormModal"
+      testid="topic-editor"
+      :back-label="tx('صفحات الموقع', 'Website Pages')"
+      :title="isEditing ? tx('تعديل الصفحة', 'Edit Page') : tx('إضافة صفحة جديدة', 'Add Page')"
+      :subtitle="tx('أدخل تفاصيل محتوى الصفحة أدناه', 'Enter the page content details below')"
+      @back="closeForm"
+    >
+          <form class="editor-form" @submit.prevent="submitForm">
              <div class="modal-body">
                 <div class="form-grid">
                    <BilingualField class="form-group full-width" required :ar="form.title_ar" :en="form.title_en" testid="topic-title">
@@ -330,14 +355,13 @@ const bulkActions = computed(() => [
                 </div>
              </div>
              <div class="modal-footer">
-                <button type="button" class="btn-cancel" @click="showFormModal = false">{{ tx('إلغاء', 'Cancel') }}</button>
+                <button type="button" class="btn-cancel" @click="closeForm">{{ tx('إلغاء', 'Cancel') }}</button>
                 <button type="submit" class="btn-submit" :disabled="isSubmitting">
                    {{ isSubmitting ? tx('جاري الحفظ...', 'Saving...') : (isEditing ? tx('تحديث الصفحة', 'Update Page') : tx('إضافة الصفحة', 'Add Page')) }}
                 </button>
              </div>
           </form>
-       </div>
-    </div>
+    </EditorPage>
 
     <!-- View Modal -->
     <div class="modal-overlay" v-if="showViewModal" @click.self="showViewModal = false">
@@ -427,8 +451,8 @@ const bulkActions = computed(() => [
 .add-btn:hover { background: #4d0026; }
 
 /* Filter Bar */
-.filter-card { background: white; border-radius: 12px; padding: 12px; border: 1px solid #e5e7eb; }
-.search-wrapper { position: relative; width: 100%; max-width: 100%; }
+.filter-card { background: white; border-radius: 12px; padding: 12px; border: 1px solid #e5e7eb; display: flex; align-items: stretch; gap: 12px; flex-wrap: wrap; }
+.search-wrapper { position: relative; flex: 1 1 260px; min-width: 0; max-width: 100%; }
 .search-icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #9ca3af; }
 .search-input { width: 100%; padding: 12px 45px 12px 15px; border: 1px solid #e5e7eb; border-radius: 10px; outline: none; transition: 0.3s; font-family: inherit; font-size: 0.9rem; }
 .search-input:focus { border-color: #660033; box-shadow: 0 0 0 3px rgba(102, 0, 51, 0.1); }
@@ -468,6 +492,8 @@ const bulkActions = computed(() => [
 .close-btn-top { position: absolute; left: 24px; top: 24px; border: none; background: #f3f4f6; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; color: #9ca3af; }
 
 .modal-body { padding: 24px; }
+.editor-form .modal-body { padding: 0; }
+.editor-form .modal-footer { padding: 1.25rem 0 0; margin-top: 1.25rem; background: none; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .form-group { display: flex; flex-direction: column; gap: 8px; }
 .full-width { grid-column: span 2; }

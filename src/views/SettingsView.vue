@@ -19,7 +19,6 @@ import BilingualField from '../components/BilingualField.vue';
 import { DEFAULT_TAB_TITLES, PRODUCT_TABS_KEY, normalizeTab, parseProductTabs, resolveProductTabs } from '../domain/productTabs';
 import { SOCIAL_KEYS, normalizeSocialLink } from '../domain/socialLinks';
 import { NEWS_BAR_KEY, newNewsId, normalizeNewsItem, parseNewsItems, seedNewsItems } from '../domain/newsBar';
-import { JABEL_SEO } from '../domain/seoDefaults';
 import { HOME_SECTIONS_KEY, SECTION_LIMITS, newSectionId, normalizeHomeSection, parseHomeSections, seedHomeSections, sectionProblem } from '../domain/homeSections';
 
 // Only what the colour picker shows while no colour is chosen (nothing is saved from it).
@@ -288,7 +287,7 @@ const fetchSettings = async () => {
 
 const fetchAllCategories = async () => {
     try {
-        const response = await api.get('/v1/categories');
+        const response = await api.get('/v1/dashboard/categories');
         const payload = response.data?.data ?? response.data;
         categories.value = Array.isArray(payload) ? payload : (payload?.data || []);
         // Lists seeded from the older two category fields take the category names as titles.
@@ -400,16 +399,6 @@ const seoPreviewLang = ref(typeof document !== 'undefined' && document.documentE
 // The uploaded share image; until one is uploaded the website uses the main logo, so the preview shows that.
 const seoImageUploaded = computed(() => aboutImagePreviews.value.seo_image || resolveSettingAsset(settings.value.seo_image));
 const seoImagePreview = computed(() => seoImageUploaded.value || resolveSettingAsset(settings.value.logo));
-// Fills the empty SEO fields with Jabel's own text (Al-Jabal Pharmacies); fields that already have text are kept.
-const useSuggestedSeo = () => {
-    for (const lang of ['ar', 'en']) {
-        for (const field of ['title', 'description', 'keywords']) {
-            const key = `seo_${field}_${lang}`;
-            if (!String(settings.value[key] || '').trim()) settings.value[key] = JABEL_SEO[lang][field];
-        }
-    }
-    triggerAlert(tx('تم ملء النص المقترح لجبل — اضغط «حفظ التغييرات» ليظهر في الموقع.', 'Jabel\'s suggested text was filled in — press Save to publish it.'));
-};
 const seoHost = computed(() => {
     try { return new URL(normalizePreviewUrl(settings.value.site_preview_url)).host; } catch { return 'your-site.com'; }
 });
@@ -1061,10 +1050,6 @@ const triggerAlert = (message, type = 'success') => {
 
         <!-- SEO & link preview: what Google and link previews show -->
         <div v-if="section === 'seo'" class="tab-pane fade-in" data-testid="seo-pane">
-            <div class="seo-suggest">
-                <p>{{ tx('النص المقترح لصيدليات الجبل (Dr. Jable): فيتامينات، عناية بالبشرة والشعر، أم وطفل، توصيل سريع. الحقول المكتوبة بالفعل لا تتغيّر.', 'Suggested text for Al-Jabal Pharmacies (Dr. Jable): vitamins, skin and hair care, mother and baby, fast delivery. Fields that already have text are kept.') }}</p>
-                <button type="button" class="btn-outline-upload" data-testid="seo-use-suggested" @click="useSuggestedSeo">{{ tx('استخدم النص المقترح لجبل', 'Use the suggested Jabel text') }}</button>
-            </div>
             <div class="form-grid">
                 <BilingualField class="form-group full-width" :ar="settings.seo_title_ar" :en="settings.seo_title_en" testid="seo-title">
                     <template #label><label>{{ tx('عنوان الموقع في جوجل ومشاركة الرابط', 'Site title on Google and link sharing') }}</label></template>
@@ -1359,10 +1344,6 @@ const triggerAlert = (message, type = 'success') => {
 
 
 /* SEO & link preview */
-.seo-suggest { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; padding: 14px 16px; border: 1px dashed #e5e7eb; border-radius: 14px; background: #fafafa; }
-.seo-suggest p { margin: 0; font-size: 0.82rem; color: #6b7280; line-height: 1.6; }
-.seo-suggest .btn-outline-upload { flex-shrink: 0; }
-@media (max-width: 700px) { .seo-suggest { flex-direction: column; align-items: stretch; } }
 .seo-image-contain { object-fit: contain !important; background: #fff; }
 .seo-over { color: #b45309 !important; }
 .seo-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
@@ -1448,8 +1429,8 @@ const triggerAlert = (message, type = 'success') => {
 .custom-select-v2.has-error { border-color: #fca5a5; }
 .home-lists-empty { color: #6b7280; margin: 0; }
 .add-list-btn { align-self: flex-start; padding: 12px 20px; border: 1px dashed #660033; border-radius: 12px; background: #fdf2f8; color: #660033; font-family: inherit; font-weight: 700; cursor: pointer; }
-:global(.dark) .home-list-card, :global(.dark) .icon-btn { background: #1e293b; border-color: #334155; color: #e2e8f0; }
-:global(.dark) .home-list-title { color: #e2e8f0; }
+.dark .home-list-card, .dark .icon-btn { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+.dark .home-list-title { color: #e2e8f0; }
 .info-alert { background: #eff6ff; color: #1e40af; padding: 15px; border-radius: 12px; display: flex; align-items: center; gap: 12px; font-size: 0.85rem; font-weight: 600; border: 1px solid #dbeafe; }
 .mb-4 { margin-bottom: 1rem; }
 

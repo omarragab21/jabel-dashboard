@@ -67,7 +67,7 @@ const confirm = () => {
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
-:global(.dark) .modal-content {
+.dark .modal-content {
   background: #1e293b;
   color: #cbd5e1;
 }
@@ -77,7 +77,7 @@ const confirm = () => {
   border-bottom: 1px solid #f3f4f6;
 }
 
-:global(.dark) .modal-head {
+.dark .modal-head {
   border-color: #334155;
 }
 
@@ -88,7 +88,7 @@ const confirm = () => {
   color: #111827;
 }
 
-:global(.dark) .modal-title {
+.dark .modal-title {
   color: #f1f5f9;
 }
 
@@ -104,7 +104,7 @@ const confirm = () => {
   color: #374151;
 }
 
-:global(.dark) .modal-body label {
+.dark .modal-body label {
   color: #cbd5e1;
 }
 
@@ -123,7 +123,7 @@ const confirm = () => {
   transition: border-color 0.2s;
 }
 
-:global(.dark) .modal-body textarea {
+.dark .modal-body textarea {
   border-color: #334155;
   background: #0f172a;
   color: #f1f5f9;
@@ -163,12 +163,12 @@ const confirm = () => {
 }
 
 .btn-confirm {
-  background: #dc2626;
+  background: #660033;
   color: #ffffff;
 }
 
 .btn-confirm:hover:not(:disabled) {
-  background: #b91c1c;
+  background: #4d0026;
 }
 
 .btn-confirm:disabled {

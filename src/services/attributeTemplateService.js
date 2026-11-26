@@ -3,7 +3,6 @@
 // Nothing is duplicated: an attribute whose name already exists is reused (only its missing values
 // are added), and a value whose name already exists is skipped. One failing value never stops the rest.
 import productAttributeService from './productAttributeService';
-import { loadSavedCoreIds, resolveCoreIds, saveCoreIds } from './coreAttributes';
 import { normalizeCatalogSearchText } from '../domain/catalog/adminCatalog';
 import { parseTemplateValue } from '../domain/attributeTemplates';
 
@@ -42,8 +41,7 @@ export const planTemplate = (template, selection, existing = []) => {
 export const applyTemplate = async ({ template, selection, existing = [], onProgress = () => {} }) => {
   const plan = planTemplate(template, selection, existing);
   const total = plan.attributes + plan.values;
-  const summary = { createdAttributes: 0, reusedAttributes: 0, createdValues: 0, skippedValues: 0, failures: [], coreFailed: false };
-  const coreIds = [];
+  const summary = { createdAttributes: 0, reusedAttributes: 0, createdValues: 0, skippedValues: 0, failures: [] };
   const known = [...existing];
   let done = 0;
   const tick = (label) => { done += 1; onProgress({ done, total, label }); };
@@ -76,7 +74,6 @@ export const applyTemplate = async ({ template, selection, existing = [], onProg
         continue; // without the attribute its values cannot be created
       }
     }
-    if (choice.core && target?.id) coreIds.push(String(target.id));
 
     const have = new Set((target.values || []).flatMap(valueKeys));
     for (let valueIndex = 0; valueIndex < attribute.values.length; valueIndex += 1) {
@@ -94,14 +91,5 @@ export const applyTemplate = async ({ template, selection, existing = [], onProg
     }
   }
 
-  // The template's main attributes become "core" ones, next to the ones that already are.
-  if (coreIds.length) {
-    try {
-      const current = resolveCoreIds(await loadSavedCoreIds(), known);
-      await saveCoreIds([...current, ...coreIds]);
-    } catch {
-      summary.coreFailed = true;
-    }
-  }
   return summary;
 };

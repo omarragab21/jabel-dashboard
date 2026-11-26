@@ -372,6 +372,15 @@ input[type='number']::-webkit-outer-spin-button {
 
 /* "الأعمدة" picker sits right above a table: components/ColumnPicker.vue */
 .col-toolbar { display: flex; justify-content: flex-end; margin: 0 0 0.5rem; }
+/* "Columns" button sits at the end of the search / filter row (left in Arabic, right in English). */
+.toolbar-columns { flex: 0 0 auto; display: flex; align-self: stretch; order: 99; }
+.toolbar-columns .col-btn { height: 100%; min-height: 42px; padding: 0.65rem 1rem; border-radius: 9px; font-size: 0.85rem; white-space: nowrap; }
+.dark .toolbar-columns .col-btn { background: var(--bg-card); border-color: var(--border-color); color: var(--text-main); }
+@media (max-width: 640px) {
+  .toolbar-columns { flex: 1 1 100%; }
+  .toolbar-columns.col-picker { width: 100%; }
+  .toolbar-columns .col-btn { width: 100%; justify-content: center; }
+}
 
 /* ---- Bulk selection (useBulkSelection + BulkActionBar): the tick column of every CRUD table ---- */
 th.bulk-col, td.bulk-col { width: 44px; min-width: 44px; padding-inline: 0.75rem 0.25rem !important; text-align: center !important; }

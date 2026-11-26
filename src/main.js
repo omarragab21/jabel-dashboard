@@ -19,7 +19,7 @@ document.documentElement.lang = lang;
 document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
 
 // Browser tab title follows the dashboard language.
-const TAB_TITLES = { ar: 'لوحة تحكم تجارة | Tijara', en: 'Tijara Dashboard | Tijara' };
+const TAB_TITLES = { ar: 'لوحة تحكم تجارة بلس', en: 'Tijara Plus Dashboard' };
 watch(() => i18n.global.locale.value, (value) => {
   document.title = TAB_TITLES[value] || TAB_TITLES.ar;
 }, { immediate: true });

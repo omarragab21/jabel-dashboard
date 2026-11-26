@@ -406,6 +406,8 @@ const menuLabelKeys = {
   'رسائل العملاء': 'admin.nav.messages',
   'المسؤولون': 'admin.nav.admins',
   'الفروع': 'admin.nav.branches',
+  'المواقع والفروع': 'admin.nav.locations',
+  'مناطق التوصيل': 'admin.nav.areas',
   'سجل النشاطات': 'admin.nav.activity',
   'إدارة الصلاحيات': 'admin.nav.permissions',
   'التقارير المالية': 'admin.nav.accounts',
@@ -458,15 +460,17 @@ const handleOrdersUpdated = () => {
 const CACHED_PAGES_MAX = 20;
 const pageGen = reactive({});
 const visitedPaths = new Set();
-const pageKey = (r) => `${r.path}#${pageGen[r.path] || 0}`;
+// Routes that are views of one screen (the products list and its add / edit pages) share one cached page.
+const pagePath = (r) => r.meta?.pagePath || r.path;
+const pageKey = (r) => `${pagePath(r)}#${pageGen[pagePath(r)] || 0}`;
 const invalidatePage = (path) => { pageGen[path] = (pageGen[path] || 0) + 1; };
 
-watch(() => route.path, (path) => visitedPaths.add(path), { immediate: true });
+watch(() => pagePath(route), (path) => visitedPaths.add(path), { immediate: true });
 
 // Another screen changed data: every cached screen except the one on display is
 // stale. The visible screen already updates itself after its own write.
 watch(() => freshness.version, () => {
-  visitedPaths.forEach((path) => { if (path !== route.path) invalidatePage(path); });
+  visitedPaths.forEach((path) => { if (path !== pagePath(route)) invalidatePage(path); });
 });
 
 const refreshing = ref(false);
@@ -474,7 +478,7 @@ const refreshCurrentPage = () => {
   if (refreshing.value) return;
   refreshing.value = true;
   markDataChanged();
-  invalidatePage(route.path);
+  invalidatePage(pagePath(route));
   setTimeout(() => { refreshing.value = false; }, 800);
 };
 
@@ -486,7 +490,7 @@ const setLanguage = (newLang) => {
   document.documentElement.dir = newLang === 'ar' ? 'rtl' : 'ltr';
   // Responses are localised through Accept-Language, so cached screens reload.
   markDataChanged();
-  invalidatePage(route.path);
+  invalidatePage(pagePath(route));
 };
 
 const updateFaviconFromSettings = () => {
@@ -546,7 +550,7 @@ const closeUserMenu = (e) => {
 
 const handleLogout = async () => {
   try {
-    await api.post('/v1/logout');
+    await api.post('/v1/auth/logout');
   } catch (err) {
     console.error(err);
   } finally {
@@ -628,6 +632,15 @@ const menuItems = [
   //   label: 'بوابات الدفع',
   //   icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>`,
   // },
+  {
+    label: 'المواقع والفروع',
+    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>`,
+    children: [
+      { route: '/admin/cities', label: 'المدن' },
+      { route: '/admin/areas', label: 'مناطق التوصيل' },
+      { route: '/admin/branches', label: 'الفروع' },
+    ],
+  },
   /*
   {
     label: 'إدارة مناطق التوصيل',

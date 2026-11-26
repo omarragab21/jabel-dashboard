@@ -14,7 +14,7 @@ const pick = (pair) => pair[lang.value];
 const step = ref('gallery'); // gallery -> preview (one template) -> review (the whole basket) -> running -> result
 const template = ref(null);
 // What was picked, kept per template so several templates can be mixed into one basket.
-const choices = ref({}); // templateId -> [{ include, core, open, values: boolean[] }]
+const choices = ref({}); // templateId -> [{ include, open, values: boolean[] }]
 const progress = ref({ done: 0, total: 0, label: '' });
 const summary = ref(null);
 
@@ -24,7 +24,6 @@ const openTemplate = (item) => {
   if (!choices.value[item.id]) {
     choices.value[item.id] = item.attributes.map((attribute) => ({
       include: false,
-      core: Boolean(attribute.core),
       open: false,
       values: attribute.values.map(() => true),
     }));
@@ -48,10 +47,9 @@ const combined = computed(() => {
       const choice = choices.value[item.id][index];
       if (!choice.include) return;
       const key = keyOf(attribute);
-      if (!merged.has(key)) merged.set(key, { name: attribute.name, type: attribute.type, core: false, values: [], sources: [], seen: new Set() });
+      if (!merged.has(key)) merged.set(key, { name: attribute.name, type: attribute.type, values: [], sources: [], seen: new Set() });
       const entry = merged.get(key);
       if (attribute.type === 'color') entry.type = 'color';
-      if (choice.core) entry.core = true;
       if (!entry.sources.includes(item.id)) entry.sources.push(item.id);
       attribute.values.forEach((raw, valueIndex) => {
         if (!choice.values[valueIndex]) return;
@@ -66,7 +64,7 @@ const combined = computed(() => {
   return { id: 'basket', attributes: [...merged.values()].map(({ seen, ...rest }) => rest) };
 });
 const combinedSelection = computed(() => combined.value.attributes.map((attribute) => ({
-  include: attribute.values.length > 0, core: attribute.core, values: attribute.values.map(() => true),
+  include: attribute.values.length > 0, values: attribute.values.map(() => true),
 })));
 const basketPlan = computed(() => planTemplate(combined.value, combinedSelection.value, props.attributes));
 const basketAttributes = computed(() => combined.value.attributes.length);
@@ -152,7 +150,6 @@ const close = () => { if (step.value === 'running') return; if (step.value === '
             <label class="tpl-check strong"><input v-model="selection[index].include" type="checkbox" /> {{ pick(attribute.name) }}</label>
             <span v-if="attribute.type === 'color'" class="tpl-tag">{{ tx('ألوان', 'Colors') }}</span>
             <span v-if="existsOnServer(attribute)" class="tpl-tag warn">{{ tx('موجودة — هتتضاف القيم الناقصة بس', 'Already exists — only missing values are added') }}</span>
-            <label class="tpl-check core"><input v-model="selection[index].core" type="checkbox" :disabled="!selection[index].include" /> {{ tx('أساسية', 'Core') }}</label>
             <button type="button" class="tpl-toggle" @click="selection[index].open = !selection[index].open">
               {{ chosenCount(index) }}/{{ attribute.values.length }} {{ tx('قيمة', 'values') }} {{ selection[index].open ? '▲' : '▼' }}
             </button>
@@ -177,7 +174,6 @@ const close = () => { if (step.value === 'running') return; if (step.value === '
           <div class="tpl-attr-head">
             <strong class="tpl-name">{{ pick(attribute.name) }}</strong>
             <span v-if="attribute.type === 'color'" class="tpl-tag">{{ tx('ألوان', 'Colors') }}</span>
-            <span v-if="attribute.core" class="tpl-tag">{{ tx('أساسية', 'Core') }}</span>
             <span v-for="id in attribute.sources" :key="id" class="tpl-tag src">{{ templateName(id) }}</span>
             <span v-if="existsInBasket(index)" class="tpl-tag warn">{{ tx('موجودة — هتتضاف القيم الناقصة بس', 'Already exists — only missing values are added') }}</span>
             <span class="tpl-count">{{ attribute.values.length }} {{ tx('قيمة', 'values') }}</span>
@@ -217,7 +213,6 @@ const close = () => { if (step.value === 'running') return; if (step.value === '
           <strong>{{ tx('تعذر إنشاء:', 'Could not create:') }}</strong>
           <p v-for="(failure, index) in summary.failures" :key="index">{{ failure.attribute }}<template v-if="failure.value"> › {{ failure.value }}</template><template v-if="failure.message"> — {{ failure.message }}</template></p>
         </div>
-        <p v-if="summary.coreFailed" class="tpl-errors">{{ tx('اتعملت الخصائص، لكن تعذر تعليمها كأساسية. علّمها من صفحة الخصائص.', 'Attributes were created, but marking them as core failed. Mark them on the attributes page.') }}</p>
       </div>
 
       <footer v-if="step === 'gallery' || step === 'preview'" class="tpl-foot">

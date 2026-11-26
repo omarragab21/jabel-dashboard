@@ -9,7 +9,7 @@ import { failureReason, runInBatches, toCsv, toTsv } from '../domain/bulkSelecti
 
 const props = defineProps({
   bulk: { type: Object, required: true },
-  // [{ key, label, icon, tone, confirm(rows) -> text, applies(row) -> bool, each(row) -> Promise, done(), success(n) -> text }]
+  // [{ key, label, icon, tone, confirm(rows) -> text, applies(row) -> bool, each(row) -> Promise | all(rows, inputs) -> Promise (one request for every row) | prepare(rows) -> inputs|null (ask first; null cancels), done(), success(n) -> text }]
   actions: { type: Array, default: () => [] },
   fileName: { type: String, default: 'export' },
   labelOf: { type: Function, default: (row) => row?.name_i18n?.ar || row?.name_ar || row?.name || row?.title || row?.code || (row?.id !== undefined ? `#${row.id}` : '') },
@@ -38,6 +38,11 @@ const run = async (action) => {
     flash(action.nothing || tx('كل العناصر المحددة على هذه الحالة بالفعل', 'All selected items are already in that state'));
     return;
   }
+  let inputs;
+  if (action.prepare) {
+    inputs = await action.prepare(rows);
+    if (inputs === null || inputs === undefined) return;
+  }
   if (action.confirm) {
     const ok = await dialog.confirm(action.confirm(rows), {
       type: action.tone === 'danger' ? 'error' : 'warning',
@@ -48,10 +53,24 @@ const run = async (action) => {
     if (!ok) return;
   }
   running.value = { key: action.key, done: 0, total: rows.length };
-  const { done, failed } = await runInBatches(rows, action.each, {
-    concurrency: action.concurrency || 4,
-    onProgress: (count) => { if (running.value) running.value.done = count; },
-  });
+  let done;
+  let failed;
+  if (action.all) {
+    // One request for the whole selection: it either works for every row or fails for every row.
+    try {
+      await action.all(rows, inputs);
+      done = rows;
+      failed = [];
+    } catch (error) {
+      done = [];
+      failed = rows.map((item) => ({ item, error }));
+    }
+  } else {
+    ({ done, failed } = await runInBatches(rows, action.each, {
+      concurrency: action.concurrency || 4,
+      onProgress: (count) => { if (running.value) running.value.done = count; },
+    }));
+  }
   // Rows that worked leave the selection; failed ones stay ticked so the admin sees which.
   props.bulk.deselect(done.map((row) => row.id));
   try { if (done.length && action.done) await action.done(done); } catch { /* the list refresh failing must not hide the summary */ }
@@ -133,6 +152,8 @@ const ICONS = {
   eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
   copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
   download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
 };
 </script>

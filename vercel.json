@@ -4,15 +4,15 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://backend-jabal.be-kite.com/api/:path*"
+      "destination": "https://backend-tijara-plus-stage.be-kite.com/api/:path*"
     },
     {
       "source": "/storage/:path*",
-      "destination": "https://backend-jabal.be-kite.com/storage/:path*"
+      "destination": "https://backend-tijara-plus-stage.be-kite.com/storage/:path*"
     },
     {
       "source": "/public/storage/:path*",
-      "destination": "https://backend-jabal.be-kite.com/public/storage/:path*"
+      "destination": "https://backend-tijara-plus-stage.be-kite.com/public/storage/:path*"
     },
     {
       "source": "/(.*)",
@@ -45,7 +45,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: blob: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://backend-jabal.be-kite.com https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: blob: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://backend-tijara-plus-stage.be-kite.com https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
         }
       ]
     },

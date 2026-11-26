@@ -2,7 +2,7 @@ import axios from 'axios';
 import { isDataWrite, markDataChanged } from '../utils/dataFreshness';
 import { clearAdminSessionArtifacts } from '../utils/adminSecurity';
 
-const serverUrl = 'https://backend-jabal.be-kite.com/api';
+const serverUrl = 'https://backend-tijara-plus-stage.be-kite.com/api';
 const envUrl = import.meta.env.VITE_API_BASE_URL;
 
 const isBrowser = typeof window !== 'undefined';
@@ -12,21 +12,7 @@ const baseURL = envUrl || (import.meta.env.DEV && isBrowser ? '/api' : serverUrl
 
 // Admin resources of the Tijara API; an auth failure on them ends the admin session.
 const LIVE_ADMIN_PATH_PREFIXES = [
-  '/v1/admins',
-  '/v1/users',
-  '/v1/categories',
-  '/v1/discount_codes',
-  '/v1/offers',
-  '/v1/products',
-  '/v1/attributes',
-  '/v1/orders',
-  '/v1/sliders',
-  '/v1/reviews',
-  '/v1/contacts',
-  '/v1/returns',
-  '/v1/settings',
-  '/v1/site-images',
-  '/v1/reports',
+  '/v1/dashboard',
 ];
 
 const isLiveAdminEndpoint = (cleanPath) =>
@@ -136,10 +122,10 @@ api.interceptors.request.use(config => {
 
   const requestUrl = config.url || '';
   const cleanPath = normalizePath(requestUrl);
-  // `/v1/site/*` is the customer-facing Site API, while `/v1/site-images`
+  // `/v1/website/*` is the customer-facing Site API, while `/v1/dashboard/site-images`
   // is an authenticated Admin upload endpoint. Keep the slash boundary so
   // image uploads retain the admin token instead of being sent as storefront.
-  const isStorefrontPath = cleanPath.startsWith('/frontend') || cleanPath.startsWith('/v1/site/');
+  const isStorefrontPath = cleanPath.startsWith('/frontend') || cleanPath.startsWith('/v1/website/');
   const rawToken = isStorefrontPath ? '' : String(storage?.getItem('token') ?? '').trim();
   const token = rawToken && rawToken !== 'undefined' && rawToken !== 'null' ? rawToken : null;
 
@@ -223,7 +209,7 @@ api.interceptors.response.use(
     if (error.response && isUnauthenticated) {
       const url = error.config?.url || '';
       const cleanPath = url.split('?')[0].replace(/^\/api/, '');
-      const isFrontendReq = cleanPath.startsWith('/frontend') || cleanPath.startsWith('/v1/site');
+      const isFrontendReq = cleanPath.startsWith('/frontend') || cleanPath.startsWith('/v1/website');
       const isAdminReq = !isFrontendReq && (
         cleanPath.startsWith('/dashboard') || 
         cleanPath.startsWith('/v1/admins') || 

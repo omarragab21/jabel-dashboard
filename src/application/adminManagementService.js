@@ -40,7 +40,9 @@ export const adminManagementService = {
   updateUser: (id, form, image) => tijaraAdminApi.updateUser(id, toAdminUserUpdatePayload(form), image).then((response) => mapResponse(response, toAdminUser)),
   getUser: (id) => tijaraAdminApi.getUser(id).then((response) => mapResponse(response, toAdminUser)),
   deleteUser: tijaraAdminApi.deleteUser,
-  listAdmins: (params = {}) => mapList(tijaraAdminApi.listUsers, toAdminUser, { role: 'super_admin', ...params }),
+  // `role=admin` returns the admin and super_admin accounts together; customers and role-less accounts are left out.
+  listAdmins: (params = {}) => mapList(tijaraAdminApi.listUsers, toAdminUser, { role: 'admin', ...params })
+    .then((users) => users.filter((user) => ['admin', 'super_admin'].includes(String(user.role).toLowerCase()))),
   getProfile: () => tijaraAdminApi.getProfile().then((response) => mapResponse(response, toAdminUser)),
   updateProfile: (payload) => tijaraAdminApi.updateProfile(payload),
   changePassword: (payload) => tijaraAdminApi.changePassword(payload),

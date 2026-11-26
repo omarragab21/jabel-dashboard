@@ -68,7 +68,7 @@ const orderCache = new Map();
 const fetchOrder = async (orderId) => {
   const safeId = encodePathSegment(orderId, 'order id');
   if (!orderCache.has(safeId)) {
-    orderCache.set(safeId, api.get(`/v1/orders/${safeId}`)
+    orderCache.set(safeId, api.get(`/v1/dashboard/orders/${safeId}`)
       .then((response) => response.data?.data ?? response.data)
       .catch((error) => {
         orderCache.delete(safeId);
@@ -78,7 +78,7 @@ const fetchOrder = async (orderId) => {
   return orderCache.get(safeId);
 };
 
-// `/v1/returns` carries no customer or product image. Both live on the linked order,
+// `/v1/dashboard/returns` carries no customer or product image. Both live on the linked order,
 // so a return is completed from `GET /v1/orders/{order_id}` (cached per order).
 export const attachOrder = (ret, order) => {
   if (!order || typeof order !== 'object') return ret;
@@ -108,7 +108,7 @@ export const attachOrder = (ret, order) => {
 
 export const returnsService = {
   async listMine() {
-    const response = await api.get('/v1/site/returns');
+    const response = await api.get('/v1/website/returns');
     return unwrapList(response.data).map(normalizeReturn);
   },
 
@@ -125,7 +125,7 @@ export const returnsService = {
         reason: payload.reason,
       }];
     if (!items[0]?.order_item_id) throw new Error('يجب اختيار منتج من الطلب');
-    const response = await api.post(`/v1/site/orders/${safeOrderId}/returns`, {
+    const response = await api.post(`/v1/website/orders/${safeOrderId}/returns`, {
       reason: String(payload.reason || '').trim(),
       items: items.map((item) => ({
         order_item_id: item.order_item_id,
@@ -138,13 +138,13 @@ export const returnsService = {
   },
 
   async listAll() {
-    const response = await api.get('/v1/returns');
+    const response = await api.get('/v1/dashboard/returns');
     return unwrapList(response.data).map(normalizeReturn);
   },
 
   async getById(id) {
     const safeId = encodePathSegment(id, 'return id');
-    const response = await api.get(`/v1/returns/${safeId}`);
+    const response = await api.get(`/v1/dashboard/returns/${safeId}`);
     const ret = normalizeReturn(response.data?.data ?? response.data);
     if (!ret.orderId) return ret;
     try {
@@ -183,7 +183,7 @@ export const returnsService = {
     const status = String(payload?.status || '').toLowerCase();
     const action = status === 'approved' ? 'approve' : status === 'rejected' ? 'reject' : status;
     if (!['approve', 'reject'].includes(action)) throw new Error('حالة الإرجاع غير مدعومة');
-    const response = await api.post(`/v1/returns/${safeId}/review`, {
+    const response = await api.post(`/v1/dashboard/returns/${safeId}/review`, {
       action,
       ...(payload?.admin_notes ? { admin_notes: String(payload.admin_notes).trim() } : {}),
     });

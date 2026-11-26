@@ -1,10 +1,14 @@
 <script setup>
+import EditorPage from '../components/EditorPage.vue';
+import { useEditorRoute } from '../composables/useEditorRoute';
 import BulkActionBar from '../components/BulkActionBar.vue';
 import { useBulkSelection } from '../composables/useBulkSelection';
 import ColumnPicker from '../components/ColumnPicker.vue';
 import { localizeMessage } from '../utils/uiMessages';
 import { apiErrorMessage } from '../utils/apiMessage';
+import { useDialog } from '../composables/useDialog';
 import { ref, onMounted, computed } from 'vue';
+const appDialog = useDialog();
 import api from '../config/axios';
 import adminManagementService from '../application/adminManagementService';
 import { useAdminText } from '../composables/useAdminText';
@@ -75,6 +79,22 @@ const openEditModal = (permission) => {
     showFormModal.value = true;
 };
 
+const closeForm = () => { showFormModal.value = false; };
+
+// The form has its own address: /admin/permissions/new and /admin/permissions/:id/edit.
+useEditorRoute({
+  base: '/admin/permissions',
+  isOpen: showFormModal,
+  editId: () => (isEditing.value ? currentPermission.value?.id : ''),
+  openAdd: () => openAddModal(),
+  openEdit: openEditModal,
+  close: closeForm,
+  findItem: async (id) => {
+    if (!permissions.value.length) await fetchData();
+    return permissions.value.find((permission) => String(permission.id) === id) || null;
+  },
+});
+
 const submitForm = async () => {
     isSubmitting.value = true;
     try {
@@ -96,7 +116,7 @@ const submitForm = async () => {
 };
 
 const confirmDelete = async (permission) => {
-    if (confirm(`هل أنت متأكد من حذف الصلاحية "${permission.name}"؟`)) {
+    if (await appDialog.confirm(`هل أنت متأكد من حذف الصلاحية "${permission.name}"؟`, { title: 'تأكيد الحذف', confirmText: 'حذف', cancelText: 'إلغاء' })) {
         try {
             await api.delete(`/dashboard/permissions/${permission.id}`);
             triggerAlert('تم حذف الصلاحية بنجاح');
@@ -156,6 +176,8 @@ const bulkActions = computed(() => [
 
 <template>
   <div class="permissions-page p-6">
+    <!-- The list; the add / edit form below replaces it as a page of its own (/admin/permissions/new, /admin/permissions/:id/edit) -->
+    <div v-show="!showFormModal" class="list-view">
     <!-- Breadcrumbs -->
     <div class="breadcrumb mb-4">
        <span>{{ tx('لوحة التحكم الرئيسية', 'Dashboard') }}</span>
@@ -207,6 +229,7 @@ const bulkActions = computed(() => [
     <!-- Search Bar -->
     <div class="filter-card shadow-sm mb-6">
        <div class="flex-row gap-4">
+          <ColumnPicker table-key="permissions" class="toolbar-columns" />
           <div class="search-wrapper flex-1">
              <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
              <input type="text" v-model="searchQuery" @input="fetchData" :placeholder="tx('البحث باسم الصلاحية أو المستخدم...', 'Search permission or user...')" class="search-input" />
@@ -220,7 +243,6 @@ const bulkActions = computed(() => [
     </div>
 
     <!-- Table -->
-    <div class="col-toolbar"><ColumnPicker table-key="permissions" /></div>
     <div class="table-container shadow-sm">
       <table class="data-table" data-col-key="permissions" :data-bulk-table="bulk.tableId">
         <thead>
@@ -280,16 +302,17 @@ const bulkActions = computed(() => [
       </table>
     </div>
     <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="permissions" />
+    </div><!-- /list-view -->
 
-    <!-- Form Modal -->
-    <div class="modal-overlay" v-if="showFormModal" @click.self="showFormModal = false">
-       <div class="modal-content form-modal-perm fade-in">
-          <button class="close-btn-x" @click="showFormModal = false">×</button>
-          
-          <div class="modal-header-perm">
-             <h2>{{ isEditing ? tx('تعديل الصلاحية', 'Edit Permission') : tx('إنشاء صلاحية جديدة', 'Create Permission') }}</h2>
-             <p>{{ tx('أدخل بيانات الصلاحية من للمستخدمين التي سيتم منحهم إياها', 'Enter the permission details and assign users') }}</p>
-          </div>
+    <!-- Add / edit page -->
+    <EditorPage
+      v-if="showFormModal"
+      testid="permission-editor"
+      :back-label="tx('إدارة الصلاحيات', 'Permissions')"
+      :title="isEditing ? tx('تعديل الصلاحية', 'Edit Permission') : tx('إنشاء صلاحية جديدة', 'Create Permission')"
+      :subtitle="tx('أدخل بيانات الصلاحية من للمستخدمين التي سيتم منحهم إياها', 'Enter the permission details and assign users')"
+      @back="closeForm"
+    >
 
           <form @submit.prevent="submitForm">
              <div class="modal-body-perm">
@@ -327,14 +350,13 @@ const bulkActions = computed(() => [
              </div>
 
              <div class="modal-footer-perm">
-                <button type="button" class="btn-cancel-new" @click="showFormModal = false">{{ tx('إلغاء', 'Cancel') }}</button>
+                <button type="button" class="btn-cancel-new" @click="closeForm">{{ tx('إلغاء', 'Cancel') }}</button>
                 <button type="submit" class="btn-submit-new" :disabled="isSubmitting">
                    {{ isSubmitting ? tx('جاري الحفظ...', 'Saving...') : tx('إنشاء الصلاحية', 'Create Permission') }}
                 </button>
              </div>
           </form>
-       </div>
-    </div>
+    </EditorPage>
 
     <!-- Alert -->
     <div v-if="showAlert" :class="['alert-toast', alertType, 'show']">

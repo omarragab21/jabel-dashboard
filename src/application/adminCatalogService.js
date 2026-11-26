@@ -42,6 +42,7 @@ export const adminCatalogService = {
   updateCategory: (id, payload, image) => mapData(() => tijaraAdminApi.updateCategory(id, payload, image), toCategory),
   getCategory: (id) => mapData(() => tijaraAdminApi.getCategory(id), toCategory),
   deleteCategory: tijaraAdminApi.deleteCategory,
+  bulkCategoryAction: tijaraAdminApi.bulkCategoryAction,
 
   listProducts: (params) => tijaraAdminApi.listProducts(params).then((response) => ({
     ...response.data,
@@ -76,6 +77,13 @@ export const adminCatalogService = {
   updateProduct: (id, payload, files) => mapData(() => tijaraAdminApi.updateProduct(id, payload, files), toProduct),
   getProduct: (id) => mapData(() => tijaraAdminApi.getProduct(id), toProduct),
   deleteProduct: tijaraAdminApi.deleteProduct,
+  bulkProductAction: tijaraAdminApi.bulkProductAction,
+
+  // Variants of one product: [{ id, price, final_price, number (stock), is_main, is_active, attributes, images }]
+  listVariants: (productId) => tijaraAdminApi.listVariants(productId).then((response) => listFromResponse(response.data)),
+  createVariant: (productId, payload, files) => mapData(() => tijaraAdminApi.createVariant(productId, payload, files), (value) => value),
+  updateVariant: (productId, variantId, payload, files) => mapData(() => tijaraAdminApi.updateVariant(productId, variantId, payload, files), (value) => value),
+  deleteVariant: tijaraAdminApi.deleteVariant,
 
   listAttributes: () => mapList(tijaraAdminApi.listAttributes, toAttribute),
   createAttribute: (payload) => mapData(() => tijaraAdminApi.createAttribute(payload), toAttribute),

@@ -1,5 +1,8 @@
 <template>
   <div class="shipping-rates-view">
+    <!-- The list; the edit and bulk-edit forms below replace it as pages of their own
+         (/admin/city-shipping-rates/:id/edit, /admin/city-shipping-rates/bulk) -->
+    <div v-show="!showEditModal && !showBulkModal" class="list-view">
     <div class="page-header">
       <h1 class="page-title">{{ tx('أسعار الشحن حسب المدينة', 'City Shipping Rates') }}</h1>
       <div class="header-actions">
@@ -65,11 +68,17 @@
       </table>
     </div>
     <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="shipping-rates" :label-of="(r) => r.city?.name_i18n?.ar || r.city?.name || r.city_name || `#${r.id}`" />
+    </div><!-- /list-view -->
 
-    <!-- Edit Modal -->
-    <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
-      <div class="modal-content">
-        <h2>{{ tx('تعديل سعر الشحن', 'Edit Shipping Rate') }}</h2>
+    <!-- Edit page -->
+    <EditorPage
+      v-if="showEditModal"
+      testid="shipping-rate-editor"
+      :back-label="tx('أسعار الشحن حسب المدينة', 'City Shipping Rates')"
+      :title="tx('تعديل سعر الشحن', 'Edit Shipping Rate')"
+      :subtitle="editingRate?.city?.name || ''"
+      @back="closeEdit"
+    >
         <form @submit.prevent="handleEditSubmit">
           <div class="form-group">
             <label>{{ tx('المدينة', 'City') }}</label>
@@ -86,17 +95,20 @@
             </label>
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn-secondary" @click="showEditModal = false">{{ tx('إلغاء', 'Cancel') }}</button>
+            <button type="button" class="btn-secondary" @click="closeEdit">{{ tx('إلغاء', 'Cancel') }}</button>
             <button type="submit" class="btn-primary">{{ tx('حفظ', 'Save') }}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </EditorPage>
 
-    <!-- Bulk Update Modal -->
-    <div v-if="showBulkModal" class="modal-overlay" @click.self="showBulkModal = false">
-      <div class="modal-content bulk-modal">
-        <h2>{{ tx('تعديل جماعي للأسعار', 'Bulk Update Shipping Rates') }}</h2>
+    <!-- Bulk update page -->
+    <EditorPage
+      v-if="showBulkModal"
+      testid="shipping-rates-bulk-editor"
+      :back-label="tx('أسعار الشحن حسب المدينة', 'City Shipping Rates')"
+      :title="tx('تعديل جماعي للأسعار', 'Bulk Update Shipping Rates')"
+      @back="closeBulk"
+    >
         <div class="bulk-options">
           <div class="option-card" @click="bulkOption = 'all'">
             <input type="radio" v-model="bulkOption" value="all" />
@@ -128,11 +140,10 @@
         </div>
 
         <div class="modal-actions">
-          <button type="button" class="btn-secondary" @click="showBulkModal = false">{{ tx('إلغاء', 'Cancel') }}</button>
+          <button type="button" class="btn-secondary" @click="closeBulk">{{ tx('إلغاء', 'Cancel') }}</button>
           <button class="btn-primary" @click="handleBulkSubmit">{{ tx('حفظ التغييرات', 'Save Changes') }}</button>
         </div>
-      </div>
-    </div>
+    </EditorPage>
   </div>
 </template>
 
@@ -140,7 +151,12 @@
 import BulkActionBar from '../components/BulkActionBar.vue';
 import { useBulkSelection } from '../composables/useBulkSelection';
 import ColumnPicker from '../components/ColumnPicker.vue';
-import { ref, onMounted, computed } from 'vue';
+import { useDialog } from '../composables/useDialog';
+import { ref, onMounted, computed, watch } from 'vue';
+const appDialog = useDialog();
+import { useRoute, useRouter } from 'vue-router';
+import EditorPage from '../components/EditorPage.vue';
+import { useEditorRoute } from '../composables/useEditorRoute';
 import api from '../config/axios';
 import { useAdminText } from '../composables/useAdminText';
 
@@ -214,7 +230,7 @@ const handleEditSubmit = async () => {
 };
 
 const deleteRate = async (id) => {
-  if (!confirm('هل أنت متأكد من حذف هذا السعر؟')) return;
+  if (!(await appDialog.confirm('هل أنت متأكد من حذف هذا السعر؟', { title: 'تأكيد الحذف', confirmText: 'حذف', cancelText: 'إلغاء' }))) return;
   try {
     await api.delete(`/dashboard/city-shipping-rates/${id}`);
     fetchRates();
@@ -231,6 +247,36 @@ const openBulkUpdate = async () => {
   });
   showBulkModal.value = true;
 };
+
+const closeEdit = () => { showEditModal.value = false; };
+const closeBulk = () => { showBulkModal.value = false; };
+
+// Each form has its own address: /admin/city-shipping-rates/:id/edit and /admin/city-shipping-rates/bulk.
+useEditorRoute({
+  base: '/admin/city-shipping-rates',
+  isOpen: showEditModal,
+  editId: () => editingRate.value?.id,
+  openAdd: () => false, // rates are not added here
+  openEdit: editRate,
+  close: closeEdit,
+  findItem: async (id) => {
+    if (!rates.value.length) await fetchRates();
+    return rates.value.find((rate) => String(rate.id) === id) || null;
+  },
+});
+const BULK_PATH = '/admin/city-shipping-rates/bulk';
+const route = useRoute();
+const router = useRouter();
+watch(showBulkModal, (open) => {
+  const onScreen = route.path === '/admin/city-shipping-rates' || route.path === BULK_PATH;
+  if (!onScreen) return;
+  const target = open ? BULK_PATH : '/admin/city-shipping-rates';
+  if (route.path !== target) router.push(target);
+});
+watch(() => route.path, (path) => {
+  if (path === BULK_PATH && !showBulkModal.value) openBulkUpdate();
+  else if (path === '/admin/city-shipping-rates' && showBulkModal.value) closeBulk();
+}, { immediate: true });
 
 const handleBulkSubmit = async () => {
   try {

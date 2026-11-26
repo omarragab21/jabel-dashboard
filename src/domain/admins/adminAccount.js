@@ -1,17 +1,24 @@
 // Administrator accounts (إدارة المديرين) and the signed-in admin's own profile.
-//   GET    /v1/users?role=super_admin       list (the API's only admin role is `super_admin`; `admin` answers 422 "selected role is invalid")
+//   GET    /v1/dashboard/users?role=admin   list (the API returns `admin` and `super_admin` accounts together)
 //   POST   /v1/users                        { name, email, phone_number, password(min 8), role, status, image_file? }
-//   PUT    /v1/users/{id}                   update (answers 500 today, see the QA report)
+//   PUT    /v1/users/{id}                   update (multipart; send `role` every time, an update without it clears the role)
 //   DELETE /v1/users/{id}
 //   GET    /v1/profile                      the signed-in admin
 //   POST   /v1/profile                      { name, phone_number }  (it also accepts `email`; the page keeps it read-only)
 //   PUT    /v1/profile/password             { current_password, password, password_confirmation }
 
-import { ROLE_KEYS, roleLabel, countModules } from './permissions.js';
+import { roleLabel, countModules } from './permissions.js';
 
 // Roles an administrator can have. Each one starts from a permission preset (see permissions.js) that the
-// "إدارة الصلاحيات" tab of the form can adjust. The API accepts only `super_admin` as a role today.
-export const ADMIN_ROLES = ROLE_KEYS;
+// "إدارة الصلاحيات" tab of the form can adjust. The API accepts only `super_admin`, `admin` and `user` today
+// (the other presets answer 422 "selected role is invalid"), so only the first two can be assigned here.
+export const ADMIN_ROLES = ['super_admin', 'admin'];
+export const SUPER_ADMIN_ROLE = 'super_admin';
+export const isSuperAdmin = (account) => String(account?.role || '').toLowerCase() === SUPER_ADMIN_ROLE;
+// A super admin manages everyone; any other administrator cannot edit, disable or delete a super admin.
+export const canManageAdmin = (actor, target) => isSuperAdmin(actor) || !isSuperAdmin(target);
+// Roles the signed-in administrator may hand out: only a super admin can create another super admin.
+export const assignableRoles = (actor) => ADMIN_ROLES.filter((role) => role !== SUPER_ADMIN_ROLE || isSuperAdmin(actor));
 export const PASSWORD_MIN = 8;
 export const NAME_MAX = 100;
 
@@ -114,6 +121,8 @@ const SERVER_MESSAGES = [
   [/password.*at least 8/i, 'كلمة المرور يجب ألا تقل عن 8 أحرف', 'The password must be at least 8 characters'],
   [/password is incorrect/i, 'كلمة المرور الحالية غير صحيحة', 'The current password is incorrect'],
   [/confirmation does not match/i, 'تأكيد كلمة المرور غير مطابق', 'The password confirmation does not match'],
+  [/selected role is invalid/i, 'هذه الصلاحية غير مدعومة من الخادم', 'The server does not support this role'],
+  [/not have administrative access/i, 'هذا الحساب لا يملك صلاحية دخول لوحة التحكم', 'This account has no dashboard access'],
   [/valid email/i, 'البريد الإلكتروني غير صالح', 'The email is not valid'],
 ];
 

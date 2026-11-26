@@ -1,5 +1,7 @@
 <template>
   <div class="brands-page">
+    <!-- The list; the add / edit form below replaces it as a page of its own (/admin/brands/new, /admin/brands/:id/edit) -->
+    <div v-show="!showFormModal" class="list-view" style="display: contents">
     <!-- Header -->
     <div class="page-header">
       <div class="header-titles">
@@ -44,6 +46,7 @@
 
     <!-- Filters Row -->
     <div class="filters-row">
+      <ColumnPicker table-key="brands" class="toolbar-columns" />
       <div class="search-box">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="search-icon">
           <circle cx="11" cy="11" r="8"/>
@@ -64,7 +67,6 @@
     </div>
 
     <!-- Table -->
-    <div class="col-toolbar"><ColumnPicker table-key="brands" /></div>
     <div class="table-container">
       <table class="data-table" data-col-key="brands" :data-bulk-table="bulk.tableId">
         <thead>
@@ -125,19 +127,17 @@
       </table>
     </div>
     <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="brands" />
+    </div><!-- /list-view -->
 
-    <!-- Form Modal (Add/Edit) -->
-    <div class="modal-overlay" v-if="showFormModal" @click.self="closeModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <div class="modal-header-text">
-            <h3 class="modal-title">{{ isEdit ? tx('تعديل علامة تجارية', 'Edit Brand') : tx('إضافة علامة تجارية جديدة', 'Add New Brand') }}</h3>
-            <p class="modal-subtitle">{{ tx('أدخل معلومات العلامة التجارية لإتمام العملية', 'Enter brand information to continue') }}</p>
-          </div>
-          <button class="modal-close" @click="closeModal" :aria-label="tx('إغلاق', 'Close')">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
+    <!-- Add / edit brand page -->
+    <EditorPage
+      v-if="showFormModal"
+      testid="brand-editor"
+      :back-label="tx('العلامات التجارية', 'Brands')"
+      :title="isEdit ? tx('تعديل علامة تجارية', 'Edit Brand') : tx('إضافة علامة تجارية جديدة', 'Add New Brand')"
+      :subtitle="tx('أدخل معلومات العلامة التجارية لإتمام العملية', 'Enter brand information to continue')"
+      @back="closeModal"
+    >
 
         <form @submit.prevent="submitForm" class="brand-form">
           <!-- Logo Upload -->
@@ -204,8 +204,7 @@
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </EditorPage>
 
     <!-- Alert Toast -->
     <div class="alert-toast" :class="[alertType, { show: showAlert }]">
@@ -224,7 +223,9 @@ import BulkActionBar from '../components/BulkActionBar.vue';
 import { useBulkSelection } from '../composables/useBulkSelection';
 import { localizeMessage } from '../utils/uiMessages';
 import { apiErrorMessage } from '../utils/apiMessage';
+import { useDialog } from '../composables/useDialog';
 import { ref, computed, onMounted } from 'vue';
+const appDialog = useDialog();
 import api from '../config/axios';
 import { useAdminText } from '../composables/useAdminText';
 import { safeObjectUrl } from '../utils/adminSecurity';
@@ -234,6 +235,8 @@ import { useImageCrop } from '../composables/useImageCrop';
 import BilingualField from '../components/BilingualField.vue';
 import { provideBilingualForm } from '../composables/useBilingualForm';
 import { hasText } from '../utils/bilingualText';
+import EditorPage from '../components/EditorPage.vue';
+import { useEditorRoute } from '../composables/useEditorRoute';
 
 const { tx } = useAdminText();
 const { cropModal, closeCrop, finishCrop, prepareImage, recropImage } = useImageCrop();
@@ -380,6 +383,21 @@ const closeModal = () => {
   bilingual.reset();
 };
 
+// The form has its own address: /admin/brands/new and /admin/brands/:id/edit.
+useEditorRoute({
+  base: '/admin/brands',
+  isOpen: showFormModal,
+  editId: () => (isEdit.value ? editingId.value : ''),
+  openAdd: openAddModal,
+  openEdit: openEditModal,
+  close: closeModal,
+  findItem: async (id) => {
+    if (!brands.value.length) await fetchBrands();
+    return brands.value.find((brand) => String(brand.id) === id) || null;
+  },
+  notFound: () => triggerAlert(tx('العلامة التجارية غير موجودة', 'Brand not found'), 'error'),
+});
+
 const handleDrop = (e) => {
   const picked = e.dataTransfer?.files?.[0];
   if (picked) handleFileChange({ target: { files: [picked], value: '' } });
@@ -459,7 +477,7 @@ const submitForm = async () => {
 };
 
 const confirmDelete = async (brand) => {
-  if (confirm(`هل أنت متأكد من حذف العلامة "${brand.name_i18n?.ar || brand.name}"؟`)) {
+  if (await appDialog.confirm(`هل أنت متأكد من حذف العلامة "${brand.name_i18n?.ar || brand.name}"؟`, { title: 'تأكيد الحذف', confirmText: 'حذف', cancelText: 'إلغاء' })) {
     try {
       await api.delete(`/dashboard/brands/${brand.id}`);
       triggerAlert('تم حذف العلامة بنجاح');

@@ -96,7 +96,6 @@ const EXACT = {
   'تعذر حذف القسم. حاول مرة أخرى.': 'Could not delete the category. Try again.',
   'تعذر حذف الخاصية. تم تسجيل تذكرة لمراجعة خطأ Backend.': 'Could not delete the attribute. A ticket was logged for a backend review.',
   'تعذر حذف قيمة الخاصية. تم تسجيل تذكرة لمراجعة خطأ Backend.': 'Could not delete the attribute value. A ticket was logged for a backend review.',
-  'تم حفظ الخاصية، لكن تعذر حفظ كونها أساسية': 'The attribute was saved, but marking it as core failed',
   'تم تنفيذ الحذف لكن ما زال العميل ظاهرًا من السيرفر': 'Deleted, but the customer still shows from the server',
   'لا يمكن حذف العلامة التجارية': 'This brand cannot be deleted',
   'لا يمكن حذف هذا القسم لأنه مرتبط بمنتجات. انقل المنتجات إلى قسم آخر أو احذفها أولًا.': 'This category cannot be deleted because it has products. Move its products to another category or delete them first.',
@@ -173,7 +172,6 @@ const PATTERNS = [
   [/^سيتم حذف قائمة «(.*)» من الصفحة الرئيسية بعد الحفظ\.$/, 'The list “$1” will be removed from the homepage after you save.'],
   [/^اختر القسم الذي تُعرض منتجاته في القائمة رقم (\d+)\.$/, 'Choose the category whose products show in list number $1.'],
   [/^اختر قيمة واحدة فقط لـ «(.+)»$/, 'Pick one value only for “$1”'],
-  [/^اختر قيمة لـ «(.+)» أو «غير متوفر»$/, 'Pick a value for “$1” or “Not available”'],
   [/^يُسمح بـ (\d+) صورة كحد أقصى للمنتج الواحد$/, 'Up to $1 images are allowed per product'],
   [/^تم تجاوز الحد المسموح لمحاولات الدخول\. يرجى الانتظار (\d+) ثانية ثم المحاولة مجدداً$/, 'Too many sign-in attempts. Wait $1 seconds and try again.'],
 ];

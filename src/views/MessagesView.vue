@@ -3,7 +3,9 @@ import BulkActionBar from '../components/BulkActionBar.vue';
 import { useBulkSelection } from '../composables/useBulkSelection';
 import ColumnPicker from '../components/ColumnPicker.vue';
 import { localizeMessage } from '../utils/uiMessages';
+import { useDialog } from '../composables/useDialog';
 import { ref, onMounted, computed } from 'vue';
+const appDialog = useDialog();
 import { adminManagementService } from '../application/adminManagementService';
 import { useAdminText } from '../composables/useAdminText';
 import { sanitizeSpreadsheetCell } from '../utils/adminSecurity';
@@ -79,7 +81,7 @@ const openViewModal = (message) => {
 };
 
 const confirmDelete = async (message) => {
-    if (confirm(tx(`هل أنت متأكد من حذف رسالة "${message.name}"؟`, `Are you sure you want to delete the message from "${message.name}"?`))) {
+    if (await appDialog.confirm(tx(`هل أنت متأكد من حذف رسالة "${message.name}"؟`, `Are you sure you want to delete the message from "${message.name}"?`), { title: tx('تأكيد الحذف', 'Confirm delete'), confirmText: tx('حذف', 'Delete'), cancelText: tx('إلغاء', 'Cancel') })) {
         try {
             await adminManagementService.deleteContact(message.id);
             triggerAlert('تم حذف الرسالة بنجاح');
@@ -226,6 +228,7 @@ const bulkActions = computed(() => [
     <!-- Filters -->
     <div class="filters-card shadow-sm mb-6">
        <div class="filter-row">
+           <ColumnPicker table-key="messages" class="toolbar-columns" />
            <div class="search-group flex-1">
               <div class="search-input-wrapper">
                  <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -243,7 +246,6 @@ const bulkActions = computed(() => [
     </div>
 
     <!-- Table -->
-    <div class="col-toolbar"><ColumnPicker table-key="messages" /></div>
     <div class="table-container shadow-sm">
        <table class="data-table" data-col-key="messages" :data-bulk-table="bulk.tableId">
           <thead>

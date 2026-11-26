@@ -1,4 +1,6 @@
 <script setup>
+import EditorPage from '../components/EditorPage.vue';
+import { useEditorRoute } from '../composables/useEditorRoute';
 import BulkActionBar from '../components/BulkActionBar.vue';
 import { useBulkSelection } from '../composables/useBulkSelection';
 import ColumnPicker from '../components/ColumnPicker.vue';
@@ -39,7 +41,7 @@ const hasArabicLetters = (value) => ARABIC_LETTERS.test(String(value || ''));
 // Each Arabic / English field has its own language switch (BilingualField); this resets or reveals them all.
 const bilingual = provideBilingualForm();
 
-const backendOrigin = (import.meta.env.VITE_API_BASE_URL || 'https://backend-jabal.be-kite.com/api')
+const backendOrigin = (import.meta.env.VITE_API_BASE_URL || 'https://backend-tijara-plus-stage.be-kite.com/api')
     .replace(/\/api\/?$/, '');
 
 const normalizeSliderImage = (value) => {
@@ -58,6 +60,8 @@ const form = ref({
     title_en: '',
     description_ar: '',
     description_en: '',
+    button_text_ar: '',
+    button_text_en: '',
     link: '',
     status: 'active',
     order: 0
@@ -104,6 +108,8 @@ const toUpdateForm = (slider, extra = {}) => ({
     title_en: slider.title_i18n?.en || slider.title || '',
     description_ar: slider.description_i18n?.ar || slider.description || '',
     description_en: slider.description_i18n?.en || slider.description || '',
+    button_text_ar: slider.button_text_i18n?.ar || slider.button_text || '',
+    button_text_en: slider.button_text_i18n?.en || '',
     link: slider.link,
     status: slider.status,
     order: slider.order,
@@ -213,6 +219,8 @@ const openEditModal = (slider) => {
         title_en: titleObj?.en ?? '',
         description_ar: descObj?.ar ?? slider.description ?? '',
         description_en: descObj?.en ?? '',
+        button_text_ar: slider.button_text_i18n?.ar ?? slider.button_text ?? '',
+        button_text_en: slider.button_text_i18n?.en ?? '',
         link: slider.link,
         status: slider.status,
         order: positionOf(slider)
@@ -222,6 +230,22 @@ const openEditModal = (slider) => {
     bilingual.reset();
     showFormModal.value = true;
 };
+
+const closeForm = () => { showFormModal.value = false; };
+
+// The form has its own address: /admin/sliders/new and /admin/sliders/:id/edit.
+useEditorRoute({
+  base: '/admin/sliders',
+  isOpen: showFormModal,
+  editId: () => (isEditing.value ? currentSlider.value?.id : ''),
+  openAdd: () => openAddModal(),
+  openEdit: openEditModal,
+  close: closeForm,
+  findItem: async (id) => {
+    if (!sliders.value.length) await fetchSliders({ notify: false });
+    return sliders.value.find((slider) => String(slider.id) === id) || null;
+  },
+});
 
 const openViewModal = (slider) => {
     currentSlider.value = slider;
@@ -265,7 +289,7 @@ const submitForm = async () => {
         return;
     }
     // The English fields feed the English website: Arabic letters there would show Arabic text on the English site.
-    if (hasArabicLetters(form.value.title_en) || hasArabicLetters(form.value.description_en)) {
+    if (hasArabicLetters(form.value.title_en) || hasArabicLetters(form.value.description_en) || hasArabicLetters(form.value.button_text_en)) {
         bilingual.reveal();
         triggerAlert('الحقول الإنجليزية يجب أن تكون بالإنجليزية فقط (بدون أحرف عربية)', 'error');
         return;
@@ -294,6 +318,8 @@ const submitForm = async () => {
                 title_i18n: { ar: form.value.title_ar, en: form.value.title_en },
                 description: form.value.description_ar,
                 description_i18n: { ar: form.value.description_ar, en: form.value.description_en },
+                button_text: form.value.button_text_ar,
+                button_text_i18n: { ar: form.value.button_text_ar, en: form.value.button_text_en },
                 link: form.value.link,
                 status: form.value.status,
                 order: Number(form.value.order) || 0,
@@ -395,6 +421,8 @@ const bulkActions = computed(() => [
 
 <template>
   <div class="sliders-page p-6">
+    <!-- The list; the add / edit form below replaces it as a page of its own (/admin/sliders/new, /admin/sliders/:id/edit) -->
+    <div v-show="!showFormModal" class="list-view">
     <!-- Action Bar -->
     <div class="header-action mb-6">
        
@@ -421,6 +449,7 @@ const bulkActions = computed(() => [
 
     <!-- Filters -->
     <div class="filters-card mb-6">
+        <ColumnPicker table-key="sliders" class="toolbar-columns" />
         <div class="search-box">
             <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="text" v-model="searchQuery" :placeholder="tx('البحث عن شريحة...', 'Search sliders...')" />
@@ -428,7 +457,6 @@ const bulkActions = computed(() => [
     </div>
 
     <!-- Table -->
-    <div class="col-toolbar"><ColumnPicker table-key="sliders" /></div>
     <div class="table-container shadow-sm">
       <table class="data-table" data-col-key="sliders" :data-bulk-table="bulk.tableId">
         <thead>
@@ -520,16 +548,18 @@ const bulkActions = computed(() => [
       </table>
     </div>
     <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="sliders" />
+    </div><!-- /list-view -->
 
-    <!-- Form Modal -->
-    <div class="modal-overlay" v-if="showFormModal" @click.self="showFormModal = false">
-      <div class="modal-content form-dialog">
-        <div class="modal-header">
-           <button class="close-btn" @click="showFormModal = false">×</button>
-           <h2>{{ isEditing ? tx('تعديل الشريحة', 'Edit Slider') : tx('إضافة شريحة جديدة', 'Add Slider') }}</h2>
-           <p>{{ isEditing ? tx('تعديل معلومات الشريحة المحددة', 'Update the selected slider') : tx('إضافة شريحة عرض جديدة للسلايدر', 'Add a new homepage slider') }}</p>
-        </div>
-        
+    <!-- Add / edit page -->
+    <EditorPage
+      v-if="showFormModal"
+      testid="slider-editor"
+      :back-label="tx('البانرات الرئيسية', 'Homepage Banners')"
+      :title="isEditing ? tx('تعديل الشريحة', 'Edit Slider') : tx('إضافة شريحة جديدة', 'Add Slider')"
+      :subtitle="isEditing ? tx('تعديل معلومات الشريحة المحددة', 'Update the selected slider') : tx('إضافة شريحة عرض جديدة للسلايدر', 'Add a new homepage slider')"
+      @back="closeForm"
+    >
+      <div class="editor-form">
         <div class="modal-body">
            <div class="upload-area mb-6">
               <label class="upload-label">{{ tx('صورة الشريحة', 'Slider Image') }}</label>
@@ -566,6 +596,17 @@ const bulkActions = computed(() => [
               </template>
            </BilingualField>
 
+           <BilingualField class="form-group mb-4" :ar="form.button_text_ar" :en="form.button_text_en" :invalid-en="hasArabicLetters(form.button_text_en)" testid="slider-button-text">
+              <template #label="{ lang }">
+                 <label class="form-label" :for="`slider-button-text-${lang}`">{{ tx('نص الزر (اختياري)', 'Button text (optional)') }}</label>
+              </template>
+              <template #default="{ lang }">
+                 <input v-show="lang === 'ar'" id="slider-button-text-ar" type="text" v-model="form.button_text_ar" class="form-control" dir="rtl" placeholder="مثال: تسوق الآن" data-testid="slider-button-text-ar" />
+                 <input v-show="lang === 'en'" id="slider-button-text-en" type="text" v-model="form.button_text_en" class="form-control" dir="ltr" placeholder="e.g. Shop now" data-testid="slider-button-text-en" />
+              </template>
+           </BilingualField>
+           <p class="form-hint">{{ tx('اتركه فارغًا لإخفاء الزر في الموقع.', 'Leave it empty to hide the button on the website.') }}</p>
+
            <div class="form-group mb-4">
               <label class="form-label">{{ tx('الرابط (اختياري)', 'Link (Optional)') }}</label>
               <div class="link-input">
@@ -593,13 +634,13 @@ const bulkActions = computed(() => [
         </div>
 
         <div class="modal-footer">
-           <button class="btn-cancel" @click="showFormModal = false">{{ tx('إلغاء', 'Cancel') }}</button>
+           <button class="btn-cancel" @click="closeForm">{{ tx('إلغاء', 'Cancel') }}</button>
            <button class="btn-save" :disabled="isSubmitting" @click="submitForm">
               {{ isSubmitting ? tx('جاري الحفظ...', 'Saving...') : tx('حفظ الشريحة', 'Save slider') }}
            </button>
         </div>
       </div>
-    </div>
+    </EditorPage>
 
     <!-- View Modal -->
     <div class="modal-overlay" v-if="showViewModal" @click.self="showViewModal = false">
@@ -701,8 +742,8 @@ const bulkActions = computed(() => [
 .icon-box { background: #f3f4f6; color: #660033; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
 
 /* Filters */
-.filters-card { background: var(--bg-card); padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); }
-.search-box { position: relative; width: 100%; }
+.filters-card { background: var(--bg-card); padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; align-items: stretch; gap: 12px; flex-wrap: wrap; }
+.search-box { position: relative; flex: 1 1 260px; min-width: 0; }
 .search-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
 .search-box input { width: 100%; padding: 10px 44px 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; outline: none; transition: 0.3s; font-family: inherit; background: var(--input-bg); color: var(--text-main); }
 .search-box input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(102, 0, 51, 0.1); }
@@ -767,6 +808,8 @@ const bulkActions = computed(() => [
 .modal-content { background: var(--bg-card); border-radius: 20px; border: 1px solid var(--border-color); overflow: hidden; width: 100%; max-width: 500px; animation: modalPop 0.3s ease-out; }
 
 /* Add / edit slider: a centred dialog, like adding a product */
+.editor-form .modal-body { padding: 0; overflow: visible; }
+.editor-form .modal-footer { padding: 1.25rem 0 0; margin-top: 1.25rem; background: none; }
 .form-dialog { max-width: 650px; max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 25px 70px rgba(0, 0, 0, 0.25); }
 .form-dialog .modal-header { text-align: center; padding: 2rem 2rem 1.25rem; }
 .form-dialog .modal-body { display: flex; flex-direction: column; }
@@ -819,13 +862,13 @@ const bulkActions = computed(() => [
 .btn-save-alt { width: 100%; background: #1f2937; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 700; cursor: pointer; }
 
 .delete-modal { max-width: 460px; padding: 28px; text-align: center; }
-.delete-icon { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #dc2626; background: #fef2f2; }
+.delete-icon { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #660033; background: rgba(102, 0, 51, 0.08); }
 .delete-copy h2 { margin: 0 0 8px; color: var(--text-main); font-size: 1.2rem; }
 .delete-copy p { margin: 0; color: var(--text-muted); line-height: 1.7; font-size: 0.92rem; }
 .delete-footer { padding: 24px 0 0; background: transparent; border-top: 0; }
 .delete-footer button { min-height: 44px; }
-.btn-delete-confirm { background: #dc2626; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 700; cursor: pointer; flex: 1; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-.btn-delete-confirm:hover { background: #b91c1c; }
+.btn-delete-confirm { background: #660033; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 700; cursor: pointer; flex: 1; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-delete-confirm:hover { background: #4d0026; }
 .btn-delete-confirm:disabled, .btn-cancel:disabled { opacity: 0.6; cursor: not-allowed; }
 .delete-spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.45); border-top-color: white; border-radius: 50%; animation: delete-spin 0.7s linear infinite; }
 @keyframes delete-spin { to { transform: rotate(360deg); } }

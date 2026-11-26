@@ -101,7 +101,7 @@ const clean = (params = {}) => Object.fromEntries(Object.entries(params).filter(
 
 export const settingsService = {
   async getAdminSettings() {
-    const response = await api.get('/v1/settings');
+    const response = await api.get('/v1/dashboard/settings');
     return unwrapSettings(response.data);
   },
 
@@ -117,7 +117,7 @@ export const settingsService = {
       const formData = new FormData();
       formData.append('title', `settings_${key}`);
       formData.append('image_file', file);
-      const uploadResponse = await api.post('/v1/site-images', formData, {
+      const uploadResponse = await api.post('/v1/dashboard/site-images', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       const uploadedUrl = assetUrlFrom(uploadResponse.data);
@@ -131,7 +131,7 @@ export const settingsService = {
     }
 
     const payload = buildSettingsPayload(normalized);
-    const response = await api.post('/v1/settings/bulk', { settings: payload });
+    const response = await api.post('/v1/dashboard/settings/bulk', { settings: payload });
     return unwrapSettings(response.data);
   },
 
@@ -182,7 +182,7 @@ export const settingsService = {
   },
 
   async sendContactMessage(messageData) {
-    const response = await api.post('/v1/site/contacts', {
+    const response = await api.post('/v1/website/contacts', {
       name: messageData.name,
       email: messageData.email,
       phone: messageData.phone,

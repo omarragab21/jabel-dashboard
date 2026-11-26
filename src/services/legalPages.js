@@ -96,7 +96,7 @@ export const saveLegalPage = async (id, page) => {
     const formData = new FormData();
     formData.append('title', `legal_${id}_hero`);
     formData.append('image_file', page.hero_image);
-    const upload = await api.post('/v1/site-images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+    const upload = await api.post('/v1/dashboard/site-images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
     heroImage = uploadedImageUrl(upload.data);
     if (!heroImage) throw new Error('Hero image upload returned no URL');
   }
@@ -110,7 +110,7 @@ export const saveLegalPage = async (id, page) => {
     banner: cleanBanner(page.banner),
     sections: page.sections.map((section, index) => ({ position: index + 1, ...cleanSection(section) })),
   };
-  await api.post('/v1/settings/bulk', { settings: [{ key: SETTING_KEY, group: 'general', value: all, is_active: true }] });
+  await api.post('/v1/dashboard/settings/bulk', { settings: [{ key: SETTING_KEY, group: 'general', value: all, is_active: true }] });
   const stored = (await readAll())[id];
   if (!stored || (stored.sections || []).length !== all[id].sections.length) {
     const error = new Error('LEGAL_PAGES_NOT_PERSISTED');

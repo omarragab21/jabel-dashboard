@@ -144,12 +144,12 @@ const submit = async () => {
 .dialog-head h2 { margin: 0; font-size: 1.08rem; font-weight: 800; color: #111827; }
 .dialog-head p { margin: 0.15rem 0 0; font-size: 0.8rem; color: #6b7280; }
 .head-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.head-icon.add { background: #dcfce7; color: #16a34a; }
-.head-icon.remove { background: #ffedd5; color: #ea580c; }
+.head-icon.add { background: rgba(102, 0, 51, 0.08); color: #660033; }
+.head-icon.remove { background: rgba(102, 0, 51, 0.08); color: #660033; }
 .dialog-body { padding: 1.1rem 1.5rem 1.4rem; display: flex; flex-direction: column; gap: 0.95rem; }
 .form-group { display: flex; flex-direction: column; gap: 0.35rem; }
 .form-label { font-size: 0.8rem; font-weight: 700; color: #374151; }
-.req { color: #dc2626; }
+.req { color: #660033; }
 .optional { color: #9ca3af; font-weight: 500; }
 .form-control { width: 100%; box-sizing: border-box; height: 42px; padding: 0 0.9rem; border: 1px solid #e5e7eb; border-radius: 8px; font-family: inherit; font-size: 0.85rem; color: #111827; background: #f9fafb; outline: none; }
 .form-control:focus { background: #fff; border-color: #660033; box-shadow: 0 0 0 3px rgba(102, 0, 51, 0.12); }
@@ -162,10 +162,8 @@ const submit = async () => {
 .dialog-foot { display: flex; gap: 0.6rem; justify-content: flex-end; padding-top: 0.4rem; border-top: 1px solid #f3f4f6; margin-top: 0.2rem; }
 .btn-cancel { padding: 0.6rem 1.1rem; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; color: #374151; font-family: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
 .btn-save { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.6rem 1.3rem; border-radius: 8px; border: none; color: #fff; font-family: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
-.btn-save.add { background: #16a34a; }
-.btn-save.add:hover:not(:disabled) { background: #15803d; }
-.btn-save.remove { background: #ea580c; }
-.btn-save.remove:hover:not(:disabled) { background: #c2410c; }
+.btn-save.add, .btn-save.remove { background: #660033; }
+.btn-save.add:hover:not(:disabled), .btn-save.remove:hover:not(:disabled) { background: #4d0026; }
 .btn-save:disabled, .btn-cancel:disabled { opacity: 0.6; cursor: not-allowed; }
 .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.45); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

@@ -1,5 +1,7 @@
 <template>
   <div class="discounts-page">
+    <!-- The list; the add / view / edit form below replaces it as a page of its own -->
+    <div v-show="!showFormModal" class="list-view" style="display: contents">
     <!-- Header -->
     <div class="page-header">
       <div class="header-titles">
@@ -24,6 +26,7 @@
 
     <!-- Search -->
     <div class="search-card">
+      <ColumnPicker table-key="discounts" class="toolbar-columns" />
       <div class="search-box">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="search-icon">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -33,7 +36,6 @@
     </div>
 
     <!-- Table -->
-    <div class="col-toolbar"><ColumnPicker table-key="discounts" /></div>
     <div class="table-container">
       <table class="data-table" data-col-key="discounts" :data-bulk-table="bulk.tableId">
         <thead>
@@ -100,17 +102,17 @@
       </table>
     </div>
     <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="discount-codes" />
+    </div><!-- /list-view -->
 
-    <!-- Add / View / Edit -->
-    <div class="modal-overlay" v-if="showFormModal" @click.self="showFormModal = false">
-      <div class="modal-content form-content" role="dialog" aria-modal="true">
-        <button class="modal-close" type="button" @click="showFormModal = false" :aria-label="tx('إغلاق', 'Close')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-        <div class="form-header">
-          <h3 class="modal-title-main">{{ isView ? tx('تفاصيل كود الخصم', 'Discount code details') : (isEdit ? tx('تعديل كود الخصم', 'Edit discount code') : tx('إضافة كود خصم جديد', 'Add a new discount code')) }}</h3>
-          <p class="modal-subtitle-main">{{ isView ? tx('عرض البيانات فقط — للتعديل اضغط تعديل', 'Read-only view — press Edit to make changes') : (isEdit ? tx('عدّل تفاصيل الكود', 'Update the code details') : tx('أدخل تفاصيل الكود الجديد', 'Enter the new code details')) }}</p>
-        </div>
+    <!-- Add / view / edit page (/admin/discounts/new, /admin/discounts/:id, /admin/discounts/:id/edit) -->
+    <EditorPage
+      v-if="showFormModal"
+      testid="discount-editor"
+      :back-label="tx('أكواد الخصم', 'Discount Codes')"
+      :title="isView ? tx('تفاصيل كود الخصم', 'Discount code details') : (isEdit ? tx('تعديل كود الخصم', 'Edit discount code') : tx('إضافة كود خصم جديد', 'Add a new discount code'))"
+      :subtitle="isView ? tx('عرض البيانات فقط — للتعديل اضغط تعديل', 'Read-only view — press Edit to make changes') : (isEdit ? tx('عدّل تفاصيل الكود', 'Update the code details') : tx('أدخل تفاصيل الكود الجديد', 'Enter the new code details'))"
+      @back="closeForm"
+    >
 
         <form @submit.prevent="submitForm" class="offer-form">
           <fieldset class="form-fieldset" :disabled="isView">
@@ -193,15 +195,14 @@
           </BilingualField>
 
           <div class="form-footer-btns">
-            <button type="button" class="btn-cancel-form" @click="showFormModal = false">{{ isView ? tx('إغلاق', 'Close') : tx('إلغاء', 'Cancel') }}</button>
+            <button type="button" class="btn-cancel-form" @click="closeForm">{{ isView ? tx('إغلاق', 'Close') : tx('إلغاء', 'Cancel') }}</button>
             <button v-if="isView" type="button" class="btn-submit-form" @click="openEditModal(viewedOffer)">{{ tx('تعديل', 'Edit') }}</button>
             <button v-else type="submit" class="btn-submit-form" :disabled="isSubmitting">
               {{ isSubmitting ? tx('جاري الحفظ...', 'Saving...') : (isEdit ? tx('حفظ التعديلات', 'Save changes') : tx('إضافة الكود', 'Add code')) }}
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </EditorPage>
 
     <!-- Delete Confirmation -->
     <div class="modal-overlay" v-if="deleteTarget" @click.self="cancelDelete">
@@ -247,6 +248,8 @@ import { sortByOrder, positionChanges, orderPersisted, applyPositions } from '..
 import { reorderFailureMessage } from '../utils/reorderMessages';
 import BilingualField from '../components/BilingualField.vue';
 import { provideBilingualForm } from '../composables/useBilingualForm';
+import EditorPage from '../components/EditorPage.vue';
+import { useEditorRoute } from '../composables/useEditorRoute';
 
 const { tx } = useAdminText();
 const { cur } = useCurrencyLabel();
@@ -443,6 +446,29 @@ const openViewModal = (offer) => {
     isView.value = true;
 };
 
+const closeForm = () => {
+    showFormModal.value = false;
+    isView.value = false;
+    viewedOffer.value = null;
+};
+
+// The form has its own address: /admin/discounts/new, /admin/discounts/:id (read-only) and /admin/discounts/:id/edit.
+useEditorRoute({
+  base: '/admin/discounts',
+  isOpen: showFormModal,
+  editId: () => (isEdit.value && !isView.value ? currentId.value : ''),
+  viewId: () => (isView.value ? currentId.value : ''),
+  openAdd: () => openAddModal(),
+  openEdit: openEditModal,
+  openView: openViewModal,
+  close: closeForm,
+  findItem: async (id) => {
+    if (!offers.value.length) await fetchOffers();
+    return offers.value.find((offer) => String(offer.id) === id) || null;
+  },
+  notFound: () => triggerAlert(tx('كود الخصم غير موجود', 'Discount code not found'), 'error'),
+});
+
 const validateOfferForm = (f) => {
     const value = Number(f.value);
     if (!String(f.code || '').trim()) return 'كود الخصم مطلوب';
@@ -546,8 +572,8 @@ const bulkActions = computed(() => [
 .add-btn:hover { background: #4d0026; }
 
 /* Search */
-.search-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-.search-box { position: relative; display: flex; align-items: center; }
+.search-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; align-items: stretch; gap: 0.75rem; flex-wrap: wrap; }
+.search-box { position: relative; display: flex; align-items: center; flex: 1 1 260px; min-width: 0; }
 .search-icon { position: absolute; right: 1rem; color: #6b7280; pointer-events: none; }
 .search-input { width: 100%; box-sizing: border-box; padding: 0.7rem 2.9rem 0.7rem 1rem; border: 1px solid #d1d5db; border-radius: 6px; font-family: inherit; font-size: 0.85rem; outline: none; background: #fff; }
 .search-input:focus { border-color: #660033; }
@@ -599,7 +625,7 @@ const bulkActions = computed(() => [
 .form-header { padding: 1.5rem 1.5rem 1rem; text-align: right; }
 .modal-title-main { font-size: 1.15rem; font-weight: 800; color: #111827; margin: 0; }
 .modal-subtitle-main { font-size: 0.82rem; color: #6b7280; margin: 0.25rem 0 0; }
-.offer-form { padding: 0.5rem 1.5rem 1.5rem; }
+.offer-form { padding: 0; }
 .form-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .dc-desc-field { margin-top: 1.25rem; }
 
@@ -634,8 +660,8 @@ const bulkActions = computed(() => [
 .delete-modal h2 { margin: 0 0 0.5rem; color: #111827; font-size: 1.1rem; font-weight: 800; }
 .delete-modal p { margin: 0; color: #6b7280; line-height: 1.7; font-size: 0.88rem; }
 .delete-footer { display: flex; gap: 0.6rem; margin-top: 1.25rem; justify-content: flex-start; }
-.btn-delete-confirm { background: #ef4444; color: #fff; border: none; padding: 0.65rem 1.1rem; border-radius: 8px; font-family: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; }
-.btn-delete-confirm:hover { background: #dc2626; }
+.btn-delete-confirm { background: #660033; color: #fff; border: none; padding: 0.65rem 1.1rem; border-radius: 8px; font-family: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; }
+.btn-delete-confirm:hover { background: #4d0026; }
 .btn-delete-confirm:disabled, .btn-cancel-form:disabled { opacity: 0.6; cursor: not-allowed; }
 .delete-spinner { width: 15px; height: 15px; border: 2px solid rgba(255,255,255,0.45); border-top-color: #fff; border-radius: 50%; animation: delete-spin 0.7s linear infinite; }
 @keyframes delete-spin { to { transform: rotate(360deg); } }

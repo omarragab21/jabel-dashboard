@@ -23,7 +23,7 @@ const label = tx('جاري التحميل', 'Loading');
 
 <style scoped>
 .settings-skeleton { --sk-base: #eef0f3; --sk-glint: #f8f9fb; display: flex; flex-direction: column; gap: 1rem; }
-:global(.dark) .settings-skeleton { --sk-base: #1e293b; --sk-glint: #2b3a50; }
+.dark .settings-skeleton { --sk-base: #1e293b; --sk-glint: #2b3a50; }
 .sk-shimmer {
   display: block;
   border-radius: 8px;

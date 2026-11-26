@@ -94,6 +94,13 @@ export const toCategory = (raw = {}) => {
   };
 };
 
+// The image flagged is_primary goes first; with no flag (e.g. the primary was deleted) the first image stays the primary one.
+const primaryFirst = (images) => {
+  const list = Array.isArray(images) ? images : [];
+  const idx = list.findIndex((image) => image && typeof image === 'object' && image.is_primary);
+  return idx > 0 ? [list[idx], ...list.slice(0, idx), ...list.slice(idx + 1)] : list;
+};
+
 export const toProduct = (raw = {}) => {
   const translations = raw.translations || {};
   const category = raw.category && typeof raw.category === 'object'
@@ -125,11 +132,11 @@ export const toProduct = (raw = {}) => {
     status: raw.is_active === false || raw.is_active === 0 ? 'inactive' : 'active',
     discount: raw.discount_percentage ?? raw.discount ?? 0,
     images: Array.isArray(raw.images)
-      ? raw.images.map((image) => typeof image === 'string' ? image : (image.image_url || image.url || image.image)).filter(Boolean)
+      ? primaryFirst(raw.images).map((image) => typeof image === 'string' ? image : (image.image_url || image.url || image.image)).filter(Boolean)
       : [],
     // url -> image id, so the form can ask the API to delete an image the admin removed
     image_ids: Array.isArray(raw.images)
-      ? Object.fromEntries(raw.images.filter((image) => image && typeof image === 'object' && image.id != null).map((image) => [image.image_url || image.url || image.image, image.id]))
+      ? Object.fromEntries(primaryFirst(raw.images).filter((image) => image && typeof image === 'object' && image.id != null).map((image) => [image.image_url || image.url || image.image, image.id]))
       : {},
   };
 };
@@ -273,6 +280,8 @@ export const toCategoryPayload = (form) => ({
   description_en: String(form.description_en || '').trim(),
   description_ar: String(form.description_ar || '').trim(),
   parent_id: form.parent_id || undefined,
+  // Hex colour of the category (#rrggbb); left blank it is sent empty so the API clears it.
+  color: /^#[0-9a-f]{6}$/i.test(String(form.color || '').trim()) ? String(form.color).trim() : '',
   is_active: form.is_active === false ? 0 : 1,
   sort_order: Number.isFinite(Number(form.sort_order)) ? Number(form.sort_order) : 0,
 });
@@ -288,6 +297,9 @@ export const validateProductImages = (form = {}, { isEdit = false } = {}) => {
   return staged + saved > 0 ? '' : PRODUCT_IMAGE_REQUIRED_MESSAGE;
 };
 
+// The API takes these long texts as one string (one point per line), not as an array of lines.
+const pointLines = (value) => String(value || '').split('\n').map((line) => line.trim()).filter(Boolean).join('\n');
+
 export const toProductPayload = (form) => ({
   name_en: String(form.name_en || '').trim(),
   name_ar: String(form.name_ar || '').trim(),
@@ -299,14 +311,14 @@ export const toProductPayload = (form) => ({
   // Products carry no discount of their own any more: discounts come from bundles (الباقات). Always sent
   // blank, which clears any discount a product still has.
   discount_percentage: '',
-  product_description_en: String(form.description_en || '').split('\n').filter(Boolean),
-  product_description_ar: String(form.description_ar || '').split('\n').filter(Boolean),
-  key_features_en: String(form.features_en || '').split('\n').filter(Boolean),
-  key_features_ar: String(form.features_ar || '').split('\n').filter(Boolean),
-  tips_en: String(form.tips_en || '').split('\n').filter(Boolean),
-  tips_ar: String(form.tips_ar || '').split('\n').filter(Boolean),
-  shipping_info_en: String(form.shipping_info_en || '').split('\n').filter(Boolean),
-  shipping_info_ar: String(form.shipping_info_ar || '').split('\n').filter(Boolean),
+  product_description_en: pointLines(form.description_en),
+  product_description_ar: pointLines(form.description_ar),
+  key_features_en: pointLines(form.features_en),
+  key_features_ar: pointLines(form.features_ar),
+  tips_en: pointLines(form.tips_en),
+  tips_ar: pointLines(form.tips_ar),
+  shipping_info_en: pointLines(form.shipping_info_en),
+  shipping_info_ar: pointLines(form.shipping_info_ar),
 });
 
 // Blank / missing optional numbers must reach the API as null, never NaN.
@@ -591,26 +603,4 @@ export const toAttributeOptionPayload = (form) => {
     // A colour written as rgb(...) is saved as hex; a hex code and any other value are kept as typed.
     value_code: (/^#[0-9a-f]{3,8}$/i.test(raw) ? raw : parseColorCode(raw)) || raw || null,
   };
-};
-
-const attributeNames = (attribute) => [attribute?.name, attribute?.label, attribute?.name_en, attribute?.name_ar]
-  .map((value) => String(value ?? '').trim().toLowerCase()).filter(Boolean);
-const matchesName = (attribute, names) => attributeNames(attribute).some((name) => names.includes(name));
-
-// The three core, selectable attributes of a product (color, capacity, size), always in this order,
-// and every other attribute after them.
-export const splitCoreAttributes = (attributes = []) => {
-  const list = Array.isArray(attributes) ? attributes : [];
-  const kinds = [
-    ['color', (attribute) => attribute.type === 'color_swatch' || attributeNames(attribute).some((name) => name === 'color' || name === 'اللون')],
-    ['capacity', (attribute) => matchesName(attribute, ['capacity', 'rated capacity', 'السعة'])],
-    ['size', (attribute) => matchesName(attribute, ['size', 'الحجم', 'المقاس'])],
-  ];
-  const taken = new Set();
-  const core = [];
-  for (const [kind, test] of kinds) {
-    const attribute = list.find((item) => !taken.has(item) && test(item));
-    if (attribute) { taken.add(attribute); core.push({ kind, attribute }); }
-  }
-  return { core, others: list.filter((item) => !taken.has(item)) };
 };

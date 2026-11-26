@@ -1,6 +1,8 @@
 
 <template>
   <div class="categories-page">
+    <!-- The list; the add / edit form below replaces it as a page of its own (/admin/categories/new, /admin/categories/:id/edit) -->
+    <div v-show="!showFormModal" class="list-view" style="display: contents">
     <!-- Header -->
     <div class="page-header">
       <div class="header-titles">
@@ -71,6 +73,7 @@
 
     <!-- Filters Row -->
     <div class="filters-row">
+      <ColumnPicker table-key="categories" class="toolbar-columns" />
       <div class="search-box">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="search-icon">
           <circle cx="11" cy="11" r="8"/>
@@ -91,7 +94,6 @@
     </div>
 
     <!-- Table -->
-    <div class="col-toolbar"><ColumnPicker table-key="categories" /></div>
     <div class="table-container">
       <table class="data-table" data-col-key="categories" :data-bulk-table="bulk.tableId">
         <thead>
@@ -186,19 +188,17 @@
       </table>
     </div>
     <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="categories" />
+    </div><!-- /list-view -->
 
-    <!-- Add / edit dialog (main category, sub-category, edit) -->
-    <div class="cm-overlay" v-if="showFormModal" @click.self="closeModal" @keydown.esc="closeModal">
-      <div class="cm-dialog" role="dialog" aria-modal="true" aria-labelledby="cm-form-title" data-testid="category-form-dialog">
-        <header class="cm-header">
-          <div class="cm-heading">
-            <div class="cm-heading-row"><span v-if="!isEdit" class="cm-header-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span><span v-else class="cm-header-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span><h3 id="cm-form-title" class="cm-title">{{ formTitle }}</h3></div>
-            <p class="cm-subtitle">{{ formSubtitle }}</p>
-          </div>
-          <button type="button" class="cm-close" @click="closeModal" :aria-label="tx('إغلاق', 'Close')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </header>
+    <!-- Add / edit page (main category, sub-category, edit) -->
+    <EditorPage
+      v-if="showFormModal"
+      testid="category-form-dialog"
+      :back-label="tx('أقسام المنتجات', 'Product Categories')"
+      :title="formTitle"
+      :subtitle="formSubtitle"
+      @back="closeModal"
+    >
 
         <form @submit.prevent="submitForm()" class="cm-form" novalidate>
           <div class="cm-parent" v-if="form.parent_id" data-testid="category-parent">
@@ -256,6 +256,15 @@
 
           <!-- Status -->
           <div class="cm-field">
+            <label class="cm-label" for="cm-color">{{ tx('اللون (اختياري)', 'Colour (optional)') }}</label>
+            <div class="cm-color-row">
+              <input id="cm-color" type="color" class="cm-color-input" :value="form.color || '#660033'" data-testid="category-color" @input="form.color = $event.target.value" />
+              <span class="cm-color-code" dir="ltr">{{ form.color || '—' }}</span>
+              <button v-if="form.color" type="button" class="cm-color-clear" data-testid="category-color-clear" @click="form.color = ''">{{ tx('مسح', 'Clear') }}</button>
+            </div>
+          </div>
+
+          <div class="cm-field">
             <label class="cm-label" for="cm-status">{{ tx('الحالة', 'Status') }}</label>
             <div class="cm-select">
               <select id="cm-status" v-model="form.is_active" class="cm-input">
@@ -275,6 +284,25 @@
             </button>
           </footer>
         </form>
+    </EditorPage>
+
+    <!-- Bulk "change parent": pick the main category the ticked ones move under (or make them main categories) -->
+    <div class="cm-overlay" v-if="bulkParentPicker.open" @click.self="closeBulkParentPicker(null)" data-testid="bulk-parent-dialog">
+      <div class="cm-dialog cm-dialog-sm" role="dialog" aria-modal="true" aria-labelledby="cm-bulk-parent-title">
+        <header class="cm-header">
+          <div class="cm-heading"><h3 id="cm-bulk-parent-title" class="cm-title">{{ tx('نقل الأقسام المحددة', 'Move the selected categories') }}</h3></div>
+        </header>
+        <div class="cm-delete-body">
+          <select v-model="bulkParentPicker.value" class="cm-input" data-testid="bulk-parent-select">
+            <option value="">{{ tx('اختر القسم الرئيسي', 'Choose the parent category') }}</option>
+            <option value="none">{{ tx('— بدون قسم رئيسي (يصبح قسمًا رئيسيًا)', '— No parent (make it a main category)') }}</option>
+            <option v-for="c in bulkParentOptions" :key="c.id" :value="c.id">{{ localizedName(c.name_i18n, c.name) }}</option>
+          </select>
+        </div>
+        <footer class="cm-footer">
+          <button type="button" class="cm-btn cm-btn-cancel" @click="closeBulkParentPicker(null)">{{ tx('إلغاء', 'Cancel') }}</button>
+          <button type="button" class="cm-btn cm-btn-primary" :disabled="!bulkParentPicker.value" data-testid="bulk-parent-confirm" @click="closeBulkParentPicker(bulkParentPicker.value)">{{ tx('نقل', 'Move') }}</button>
+        </footer>
       </div>
     </div>
 
@@ -379,6 +407,8 @@
 
 <script setup>
 import BulkActionBar from '../components/BulkActionBar.vue';
+import EditorPage from '../components/EditorPage.vue';
+import { useEditorRoute } from '../composables/useEditorRoute';
 import { useBulkSelection } from '../composables/useBulkSelection';
 import ColumnPicker from '../components/ColumnPicker.vue';
 import { localizeMessage } from '../utils/uiMessages';
@@ -504,6 +534,7 @@ const formFromCategory = (cat) => {
     description_ar: descObj?.ar ?? cat.description ?? '',
     description_en: descObj?.en ?? '',
     parent_id: cat.parent_id || '',
+    color: cat.color || '',
     is_active: cat.is_active,
     sort_order: cat.sort_order ?? 0,
   };
@@ -516,9 +547,11 @@ const reorderCategories = async (list) => {
   if (!changes.length) return;
   const rollback = applyPositions(changes);
   try {
-    for (const { item, position } of changes) {
-      await adminCatalogService.updateCategory(item.id, toCategoryPayload({ ...formFromCategory(item), sort_order: position }));
-    }
+    // One request: POST /categories/actions { action: 'reorder', inputs.order_map: { id: position } }.
+    // order_map must be an object (an array of ids answers 200 but reorders nothing).
+    await adminCatalogService.bulkCategoryAction('reorder', changes.map(({ item }) => item.id), {
+      order_map: Object.fromEntries(changes.map(({ item, position }) => [String(item.id), position])),
+    });
     await fetchCategories({ silent: true, strict: true });
     if (!orderPersisted(list, categories.value)) throw Object.assign(new Error('ORDER_NOT_PERSISTED'), { code: 'ORDER_NOT_PERSISTED' });
     triggerAlert('تم تحديث ترتيب الأقسام');
@@ -558,6 +591,7 @@ const form = ref({
   description_ar: '',
   description_en: '',
   parent_id: '',
+  color: '',
   is_active: true,
   sort_order: 1,
   image: null
@@ -578,6 +612,7 @@ const getBaseForm = () => ({
   description_ar: '',
   description_en: '',
   parent_id: '',
+  color: '',
   is_active: true,
   sort_order: 1,
   image: null
@@ -693,6 +728,22 @@ const closeModal = () => {
   bilingual.reset();
 };
 
+// The form has its own address: /admin/categories/new (?parent=<id> for a sub-category) and /admin/categories/:id/edit.
+useEditorRoute({
+  base: '/admin/categories',
+  isOpen: showFormModal,
+  editId: () => (isEdit.value ? editingId.value : ''),
+  openAdd: (query = {}) => (query.parent ? openAddSubModal({ id: Number(query.parent) }) : openAddModal()),
+  addQuery: () => ({ parent: form.value.parent_id }),
+  openEdit: openEditModal,
+  close: closeModal,
+  findItem: async (id) => {
+    if (!categories.value.length) await fetchCategories();
+    return categories.value.find((cat) => String(cat.id) === id) || null;
+  },
+  notFound: () => triggerAlert(tx('القسم غير موجود', 'Category not found'), 'error'),
+});
+
 // Image Upload
 const triggerFileInput = () => {
   fileInput.value.click();
@@ -807,20 +858,55 @@ const runDelete = async () => {
   }
 };
 
-// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar). Each one is a single request to
+// POST /v1/dashboard/categories/actions with { action, target_ids, inputs }.
 const bulk = useBulkSelection(() => visibleRows.value);
+const bulkParentPicker = ref({ open: false, value: '', excludeIds: [] });
+let bulkParentResolve = null;
+// A category cannot move under itself, so the ticked ones are not offered as parents.
+const bulkParentOptions = computed(() => categories.value.filter(
+  c => !c.parent_id && !bulkParentPicker.value.excludeIds.includes(Number(c.id)),
+));
+const closeBulkParentPicker = (value) => {
+  bulkParentPicker.value.open = false;
+  const resolve = bulkParentResolve;
+  bulkParentResolve = null;
+  if (resolve) resolve(value);
+};
+const askBulkParent = (rows) => new Promise((resolve) => {
+  bulkParentResolve = resolve;
+  bulkParentPicker.value = { open: true, value: '', excludeIds: rows.map(r => Number(r.id)) };
+});
+const bulkCategories = (action) => (rows, inputs) => adminCatalogService.bulkCategoryAction(action, rows.map((c) => c.id), inputs);
 const bulkActions = computed(() => [
+  { key: 'activate', label: tx('تفعيل', 'Activate'), icon: 'check', applies: (c) => !c.is_active,
+    all: bulkCategories('activate'), done: () => fetchCategories(), success: (n) => tx(`تم تفعيل ${n} قسم`, `${n} categories activated`) },
+  { key: 'deactivate', label: tx('إيقاف', 'Deactivate'), icon: 'ban', applies: (c) => Boolean(c.is_active),
+    all: bulkCategories('deactivate'), done: () => fetchCategories(), success: (n) => tx(`تم إيقاف ${n} قسم`, `${n} categories deactivated`) },
+  { key: 'change_parent', label: tx('نقل لقسم رئيسي', 'Change parent'), icon: 'folder',
+    prepare: async (rows) => {
+      const choice = await askBulkParent(rows);
+      if (!choice) return null;
+      return { parent_id: choice === 'none' ? null : Number(choice) };
+    },
+    all: bulkCategories('change_parent'), done: () => fetchCategories(), success: (n) => tx(`تم نقل ${n} قسم`, `${n} categories moved`) },
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
-    concurrency: 1, order: (rows) => [...rows].sort((a, b) => Number(isSubRow(b)) - Number(isSubRow(a))),
+    // Sub-categories go first in the request so a main category is never removed while its children are still there.
+    order: (rows) => [...rows].sort((a, b) => Number(isSubRow(b)) - Number(isSubRow(a))),
     confirm: (rows) => tx(`هتحذف ${rows.length} قسم. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} categories? This cannot be undone.`),
-    each: async (c) => {
-      if (allProducts.value.length && (productCounts.value[Number(c.id)] || 0) > 0) throw new Error(tx('مرتبط بمنتجات', 'has products'));
-      await adminCatalogService.deleteCategory(c.id);
+    all: async (rows, inputs) => {
+      const linked = allProducts.value.length ? rows.filter((c) => (productCounts.value[Number(c.id)] || 0) > 0).length : 0;
+      if (linked) throw new Error(tx(`${linked} من الأقسام المحددة مرتبطة بمنتجات — ألغِ تحديدها وحاول تاني`, `${linked} of the selected categories have products — untick them and try again`));
+      return bulkCategories('delete')(rows, inputs);
     }, done: () => fetchCategories(), success: (n) => tx(`تم حذف ${n} قسم`, `${n} categories deleted`) },
 ]);
 </script>
 
 <style scoped>
+.cm-color-row { display: flex; align-items: center; gap: 0.75rem; }
+.cm-color-input { width: 48px; height: 40px; padding: 0; border: 1px solid #e5e7eb; border-radius: 8px; background: none; cursor: pointer; }
+.cm-color-code { font-size: 0.85rem; color: #6b7280; font-variant-numeric: tabular-nums; }
+.cm-color-clear { border: none; background: #f3f4f6; color: #374151; border-radius: 8px; padding: 0.4rem 0.8rem; cursor: pointer; font-family: inherit; font-size: 0.8rem; }
 .categories-page {
   display: flex;
   flex-direction: column;
@@ -1140,7 +1226,7 @@ const bulkActions = computed(() => [
 .cm-form, .cm-view { display: flex; flex-direction: column; gap: 1.5rem; padding: 0 2.5rem 2.5rem; }
 .cm-field { display: flex; flex-direction: column; gap: 0.75rem; }
 .cm-label { font-size: 0.85rem; font-weight: 700; color: #374151; }
-.cm-req { color: #dc2626; margin-inline-start: 2px; }
+.cm-req { color: #660033; margin-inline-start: 2px; }
 
 .cm-input, .cm-textarea {
   box-sizing: border-box; width: 100%;
@@ -1207,8 +1293,8 @@ const bulkActions = computed(() => [
 .cm-btn-cancel:hover { background: #f9fafb; }
 .cm-btn-primary { background: #660033; border: none; color: #fff; }
 .cm-btn-primary:hover:not(:disabled) { background: #4d0026; }
-.cm-btn-danger { background: #ef4444; border: none; color: #fff; }
-.cm-btn-danger:hover:not(:disabled) { background: #dc2626; }
+.cm-btn-danger { background: #660033; border: none; color: #fff; }
+.cm-btn-danger:hover:not(:disabled) { background: #4d0026; }
 .cm-btn:focus-visible, .cm-close:focus-visible { outline: 2px solid #660033; outline-offset: 2px; }
 
 /* View */
@@ -1237,7 +1323,7 @@ const bulkActions = computed(() => [
 /* Delete */
 .cm-delete-body { display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 22px; color: rgba(47, 43, 61, 0.75); }
 .cm-delete-body p { margin: 0; }
-.cm-delete-warning { color: #ef4444; }
+.cm-delete-warning { color: #660033; font-weight: 600; }
 
 @media (max-width: 600px) {
   .cm-form, .cm-view { padding: 0 1.25rem 1.5rem; }

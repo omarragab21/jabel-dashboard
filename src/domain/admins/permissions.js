@@ -62,6 +62,15 @@ export const PERMISSION_GROUPS = [
     ],
   },
   {
+    key: 'locations',
+    label: ['المواقع والفروع', 'Locations & branches'],
+    modules: [
+      { key: 'cities', route: '/admin/cities', label: ['المدن', 'Cities'], actions: FULL },
+      { key: 'areas', route: '/admin/areas', label: ['مناطق التوصيل', 'Delivery areas'], actions: FULL },
+      { key: 'branches', route: '/admin/branches', label: ['الفروع', 'Branches'], actions: FULL },
+    ],
+  },
+  {
     key: 'finance',
     label: ['المالية والتكاملات', 'Finance & integrations'],
     modules: [
@@ -119,6 +128,8 @@ const preset = (spec) => Object.fromEntries(Object.entries(spec).map(([key, acti
 
 export const ROLE_PRESETS = {
   super_admin: allPermissions(),
+  // Everything except managing the team (administrators): that stays with the super admin.
+  admin: Object.fromEntries(Object.entries(allPermissions()).filter(([key]) => key !== 'admins')),
   sales_manager: preset({
     dashboard: 'all', orders: ['read', 'create', 'update'], returns: ['read', 'update'], customers: ['read', 'update'],
     reviews: ['read', 'update'], messages: ['read', 'update'], products: ['read'], inventory: ['read'],
@@ -128,7 +139,7 @@ export const ROLE_PRESETS = {
     dashboard: 'all', categories: 'all', products: 'all', attributes: 'all', inventory: ['read', 'update'], reviews: ['read'],
   }),
   inventory_manager: preset({
-    dashboard: 'all', products: ['read'], inventory: 'all', orders: ['read'], returns: ['read', 'update'],
+    dashboard: 'all', products: ['read'], inventory: 'all', orders: ['read'], returns: ['read', 'update'], branches: ['read'],
   }),
   marketing_manager: preset({
     dashboard: 'all', discounts: 'all', offers: 'all', sliders: 'all', customers: ['read'], products: ['read'],
@@ -147,7 +158,8 @@ export const ROLE_PRESETS = {
 export const ROLE_KEYS = Object.keys(ROLE_PRESETS);
 
 export const ROLE_LABELS = {
-  super_admin: ['أدمن', 'Admin'],
+  super_admin: ['أدمن', 'Super admin'],
+  admin: ['مدير', 'Admin'],
   sales_manager: ['مدير مبيعات', 'Sales manager'],
   catalog_manager: ['مدير المنتجات', 'Catalog manager'],
   inventory_manager: ['مدير المخزون', 'Inventory manager'],
@@ -159,6 +171,7 @@ export const ROLE_LABELS = {
 
 export const ROLE_DESCRIPTIONS = {
   super_admin: ['صلاحيات كاملة على كل الأقسام', 'Full access to every module'],
+  admin: ['كل الأقسام ما عدا إدارة المسؤولين', 'Every module except managing administrators'],
   sales_manager: ['الطلبات والمرتجعات والعملاء مع الاطلاع على المنتجات والتقارير', 'Orders, returns and customers, with view access to products and reports'],
   catalog_manager: ['الأقسام والمنتجات والخصائص والمخزون', 'Categories, products, attributes and stock'],
   inventory_manager: ['المخزون مع الاطلاع على المنتجات والطلبات', 'Stock, with view access to products and orders'],

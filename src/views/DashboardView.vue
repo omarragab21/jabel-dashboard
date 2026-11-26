@@ -395,8 +395,8 @@ const writeDashboardCache = (data, version, owner) => {
 
 const fetchSnapshot = async () => {
   const [overviewRes, dailyRes, monthlyRes] = await Promise.all([
-    api.get('/v1/overview', { timeout: 20000 }),
-    ...CHART_RANGES.map((range) => api.get('/v1/overview/chart', { params: { range }, timeout: 20000 })),
+    api.get('/v1/dashboard/overview', { timeout: 20000 }),
+    ...CHART_RANGES.map((range) => api.get('/v1/dashboard/overview/chart', { params: { range }, timeout: 20000 })),
   ]);
   return { overview: overviewRes.data?.data || {}, daily: dailyRes.data || {}, monthly: monthlyRes.data || {} };
 };
@@ -1002,24 +1002,24 @@ watch(isDark, () => {
 .empty-section { text-align: center; color: #9ca3af; font-size: 0.82rem; padding: 2rem; }
 
 /* ─── Dark mode ────────────────────────────────────────────────────────────── */
-:global(.dark) .section-card,
-:global(.dark) .stat-card,
-:global(.dark) .chart-card { background: #1e293b; border-color: #334155; }
-:global(.dark) .section-header,
-:global(.dark) .data-table td,
-:global(.dark) .inv-item,
-:global(.dark) .return-item { border-color: #334155; }
-:global(.dark) .data-table th { background: #0f172a; color: #94a3b8; }
-:global(.dark) .dash-title,
-:global(.dark) .section-title,
-:global(.dark) .inv-name,
-:global(.dark) .return-ref,
-:global(.dark) .return-amt,
-:global(.dark) .legend-count { color: #f1f5f9; }
-:global(.dark) .period-toggle,
-:global(.dark) .rank-num,
-:global(.dark) .inv-bar { background: #334155; }
-:global(.dark) .return-item:hover { background: #0f172a; }
+.dark .section-card,
+.dark .stat-card,
+.dark .chart-card { background: #1e293b; border-color: #334155; }
+.dark .section-header,
+.dark .data-table td,
+.dark .inv-item,
+.dark .return-item { border-color: #334155; }
+.dark .data-table th { background: #0f172a; color: #94a3b8; }
+.dark .dash-title,
+.dark .section-title,
+.dark .inv-name,
+.dark .return-ref,
+.dark .return-amt,
+.dark .legend-count { color: #f1f5f9; }
+.dark .period-toggle,
+.dark .rank-num,
+.dark .inv-bar { background: #334155; }
+.dark .return-item:hover { background: #0f172a; }
 
 /* ─── Skeleton ─────────────────────────────────────────────────────────────── */
 .dashboard-skeleton {
@@ -1029,7 +1029,7 @@ watch(isDark, () => {
   --sk-base: #eef0f3;
   --sk-glint: #f8f9fb;
 }
-:global(.dark) .dashboard-skeleton { --sk-base: #1e293b; --sk-glint: #2b3a50; }
+.dark .dashboard-skeleton { --sk-base: #1e293b; --sk-glint: #2b3a50; }
 .shimmer {
   display: block;
   border-radius: 6px;

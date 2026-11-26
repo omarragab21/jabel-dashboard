@@ -223,6 +223,7 @@ onMounted(() => {
       </div>
 
       <div class="filters-card">
+        <ColumnPicker table-key="inventory" class="toolbar-columns" />
         <div class="search-box">
           <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input v-model="search" type="search" :placeholder="tx('بحث باسم المنتج أو رقمه...', 'Search by product name or number...')" data-testid="stock-search" />
@@ -245,7 +246,6 @@ onMounted(() => {
         </div>
       </div>
 
-      <div class="col-toolbar"><ColumnPicker table-key="inventory" /></div>
       <div class="table-container">
         <table class="data-table" data-col-key="inventory">
           <thead>

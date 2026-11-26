@@ -68,6 +68,7 @@
 
     <!-- Filters Row -->
     <div class="filters-row">
+      <ColumnPicker table-key="reviews" class="toolbar-columns" />
       <div class="search-box">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="search-icon">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -94,7 +95,6 @@
     </div>
 
     <!-- Table -->
-    <div class="col-toolbar"><ColumnPicker table-key="reviews" /></div>
     <div class="table-container">
       <table class="data-table" data-col-key="reviews" :data-bulk-table="bulk.tableId">
         <thead>
@@ -457,13 +457,13 @@ const bulkActions = computed(() => [
 
 /* Delete Modal */
 .delete-modal { max-width: 460px; padding: 28px; text-align: center; }
-.delete-icon { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #dc2626; background: #fef2f2; }
+.delete-icon { width: 58px; height: 58px; margin: 0 auto 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #660033; background: rgba(102, 0, 51, 0.08); }
 .delete-copy h2 { margin: 0 0 8px; color: #111827; font-size: 1.2rem; }
 .delete-copy p { margin: 0; color: #6b7280; line-height: 1.7; font-size: 0.92rem; }
 .delete-footer { display: flex; gap: 1rem; padding: 24px 0 0; }
 .delete-footer button { min-height: 44px; }
-.btn-delete-confirm { background: #dc2626; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 700; cursor: pointer; flex: 1; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-.btn-delete-confirm:hover { background: #b91c1c; }
+.btn-delete-confirm { background: #660033; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 700; cursor: pointer; flex: 1; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-delete-confirm:hover { background: #4d0026; }
 .btn-delete-confirm:disabled, .btn-cancel-form:disabled { opacity: 0.6; cursor: not-allowed; }
 .delete-spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.45); border-top-color: white; border-radius: 50%; animation: delete-spin 0.7s linear infinite; }
 @keyframes delete-spin { to { transform: rotate(360deg); } }

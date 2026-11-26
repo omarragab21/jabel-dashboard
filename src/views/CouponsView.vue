@@ -259,7 +259,9 @@ import { useBulkSelection } from '../composables/useBulkSelection';
 import { localizeMessage } from '../utils/uiMessages';
 import { useCurrencyLabel } from '../composables/useCurrencyLabel';
 import { apiErrorMessage } from '../utils/apiMessage';
+import { useDialog } from '../composables/useDialog';
 import { ref, computed, onMounted } from 'vue';
+const appDialog = useDialog();
 import { useAdminText } from '../composables/useAdminText';
 import api from '../config/axios';
 
@@ -423,7 +425,7 @@ const submitForm = async () => {
 };
 
 const confirmDelete = async (coupon) => {
-  if (confirm(`هل أنت متأكد من حذف كود الخصم "${coupon.code}"؟`)) {
+  if (await appDialog.confirm(`هل أنت متأكد من حذف كود الخصم "${coupon.code}"؟`, { title: 'تأكيد الحذف', confirmText: 'حذف', cancelText: 'إلغاء' })) {
     try {
       await api.delete(`/dashboard/coupons/${coupon.id}`);
       triggerAlert('تم حذف الكود بنجاح');

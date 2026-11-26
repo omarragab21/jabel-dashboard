@@ -1,6 +1,6 @@
-// Presentation-only filter for QA records that must not appear in the
-// customer-facing/admin catalog views until approved. Backend data is not
-// changed by this helper.
+// Presentation-only filter for QA records (by id) that must not appear in the
+// customer-facing/admin catalog views. Backend data is not changed by this helper.
+// It matches ids only: hiding by name made real products called "Test ..." or "QA ..." vanish.
 const TEST_PRODUCT_IDS = new Set([42, 55]);
 const TEST_CATEGORY_IDS = new Set([61]);
 
@@ -15,13 +15,13 @@ const searchableText = (record = {}) => [
 export const isTestProduct = (product = {}) => {
   const id = Number(product.id ?? product.product_id);
   if (TEST_PRODUCT_IDS.has(id)) return true;
-  return /(?:^|\s)(?:test|qa)(?:\s|$)|single-stock-qa|single stock qa/i.test(searchableText(product));
+  return false;
 };
 
 export const isTestCategory = (category = {}) => {
   const id = Number(category.id ?? category.category_id);
   if (TEST_CATEGORY_IDS.has(id)) return true;
-  return /(?:^|\s)test(?:\s|$)/i.test(searchableText(category));
+  return false;
 };
 
 export const visibleProducts = (products = []) => products.filter((product) => !isTestProduct(product));

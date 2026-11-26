@@ -64,6 +64,7 @@
     <!-- Filters -->
     <section class="filters-card">
       <div class="filters-row">
+        <ColumnPicker table-key="returns" class="toolbar-columns" />
         <div class="search-field">
           <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
           <input
@@ -101,7 +102,6 @@
       </div>
 
       <template v-else>
-        <div class="col-toolbar"><ColumnPicker table-key="returns" /></div>
         <div class="table-scroll">
           <table class="returns-table" data-col-key="returns">
             <thead>
@@ -347,7 +347,7 @@ onMounted(() => {
   font-family: 'IBM Plex Sans Arabic', sans-serif;
 }
 
-:global(.dark) .returns-page {
+.dark .returns-page {
   --rt-text: #f1f5f9;
   --rt-body: #cbd5e1;
   --rt-muted: #94a3b8;

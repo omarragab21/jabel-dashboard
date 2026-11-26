@@ -11,6 +11,14 @@
 
         <!-- نموذج تسجيل الدخول -->
         <form @submit.prevent="handleLogin" class="login-form" novalidate>
+          <!-- نوع الحساب: يحدد أي endpoint يُستخدم للدخول -->
+          <div class="form-group">
+            <label for="account-type" class="form-label">نوع الحساب</label>
+            <select id="account-type" v-model="form.accountType" class="form-input form-select" data-testid="account-type">
+              <option v-for="type in ACCOUNT_TYPES" :key="type.value" :value="type.value">{{ type.label }}</option>
+            </select>
+          </div>
+
           <!-- البريد الإلكتروني -->
           <div class="form-group">
             <label for="email" class="form-label">البريد الإلكتروني</label>
@@ -168,7 +176,23 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const rawSavedEmail = String(localStorage.getItem('remembered_email') || '').trim();
 const savedEmail = EMAIL_REGEX.test(rawSavedEmail) ? rawSavedEmail : '';
 
+// Roles allowed into the dashboard (the only ones the API accepts for staff).
+const ADMIN_PANEL_ROLES = ['admin', 'super_admin'];
+// The account type picks the login endpoint:
+//   super_admin -> POST /v1/auth/admin/login (the dashboard login, only `super_admin` is let in today)
+//   admin       -> POST /v1/auth/login (the regular login); the session is kept only when the account is an admin / super_admin.
+// TEMPORARY for `admin`: /auth/admin/login answers 403 for it. Drop the second type once the backend allows `admin` there.
+const ACCOUNT_TYPES = [
+  { value: 'super_admin', label: 'أدمن (Super Admin)', endpoint: '/v1/auth/admin/login' },
+  { value: 'admin', label: 'مدير (Admin)', endpoint: '/v1/auth/login' },
+];
+const ACCOUNT_TYPE_KEY = 'login_account_type';
+const readAccountType = () => {
+  try { const saved = localStorage.getItem(ACCOUNT_TYPE_KEY); return ACCOUNT_TYPES.some((t) => t.value === saved) ? saved : 'super_admin'; } catch { return 'super_admin'; }
+};
+
 const form = ref({
+  accountType: readAccountType(),
   email: savedEmail,
   password: '',
   remember: Boolean(savedEmail),
@@ -225,10 +249,18 @@ const handleLogin = async () => {
 
   try {
     const cleanEmail = form.value.email.trim();
-    const response = await api.post('/v1/admin/login', {
-      email: cleanEmail,
-      password: form.value.password,
-    });
+    const credentials = { email: cleanEmail, password: form.value.password };
+    const accountType = ACCOUNT_TYPES.find((type) => type.value === form.value.accountType) || ACCOUNT_TYPES[0];
+    const response = await api.post(accountType.endpoint, credentials);
+    if (accountType.value === 'admin') {
+      const role = String(response.data?.user?.role ?? '').toLowerCase();
+      if (!ADMIN_PANEL_ROLES.includes(role)) {
+        // A customer account must never get into the dashboard through the regular login.
+        const rejected = new Error('not an administrator');
+        rejected.response = { status: 403, data: { message: 'You do not have administrative access.' } };
+        throw rejected;
+      }
+    }
 
     const rawToken = String(response.data?.token ?? response.data?.access_token ?? '').trim();
     const user = response.data?.user || response.data?.admin || response.data?.customer || {};
@@ -247,6 +279,7 @@ const handleLogin = async () => {
 
     resetLoginRateLimit();
     clearAdminSessionArtifacts(localStorage);
+    try { localStorage.setItem(ACCOUNT_TYPE_KEY, accountType.value); } catch { /* storage unavailable */ }
 
     // حفظ الـ token والمعلومات
     localStorage.setItem('token', rawToken);
@@ -368,6 +401,12 @@ const handleLogin = async () => {
   direction: ltr;
   text-align: right;
   outline: none;
+}
+
+.form-select {
+  padding-right: 1rem;
+  direction: rtl;
+  cursor: pointer;
 }
 
 .form-input::placeholder {

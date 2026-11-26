@@ -18,10 +18,10 @@ export default defineConfig({
     cors: true,
     fs: { allow: [projectRoot, path.resolve(projectRoot, '..')] },
     proxy: {
-      '/api': { target: 'https://backend-jabal.be-kite.com', changeOrigin: true, secure: false },
-      '/storage': { target: 'https://backend-jabal.be-kite.com', changeOrigin: true, secure: false },
+      '/api': { target: 'https://backend-tijara-plus-stage.be-kite.com', changeOrigin: true, secure: false },
+      '/storage': { target: 'https://backend-tijara-plus-stage.be-kite.com', changeOrigin: true, secure: false },
       // Same-origin backend images so the crop modal can export them from a canvas.
-      '/public/storage': { target: 'https://backend-jabal.be-kite.com', changeOrigin: true, secure: false },
+      '/public/storage': { target: 'https://backend-tijara-plus-stage.be-kite.com', changeOrigin: true, secure: false },
     },
   },
   build: {

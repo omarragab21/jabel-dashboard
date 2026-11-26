@@ -27,7 +27,7 @@
           <p id="app-dialog-message" class="app-dialog-message">{{ dialogState.message }}</p>
 
           <div class="app-dialog-actions" :class="{ single: dialogState.mode === 'alert' }">
-            <button ref="confirmBtn" type="button" class="app-dialog-btn primary" :class="{ danger: dialogState.type === 'error' && dialogState.mode === 'confirm' }" @click="closeDialog(true)">
+            <button ref="confirmBtn" type="button" class="app-dialog-btn primary" @click="closeDialog(true)">
               {{ dialogState.confirmText || (isAr ? (dialogState.mode === 'confirm' ? 'تأكيد' : 'حسناً') : (dialogState.mode === 'confirm' ? 'Confirm' : 'OK')) }}
             </button>
             <button v-if="dialogState.mode === 'confirm'" type="button" class="app-dialog-btn secondary" @click="closeDialog(false)">
@@ -110,12 +110,13 @@ const trapTab = (event) => {
   align-items: center;
   justify-content: center;
   margin-bottom: 4px;
-  background: #f1f5f9;
+  background: rgba(102, 0, 51, 0.08);
   color: #660033;
 }
-.app-dialog-icon.is-success { background: #ecfdf5; color: #10b981; }
-.app-dialog-icon.is-error { background: #fef2f2; color: #e53333; }
-.app-dialog-icon.is-warning { background: #fffbeb; color: #d97706; }
+/* Every dialog uses the brand colour (no red / green / amber variants). */
+.app-dialog-icon.is-success,
+.app-dialog-icon.is-error,
+.app-dialog-icon.is-warning { background: rgba(102, 0, 51, 0.08); color: #660033; }
 
 .app-dialog-title {
   margin: 0;
@@ -164,7 +165,6 @@ const trapTab = (event) => {
 
 .app-dialog-btn.primary { background: #660033; color: #ffffff; border: none; }
 .app-dialog-btn.primary:hover { opacity: 0.9; }
-.app-dialog-btn.primary.danger { background: #e53333; }
 .app-dialog-btn.secondary { background: #ffffff; color: #660033; border: 1.5px solid #660033; }
 .app-dialog-btn.secondary:hover { background: #f8fafc; }
 

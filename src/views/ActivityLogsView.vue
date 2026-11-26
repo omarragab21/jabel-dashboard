@@ -1,6 +1,8 @@
 <script setup>
 import { localizeMessage } from '../utils/uiMessages';
+import { useDialog } from '../composables/useDialog';
 import { ref, onMounted, computed } from 'vue';
+const appDialog = useDialog();
 import api from '../config/axios';
 import { useAdminText } from '../composables/useAdminText';
 
@@ -49,7 +51,7 @@ onMounted(() => {
 
 // Actions
 const deleteLog = async (id) => {
-    if (confirm('هل أنت متأكد من حذف هذا السجل؟')) {
+    if (await appDialog.confirm('هل أنت متأكد من حذف هذا السجل؟', { title: 'تأكيد الحذف', confirmText: 'حذف', cancelText: 'إلغاء' })) {
         try {
             await api.delete(`/dashboard/activity-logs/${id}`);
             triggerAlert('تم حذف السجل بنجاح');

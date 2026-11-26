@@ -1,5 +1,7 @@
 <template>
   <div class="countries-view">
+    <!-- The list; the add / edit form below replaces it as a page of its own (/admin/countries/new, /admin/countries/:id/edit) -->
+    <div v-show="!showModal" class="list-view">
     <div class="page-header">
       <h1 class="page-title">{{ tx('إدارة الدول', 'Country Management') }}</h1>
       <div class="header-actions">
@@ -58,11 +60,16 @@
       </table>
     </div>
     <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="countries" />
+    </div><!-- /list-view -->
 
-    <!-- Modal -->
-    <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
-      <div class="modal-content">
-        <h2>{{ isEdit ? tx('تعديل دولة', 'Edit Country') : tx('إضافة دولة', 'Add Country') }}</h2>
+    <!-- Add / edit page -->
+    <EditorPage
+      v-if="showModal"
+      testid="country-editor"
+      :back-label="tx('إدارة الدول', 'Country Management')"
+      :title="isEdit ? tx('تعديل دولة', 'Edit Country') : tx('إضافة دولة', 'Add Country')"
+      @back="closeForm"
+    >
         <form @submit.prevent="handleSubmit">
           <!-- Arabic is required, English optional: a missing English name shows as a warning only. -->
           <BilingualField class="form-group" required="ar" :ar="form.name" :en="form.name_en" testid="country-name">
@@ -93,20 +100,23 @@
             </label>
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn-secondary" @click="showModal = false">{{ tx('إلغاء', 'Cancel') }}</button>
+            <button type="button" class="btn-secondary" @click="closeForm">{{ tx('إلغاء', 'Cancel') }}</button>
             <button type="submit" class="btn-primary">{{ tx('حفظ', 'Save') }}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </EditorPage>
   </div>
 </template>
 
 <script setup>
+import EditorPage from '../components/EditorPage.vue';
+import { useEditorRoute } from '../composables/useEditorRoute';
 import BulkActionBar from '../components/BulkActionBar.vue';
 import { useBulkSelection } from '../composables/useBulkSelection';
 import ColumnPicker from '../components/ColumnPicker.vue';
+import { useDialog } from '../composables/useDialog';
 import { ref, onMounted, computed } from 'vue';
+const appDialog = useDialog();
 import api from '../config/axios';
 import { useAdminText } from '../composables/useAdminText';
 import BilingualField from '../components/BilingualField.vue';
@@ -176,8 +186,24 @@ const editCountry = (country) => {
   showModal.value = true;
 };
 
+const closeForm = () => { showModal.value = false; };
+
+// The form has its own address: /admin/countries/new and /admin/countries/:id/edit.
+useEditorRoute({
+  base: '/admin/countries',
+  isOpen: showModal,
+  editId: () => (isEdit.value ? editingId.value : ''),
+  openAdd: () => openAdd(),
+  openEdit: editCountry,
+  close: closeForm,
+  findItem: async (id) => {
+    if (!countries.value.length) await fetchCountries();
+    return countries.value.find((country) => String(country.id) === id) || null;
+  },
+});
+
 const deleteCountry = async (id) => {
-  if (!confirm('هل أنت متأكد من حذف هذه الدولة؟')) return;
+  if (!(await appDialog.confirm('هل أنت متأكد من حذف هذه الدولة؟', { title: 'تأكيد الحذف', confirmText: 'حذف', cancelText: 'إلغاء' }))) return;
   try {
     await api.delete(`/dashboard/countries/${id}`);
     fetchCountries();

@@ -5,7 +5,7 @@ export const authService = {
    * Admin login
    */
   async login(credentials) {
-    const response = await api.post('/v1/admin/login', credentials);
+    const response = await api.post('/v1/auth/admin/login', credentials);
     return response.data;
   },
 
@@ -13,7 +13,7 @@ export const authService = {
    * Customer registration
    */
   async register(userData) {
-    const response = await api.post('/v1/register', userData);
+    const response = await api.post('/v1/auth/register', userData);
     return response.data;
   },
 
@@ -21,7 +21,7 @@ export const authService = {
    * Customer logout
    */
   async logout() {
-    const response = await api.post('/v1/logout');
+    const response = await api.post('/v1/auth/logout');
     return response.data;
   },
 

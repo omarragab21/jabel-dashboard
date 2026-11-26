@@ -1,5 +1,7 @@
 <template>
   <div class="attributes-page">
+    <!-- The list; the attribute and value forms below replace it as pages of their own -->
+    <div v-show="!showAttributeModal && !showValueModal" class="list-view" style="display: contents">
     <!-- Header -->
     <div class="page-header">
       <div class="header-titles">
@@ -22,36 +24,6 @@
     </div>
 
     <AttributeTemplatesModal v-if="showTemplates" :attributes="attributes" @close="showTemplates = false" @done="fetchAttributes" />
-
-    <!-- Add Attribute Modal -->
-    <div class="modal-overlay" v-if="showAttributeModal" @click.self="closeAttributeModal">
-      <div class="modal-content form-modal">
-        <button class="modal-close" @click="closeAttributeModal">×</button>
-        <div class="form-header"><div class="modal-heading-row"><div v-if="!editingAttributeId" class="header-icon-main"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><h3 class="modal-title-main">{{ editingAttributeId ? tx('تعديل خاصية منتج', 'Edit Product Attribute') : tx('إضافة خاصية منتج', 'Add Product Attribute') }}</h3></div><p class="modal-subtitle-main">{{ editingAttributeId ? tx('عدّل اسم الخاصية — القيم تُدار من زر إدارة القيم', 'Edit the attribute name; values are managed separately') : tx('أضف الخاصية ثم أضف قيمها من زر إدارة القيم. أي قيمة بكود لون تظهر كدائرة لون تلقائياً', 'Add the attribute, then add its values. Any value with a color code shows as a color circle automatically') }}</p></div>
-        <form class="value-form" novalidate @submit.prevent="submitAttribute">
-          <BilingualField class="form-group" required :ar="attributeForm.name_ar" :en="attributeForm.name_en" testid="attribute-name">
-            <template #label="{ lang }">
-              <label class="form-label" :for="`attribute-name-${lang}`">{{ tx('الاسم', 'Name') }} *</label>
-            </template>
-            <template #default="{ lang }">
-              <input v-show="lang === 'ar'" id="attribute-name-ar" v-model="attributeForm.name_ar" v-lang-only="'ar'" class="form-control" dir="rtl" placeholder="مثال: اللون" data-testid="attribute-name-ar" />
-              <input v-show="lang === 'en'" id="attribute-name-en" v-model="attributeForm.name_en" v-lang-only="'en'" class="form-control" dir="ltr" placeholder="Example: Color" data-testid="attribute-name-en" />
-            </template>
-          </BilingualField>
-          <label class="core-toggle" data-testid="attribute-core-toggle">
-            <input type="checkbox" v-model="attributeForm.is_core" />
-            <span class="core-toggle-text">
-              <strong>{{ tx('خاصية أساسية', 'Core attribute') }}</strong>
-              <small>{{ tx('تظهر أولًا عند إضافة منتج، ولازم تختار لها قيمة واحدة أو «غير متوفر». مثل: اللون، الحجم، السعة.', 'Shown first when adding a product; one value (or «Not available») must be picked. E.g. colour, size, capacity.') }}</small>
-            </span>
-          </label>
-          <div class="form-actions">
-            <button class="btn-cancel" type="button" @click="closeAttributeModal">{{ tx('إلغاء', 'Cancel') }}</button>
-            <button class="btn-submit" type="submit" :disabled="isSubmitting">{{ isSubmitting ? tx('جاري الحفظ...', 'Saving...') : (editingAttributeId ? tx('حفظ التعديلات', 'Save changes') : tx('حفظ الخاصية', 'Save attribute')) }}</button>
-          </div>
-        </form>
-      </div>
-    </div>
 
     <!-- Table -->
     <div class="col-toolbar"><ColumnPicker table-key="attributes" /></div>
@@ -79,7 +51,7 @@
               <td class="col-name">
                 <div class="attr-name-cell">
                   <div class="attr-text">
-                    <span class="attr-title">{{ attributeName(attr) }} <span v-if="isCore(attr)" class="core-badge" data-testid="core-badge">{{ tx('أساسية', 'Core') }}</span></span>
+                    <span class="attr-title">{{ attributeName(attr) }}</span>
                   </div>
                 </div>
               </td>
@@ -129,16 +101,46 @@
       </table>
     </div>
     <BulkActionBar :bulk="bulk" :actions="bulkActions" file-name="attributes" :label-of="attributeName" />
+    </div><!-- /list-view -->
 
-    <!-- Modals -->
-    <!-- Add/Edit Value Modal -->
-    <div class="modal-overlay" v-if="showValueModal" @click.self="closeValueModal">
-      <div class="modal-content form-modal">
-        <button class="modal-close" @click="closeValueModal">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-        <div class="form-header"><h3 class="modal-title-main">{{ isEditingValue ? tx('تعديل قيمة خاصية', 'Edit Attribute Value') : tx('إضافة قيمة جديدة', 'Add New Value') }}</h3><p class="modal-subtitle-main">{{ tx('أدخل اسم القيمة بالعربي والإنجليزي ليتم حفظها في الـ API', 'Enter the Arabic and English value names to save them to the API') }}</p></div>
-        
+    <!-- Add / edit attribute page (/admin/attributes/new, /admin/attributes/:id/edit) -->
+    <EditorPage
+      v-if="showAttributeModal"
+      testid="attribute-editor"
+      :back-label="tx('خصائص المنتجات', 'Product Attributes')"
+      :title="editingAttributeId ? tx('تعديل خاصية منتج', 'Edit Product Attribute') : tx('إضافة خاصية منتج', 'Add Product Attribute')"
+      :subtitle="editingAttributeId ? tx('عدّل اسم الخاصية — القيم تُدار من زر إدارة القيم', 'Edit the attribute name; values are managed separately') : tx('أضف الخاصية ثم أضف قيمها من زر إدارة القيم. أي قيمة بكود لون تظهر كدائرة لون تلقائياً', 'Add the attribute, then add its values. Any value with a color code shows as a color circle automatically')"
+      @back="closeAttributeModal"
+    >
+      <div class="form-modal editor-form">
+        <form class="value-form" novalidate @submit.prevent="submitAttribute">
+          <BilingualField class="form-group" required :ar="attributeForm.name_ar" :en="attributeForm.name_en" testid="attribute-name">
+            <template #label="{ lang }">
+              <label class="form-label" :for="`attribute-name-${lang}`">{{ tx('الاسم', 'Name') }} *</label>
+            </template>
+            <template #default="{ lang }">
+              <input v-show="lang === 'ar'" id="attribute-name-ar" v-model="attributeForm.name_ar" v-lang-only="'ar'" class="form-control" dir="rtl" placeholder="مثال: اللون" data-testid="attribute-name-ar" />
+              <input v-show="lang === 'en'" id="attribute-name-en" v-model="attributeForm.name_en" v-lang-only="'en'" class="form-control" dir="ltr" placeholder="Example: Color" data-testid="attribute-name-en" />
+            </template>
+          </BilingualField>
+          <div class="form-actions">
+            <button class="btn-cancel" type="button" @click="closeAttributeModal">{{ tx('إلغاء', 'Cancel') }}</button>
+            <button class="btn-submit" type="submit" :disabled="isSubmitting">{{ isSubmitting ? tx('جاري الحفظ...', 'Saving...') : (editingAttributeId ? tx('حفظ التعديلات', 'Save changes') : tx('حفظ الخاصية', 'Save attribute')) }}</button>
+          </div>
+        </form>
+      </div>
+    </EditorPage>
+
+    <!-- Add / edit value page (/admin/attributes/values/new?attribute=<id>, /admin/attributes/values/:id/edit) -->
+    <EditorPage
+      v-if="showValueModal"
+      testid="attribute-value-editor"
+      :back-label="tx('خصائص المنتجات', 'Product Attributes')"
+      :title="(isEditingValue ? tx('تعديل قيمة خاصية', 'Edit Attribute Value') : tx('إضافة قيمة جديدة', 'Add New Value')) + (selectedAttribute ? ' — ' + attributeName(selectedAttribute) : '')"
+      :subtitle="tx('أدخل اسم القيمة بالعربي والإنجليزي ليتم حفظها في الـ API', 'Enter the Arabic and English value names to save them to the API')"
+      @back="closeValueModal"
+    >
+      <div class="form-modal editor-form">
         <form @submit.prevent="submitValue" class="value-form" novalidate>
           
           <!-- Binding (Readonly) -->
@@ -194,7 +196,7 @@
           </div>
         </form>
       </div>
-    </div>
+    </EditorPage>
 
     <!-- Manage Values Modal -->
     <div class="modal-overlay" v-if="showManageModal" @click.self="closeManageModal">
@@ -256,16 +258,19 @@ import ColumnPicker from '../components/ColumnPicker.vue';
 import { vLangOnly } from '../directives/langOnly';
 import BilingualField from '../components/BilingualField.vue';
 import AttributeTemplatesModal from '../components/AttributeTemplatesModal.vue';
+import EditorPage from '../components/EditorPage.vue';
+import { useEditorRoute } from '../composables/useEditorRoute';
 import { provideBilingualForm } from '../composables/useBilingualForm';
 import { hasText } from '../utils/bilingualText';
 import { localizeMessage } from '../utils/uiMessages';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { computed, ref, onMounted } from 'vue';
+import { useDialog } from '../composables/useDialog';
+const appDialog = useDialog();
 import { useI18n } from 'vue-i18n';
 import { useAdminText } from '../composables/useAdminText';
 import productAttributeService from '../services/productAttributeService';
 import { parseColorCode } from '../domain/catalog/adminCatalog';
-import { loadSavedCoreIds, resolveCoreIds, saveCoreIds } from '../services/coreAttributes';
 
 const { locale } = useI18n();
 const { tx } = useAdminText();
@@ -321,25 +326,10 @@ const triggerAlert = (msg, type = 'success') => {
   setTimeout(() => { showAlert.value = false; }, 3000);
 };
 
-// Core attributes («أساسية»): ids saved in the settings API (core_attribute_ids).
-const savedCoreIds = ref(null);
-const coreIds = computed(() => resolveCoreIds(savedCoreIds.value, attributes.value));
-const isCore = (attr) => coreIds.value.includes(String(attr.id));
-const loadCoreIds = async () => {
-  try { savedCoreIds.value = await loadSavedCoreIds(); } catch { /* falls back to colour / capacity / size */ }
-};
-const setCore = async (attrId, makeCore) => {
-  const id = String(attrId);
-  const current = coreIds.value;
-  if (makeCore === current.includes(id)) return;
-  savedCoreIds.value = await saveCoreIds(makeCore ? [...current, id] : current.filter((item) => item !== id));
-};
-
 const fetchAttributes = async () => {
   loading.value = true;
   try {
-    const [list] = await Promise.all([productAttributeService.list(), savedCoreIds.value === null ? loadCoreIds() : null]);
-    attributes.value = list;
+    attributes.value = await productAttributeService.list();
     
     // update selectedAttribute if its open
     if (selectedAttribute.value) {
@@ -386,14 +376,13 @@ const openEditAttributeModal = (attr) => {
     name_en: attr.translations?.en?.name || attr.name || '',
     // Kept as it is: the type is no longer chosen by hand.
     type: attr.type === 'color' ? 'color' : 'text',
-    is_core: isCore(attr),
   };
   showAttributeModal.value = true;
 };
 
 const openAttributeModal = () => {
   editingAttributeId.value = null;
-  attributeForm.value = { name_ar: '', name_en: '', label_ar: '', label_en: '', type: 'text', is_active: true, sort_order: attributes.value.length + 1, is_core: false };
+  attributeForm.value = { name_ar: '', name_en: '', label_ar: '', label_en: '', type: 'text', is_active: true, sort_order: attributes.value.length + 1 };
   showAttributeModal.value = true;
 };
 
@@ -408,24 +397,15 @@ const submitAttribute = async () => {
   }
   isSubmitting.value = true;
   try {
-    const { is_core: makeCore, ...attributeFields } = attributeForm.value;
-    let savedId = editingAttributeId.value;
+    const attributeFields = { ...attributeForm.value };
     if (editingAttributeId.value) {
       await productAttributeService.update(editingAttributeId.value, attributeFields);
     } else {
-      const created = await productAttributeService.create({
+      await productAttributeService.create({
         ...attributeFields,
         label_ar: attributeFields.label_ar || `اختر ${attributeFields.name_ar}`,
         label_en: attributeFields.label_en || `Select ${attributeFields.name_en}`,
       });
-      savedId = created?.id ?? null;
-    }
-    if (savedId) {
-      try {
-        await setCore(savedId, Boolean(makeCore));
-      } catch (error) {
-        triggerAlert(apiErrorMessage(error, 'تم حفظ الخاصية، لكن تعذر حفظ كونها أساسية'), 'error');
-      }
     }
     const wasEdit = Boolean(editingAttributeId.value);
     closeAttributeModal();
@@ -506,8 +486,52 @@ const editValueItem = (val) => {
   showValueModal.value = true;
 };
 
+// Each form has its own address:
+//   /admin/attributes/new, /admin/attributes/:id/edit                         the attribute
+//   /admin/attributes/values/new?attribute=<id>, /admin/attributes/values/:id/edit   one of its values
+const loadAttributes = async () => { if (!attributes.value.length) await fetchAttributes(); };
+const attributeById = (id) => attributes.value.find((attr) => String(attr.id) === String(id)) || null;
+const attributeOfValue = (valueId) => attributes.value.find((attr) => (attr.values || []).some((val) => String(val.id) === String(valueId))) || null;
+
+useEditorRoute({
+  base: '/admin/attributes',
+  isOpen: showAttributeModal,
+  editId: editingAttributeId,
+  openAdd: () => openAttributeModal(),
+  openEdit: openEditAttributeModal,
+  close: closeAttributeModal,
+  findItem: async (id) => { await loadAttributes(); return attributeById(id); },
+  notFound: () => triggerAlert(tx('الخاصية غير موجودة', 'Attribute not found'), 'error'),
+});
+
+useEditorRoute({
+  base: '/admin/attributes/values',
+  listPath: '/admin/attributes',
+  isOpen: showValueModal,
+  editId: () => (isEditingValue.value ? currentEditValueId.value : ''),
+  addQuery: () => ({ attribute: selectedAttribute.value?.id }),
+  openAdd: async (query = {}) => {
+    await loadAttributes();
+    const attr = attributeById(query.attribute);
+    if (!attr) return false;
+    openAddValueModal(attr);
+    return true;
+  },
+  openEdit: (val) => {
+    showManageModal.value = false;
+    selectedAttribute.value = attributeOfValue(val.id);
+    editValueItem(val);
+  },
+  close: closeValueModal,
+  findItem: async (id) => {
+    await loadAttributes();
+    return attributeOfValue(id)?.values.find((val) => String(val.id) === id) || null;
+  },
+  notFound: () => triggerAlert(tx('القيمة غير موجودة', 'Value not found'), 'error'),
+});
+
 const deleteAttributeItem = async (attr) => {
-  if (!confirm(`هل أنت متأكد من حذف الخاصية "${attr.name}"؟`)) return;
+  if (!(await appDialog.confirm(`هل أنت متأكد من حذف الخاصية "${attr.name}"؟`, { title: 'تأكيد الحذف', confirmText: 'حذف', cancelText: 'إلغاء' }))) return;
 
   try {
     await productAttributeService.delete(attr.id);
@@ -525,7 +549,7 @@ const deleteAttributeItem = async (attr) => {
 };
 
 const deleteValueItem = async (val) => {
-  if (confirm(`هل أنت متأكد من إزالة القيمة "${val.label}"؟`)) {
+  if (await appDialog.confirm(`هل أنت متأكد من إزالة القيمة "${val.label}"؟`, { title: 'تأكيد الحذف', confirmText: 'حذف', cancelText: 'إلغاء' })) {
     try {
       await productAttributeService.deleteValue(selectedAttribute.value.id, val.id);
       const attributeId = selectedAttribute.value.id;
@@ -556,15 +580,6 @@ const bulkActions = computed(() => [
 </script>
 
 <style scoped>
-.core-toggle { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fafafa; cursor: pointer; margin-bottom: 1rem; }
-.core-toggle input { margin-top: 3px; accent-color: #660033; width: 16px; height: 16px; flex-shrink: 0; }
-.core-toggle-text { display: flex; flex-direction: column; gap: 3px; }
-.core-toggle-text strong { font-size: 0.9rem; color: #111827; }
-.core-toggle-text small { font-size: 0.75rem; color: #6b7280; line-height: 1.5; }
-.core-badge { display: inline-block; margin-inline-start: 6px; padding: 1px 8px; border-radius: 999px; background: #660033; color: #fff; font-size: 0.68rem; font-weight: 700; vertical-align: middle; }
-:global(.dark) .core-toggle { background: #1e293b; border-color: #334155; }
-:global(.dark) .core-toggle-text strong { color: #e2e8f0; }
-
 .attributes-page {
   display: flex;
   flex-direction: column;
@@ -909,5 +924,6 @@ const bulkActions = computed(() => [
 .form-modal .btn-submit { flex: 2; width: auto; min-width: 0; padding: 0.85rem; border-radius: 10px; border: none; background: #660033; color: #fff; font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: 0.2s; }
 .form-modal .btn-submit:hover:not(:disabled) { background: #4d0026; }
 .form-modal .btn-submit:disabled { opacity: 0.6; }
+.editor-form .value-form { padding: 0; }
 @media (max-width: 600px) { .form-modal .cat-form, .form-modal .prod-form, .form-modal .value-form { padding: 0 1.25rem 1.5rem; } .form-modal .modal-tabs { margin: 0 1.25rem 1.5rem; } }
 </style>

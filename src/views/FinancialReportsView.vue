@@ -297,7 +297,7 @@ const formula = computed(() => {
 });
 
 // ─── Data ──────────────────────────────────────────────────────────────────────
-const fetchReport = ({ start, end }) => api.get('/v1/financial-reports', { params: { start_date: start, end_date: end }, timeout: 20000 })
+const fetchReport = ({ start, end }) => api.get('/v1/dashboard/financial-reports', { params: { start_date: start, end_date: end }, timeout: 20000 })
   .then((response) => toFinancialReport(response.data?.data));
 
 const load = async () => {
@@ -451,7 +451,7 @@ watch(isDark, drawBridge);
   position: absolute; inset-inline-start: 0.75rem; top: 50%; transform: translateY(-50%);
   font-size: 0.85rem; color: #111827; pointer-events: none; font-variant-numeric: tabular-nums;
 }
-:global(.dark) .date-display { color: #e5e7eb; }
+.dark .date-display { color: #e5e7eb; }
 .fin-btn, .fin-btn-outline {
   height: 40px; display: inline-flex; align-items: center; gap: 0.45rem; padding: 0 1.1rem;
   border-radius: 8px; font-family: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer;
@@ -578,7 +578,7 @@ watch(isDark, drawBridge);
 
 /* ─── Skeleton ─────────────────────────────────────────────────────────────── */
 .fin-skeleton { display: flex; flex-direction: column; gap: 1.5rem; --sk-base: #eef0f3; --sk-glint: #f8f9fb; }
-:global(.dark) .fin-skeleton { --sk-base: #1e293b; --sk-glint: #2b3a50; }
+.dark .fin-skeleton { --sk-base: #1e293b; --sk-glint: #2b3a50; }
 .shimmer {
   display: block; border-radius: 6px;
   background: linear-gradient(90deg, var(--sk-base) 25%, var(--sk-glint) 50%, var(--sk-base) 75%);
@@ -593,25 +593,25 @@ watch(isDark, drawBridge);
 .sk-chart { width: 100%; height: 320px; }
 
 /* ─── Dark mode ────────────────────────────────────────────────────────────── */
-:global(.dark) .kpi-card,
-:global(.dark) .fin-card,
-:global(.dark) .fin-select,
-:global(.dark) .fin-date input,
-:global(.dark) .fin-btn-outline { background: #1e293b; border-color: #334155; color: #f1f5f9; }
-:global(.dark) .fin-title,
-:global(.dark) .kpi-value,
-:global(.dark) .card-title,
-:global(.dark) .dist-name,
-:global(.dark) .product-name,
-:global(.dark) .product-revenue,
-:global(.dark) .meter-line,
-:global(.dark) .chip-value { color: #f1f5f9; }
-:global(.dark) .kpi-label { color: #cbd5e1; }
-:global(.dark) .product-row,
-:global(.dark) .formula-chip,
-:global(.dark) .bar { background: #0f172a; border-color: #334155; }
-:global(.dark) .risk-card { background: #1e293b; }
-:global(.dark) .risk-hero { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3); }
+.dark .kpi-card,
+.dark .fin-card,
+.dark .fin-select,
+.dark .fin-date input,
+.dark .fin-btn-outline { background: #1e293b; border-color: #334155; color: #f1f5f9; }
+.dark .fin-title,
+.dark .kpi-value,
+.dark .card-title,
+.dark .dist-name,
+.dark .product-name,
+.dark .product-revenue,
+.dark .meter-line,
+.dark .chip-value { color: #f1f5f9; }
+.dark .kpi-label { color: #cbd5e1; }
+.dark .product-row,
+.dark .formula-chip,
+.dark .bar { background: #0f172a; border-color: #334155; }
+.dark .risk-card { background: #1e293b; }
+.dark .risk-hero { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3); }
 
 /* ─── Responsive ───────────────────────────────────────────────────────────── */
 @media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

@@ -1,5 +1,7 @@
 <template>
   <div class="products-page">
+    <!-- The list stays mounted (filters, page and selection are kept) while the add / edit page is open. -->
+    <div v-show="!showFormModal" class="products-list-view">
     <!-- Header -->
     <div class="page-header">
       <div class="header-titles">
@@ -65,6 +67,7 @@
 
     <!-- Filters Row -->
     <div class="filters-row">
+      <ColumnPicker table-key="products" class="toolbar-columns" />
       <div class="search-box">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="search-icon">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -89,7 +92,6 @@
     </div>
 
     <!-- Table -->
-    <div class="col-toolbar"><ColumnPicker table-key="products" /></div>
     <div class="table-container">
       <table class="data-table" data-col-key="products" :data-bulk-table="bulk.tableId">
         <thead>
@@ -182,79 +184,43 @@
       </div>
     </div>
 
-    <!-- Add/Edit Modal -->
-    <div class="modal-overlay" v-if="showFormModal" @click.self="closeModal">
-      <div class="modal-content form-modal form-content">
-        <button class="modal-close" @click="closeModal">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </div><!-- /products-list-view -->
+
+    <!-- Add / edit product: a page of its own inside the dashboard (the side menu stays), not a dialog -->
+    <section v-if="showFormModal" class="editor-page" data-testid="product-editor">
+      <header class="editor-top">
+        <button type="button" class="editor-back" data-testid="editor-back" @click="closeModal">
+          <svg class="editor-back-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 18 15 12 9 6"/></svg>
+          {{ tx('المنتجات', 'Products') }}
         </button>
-        <div class="form-header"><div class="modal-heading-row"><div class="header-icon-main"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><h3 class="modal-title-main">{{ isEdit ? tx('تعديل المنتج', 'Edit Product') : duplicateSource ? tx(`نسخ منتج: ${duplicateSource.name}`, `Duplicate: ${duplicateSource.name}`) : tx('إضافة منتج جديد', 'Add New Product') }}</h3></div><p class="modal-subtitle-main">{{ duplicateSource ? tx('بيانات وصور المنتج منسوخة؛ راجعها ثم احفظ لإضافتها كمنتج جديد.', 'The product data and images are copied; review them, then save to add a new product.') : tx('أدخل معلومات السلعة للجدول', 'Enter product information') }}</p></div>
-
-        <!-- Tabs -->
-        <div class="modal-tabs">
-          <button class="tab-btn" :class="{ active: currentTab === 'info' }" @click.prevent="currentTab = 'info'">{{ tx('معلومات المنتج', 'Product Information') }}</button>
-          <button class="tab-btn" :class="{ active: currentTab === 'attributes' }" @click.prevent="currentTab = 'attributes'">{{ tx('خصائص المنتج', 'Product Attributes') }}</button>
+        <div class="editor-titles">
+          <h3 class="editor-title">{{ isEdit ? tx('تعديل المنتج', 'Edit Product') : duplicateSource ? tx(`نسخ منتج: ${duplicateSource.name}`, `Duplicate: ${duplicateSource.name}`) : tx('إضافة منتج جديد', 'Add New Product') }}</h3>
+          <p class="editor-sub">{{ duplicateSource ? tx('بيانات وصور المنتج منسوخة؛ راجعها ثم احفظ لإضافتها كمنتج جديد.', 'The product data and images are copied; review them, then save to add a new product.') : isEdit ? tx('عدّل بيانات المنتج وخصائصه ومتغيراته', 'Edit the product, its attributes and its variants') : tx('أدخل بيانات المنتج، ثم حدد خصائصه وقيمها لتتولد المتغيرات تلقائيًا', 'Enter the product, then pick its attributes and values: the variants are generated for you') }}</p>
         </div>
-        
-        <form @submit.prevent="submitForm" class="prod-form" novalidate>
-          <div v-show="currentTab === 'info'" class="tab-pane">
-            <!-- Images Upload -->
-            <div class="form-group">
-              <div class="image-label-row">
-                <label class="form-label mb-0" style="text-align: right;">{{ tx('صور المنتج', 'Product Images') }} <span class="req">*</span></label>
-                <span class="images-count-badge">
-                  {{ form.existing_images.length + form.new_images.length }} / {{ maxImages }} {{ tx('صور', 'images') }}
-                </span>
-              </div>
-              <div class="image-uploader" :class="{ 'is-missing': imageMissing && form.existing_images.length + form.new_images.length === 0 }" data-testid="product-image-uploader">
-                <!-- Dropzone -->
-                <div class="upload-box" @click="triggerFileInput" v-if="(form.existing_images.length + form.new_images.length) < maxImages">
-                  <input type="file" ref="fileInput" @change="handleFileChange" accept="image/*" multiple class="hidden-input" />
-                  <ImageCropModal v-bind="cropModal" @close="closeCrop" @cropped="finishCrop" />
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#660033" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                  <p>{{ tx('اضغط أو اسحب لرفع صور متعددة للمنتج', 'Click or drag to upload multiple product images') }}<br><span>(JPG, PNG, WebP | {{ tx('بحد أقصى', 'up to') }} {{ maxImages }} {{ tx('صورة', 'images') }})</span></p>
-                </div>
-                <div class="upload-box disabled" v-else>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                  <p>{{ tx('تم بلوغ الحد الأقصى', 'Maximum reached') }} ({{ maxImages }} {{ tx('صورة', 'images') }})</p>
-                </div>
-                <!-- Images Preview -->
-                <div class="preview-grid" v-if="imagePreviews.length > 0 || form.existing_images.length > 0 || duplicateLoading > 0 || duplicateFailed.length > 0">
-                  <!-- Existing Images -->
-                  <div class="preview-item" v-for="(img, idx) in form.existing_images" :key="'e'+idx">
-                    <img :src="img" />
-                    <span v-if="idx === 0" class="primary-tag-badge">{{ tx('الرئيسية', 'Primary') }}</span>
-                    <button v-else type="button" class="set-primary-btn" @click.prevent="setPrimaryExistingImage(idx)" :title="tx('تعيين كصورة رئيسية للمنتج', 'Set as primary product image')">
-                      ★ {{ tx('تعيين كرئيسية', 'Set primary') }}
-                    </button>
-                    <button type="button" class="remove-img-btn" @click.prevent="removeExistingImage(idx)" :title="tx('حذف الصورة', 'Delete image')">✕</button>
-                  </div>
-                  <!-- New Staged Images -->
-                  <div class="preview-item new-preview-item" v-for="(file, idx) in imagePreviews" :key="'p'+idx">
-                    <img :src="file.preview" />
-                    <span v-if="form.existing_images.length === 0 && idx === 0" class="primary-tag-badge">{{ tx('الرئيسية', 'Primary') }}</span>
-                    <button v-else type="button" class="set-primary-btn" @click.prevent="setPrimaryNewImage(idx)" :title="tx('تعيين كصورة رئيسية للمنتج', 'Set as primary product image')">
-                      ★ {{ tx('تعيين كرئيسية', 'Set primary') }}
-                    </button>
-                    <button type="button" class="remove-img-btn" @click.prevent="removeNewImage(idx)" :title="tx('إلغاء الصورة', 'Remove image')">✕</button>
-                    <ImageCropButton compact class="thumb-crop-btn" @crop="recropNewImage(idx)" />
-                  </div>
-                  <!-- Duplicate: images still downloading from the original product -->
-                  <div class="preview-item copy-loading-item" v-for="n in duplicateLoading" :key="'l'+n" data-testid="duplicate-image-loading">
-                    <span class="copy-spinner"></span>
-                    <small>{{ tx('جاري نسخ الصورة…', 'Copying image…') }}</small>
-                  </div>
-                  <!-- Duplicate: images that could not be copied -->
-                  <div class="preview-item copy-failed-item" v-for="(url, idx) in duplicateFailed" :key="'f'+idx" data-testid="duplicate-image-failed">
-                    <img :src="url" />
-                    <small>{{ tx('تعذر نسخ الصورة', 'Could not copy') }}</small>
-                    <button type="button" class="retry-copy-btn" @click.prevent="retryDuplicateImage(idx)">{{ tx('إعادة المحاولة', 'Retry') }}</button>
-                    <button type="button" class="remove-img-btn" @click.prevent="duplicateFailed.splice(idx, 1)" :title="tx('تجاهل الصورة', 'Skip image')">✕</button>
-                  </div>
-                </div>
-              </div>
-            </div>
+      </header>
 
+      <div class="editor-body">
+      <div class="editor-main form-modal">
+        <!-- Tabs: basic information, attributes & variants, images, prices and stock -->
+        <div class="modal-tabs" role="tablist" data-testid="editor-tabs">
+          <button
+            v-for="tab in EDITOR_TABS"
+            :key="tab.key"
+            type="button"
+            role="tab"
+            class="tab-btn"
+            :class="{ active: currentTab === tab.key }"
+            :aria-selected="currentTab === tab.key"
+            :data-testid="`tab-${tab.key}`"
+            @click.prevent="currentTab = tab.key"
+          >
+            {{ tx(tab.label[0], tab.label[1]) }}
+            <span v-if="tab.key === 'variants' && variantState.rows.length" class="tab-count" data-testid="tab-variants-count">{{ variantState.rows.length }}</span>
+          </button>
+        </div>
+
+        <form id="product-form" v-show="currentTab !== 'variants'" @submit.prevent="submitForm" class="prod-form" novalidate>
+          <div v-show="currentTab === 'basic'" class="tab-pane" data-testid="pane-basic">
             <!-- Basic fields -->
             <BilingualField class="form-group" required :ar="form.name_ar" :en="form.name_en" testid="product-name">
               <template #label="{ lang }">
@@ -290,18 +256,6 @@
             </div>
 
             <div class="form-row">
-              <div class="form-group half-width">
-                <label class="form-label">{{ tx('السعر', 'Price') }} ({{ cur }}) <span class="req">*</span></label>
-                <input type="number" step="0.01" min="0" v-model="form.price" class="form-control no-rtl-issue" placeholder="0.00" required />
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group half-width">
-                <label class="form-label">{{ tx('المخزون', 'Stock') }} <span class="req">*</span></label>
-                <input type="number" min="0" v-model="form.quantity" class="form-control no-rtl-issue" placeholder="0" :required="!isEdit" :disabled="isEdit" data-testid="product-stock" />
-                <router-link v-if="isEdit && editingId" :to="{ name: 'InventoryProduct', params: { id: editingId } }" class="stock-manage-link" data-testid="manage-stock-link">{{ tx('تعديل المخزون من «إدارة المخزون»', 'Change the stock in “Inventory”') }}</router-link>
-              </div>
               <div class="form-group half-width">
                 <label class="form-label">{{ tx('الحالة', 'Status') }}</label>
                 <div class="select-wrapper">
@@ -450,311 +404,134 @@
               />
               </template>
             </BilingualField>
-          </div>
-
-          <div v-show="currentTab === 'attributes'" class="tab-pane attributes-tab-pane">
-            <!-- 1. Colors Management Section -->
-            <div v-if="false" class="variant-section-card">
-              <div class="variant-section-header">
-                <div class="variant-icon-wrapper color-icon-bg">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
-                </div>
-                <div>
-                  <h4 class="variant-section-title">ألوان المنتج (Colors & Finishes)</h4>
-                  <p class="variant-section-desc">حدد درجات الألوان المتاحة للمنتج مع شكلها ولونها الواقعي (Hex)</p>
-                </div>
-              </div>
-
-              <!-- Popular Quick Color Presets -->
-              <div class="presets-block">
-                <span class="presets-label">ألوان خصائص المنتجات من API (اضغط للإضافة):</span>
-                <div class="color-presets-row" v-if="apiColorPresets.length > 0">
-                  <button 
-                    type="button" 
-                    v-for="p in apiColorPresets" 
-                    :key="p.label" 
-                    class="color-preset-pill" 
-                    :class="{ active: isColorSelected(p) }" 
-                    @click.prevent="toggleColorPreset(p)"
-                  >
-                    <span class="preset-dot" :style="{ background: p.color }" :class="{ 'dot-white': isLightColor(p.color) }"></span>
-                    <span class="preset-name">{{ p.label }}</span>
-                    <span v-if="isColorSelected(p)" class="preset-check">✓</span>
-                  </button>
-                </div>
-                <div v-else class="empty-variants-hint">لا توجد ألوان محملة من API خصائص المنتجات.</div>
-              </div>
-
-              <!-- Custom Color Adder -->
-              <div class="custom-variant-box">
-                <span class="presets-label">إضافة لون مخصص جديد:</span>
-                <div class="color-custom-row">
-                  <input 
-                    type="text" 
-                    v-model="customColorName" 
-                    placeholder="اسم اللون (مثال: رمادي مطفي، كحلي، أسود ملكي)..." 
-                    class="form-control custom-color-name"
-                    @keydown.enter.prevent="addCustomColor"
-                  />
-                  <div class="color-picker-input-box">
-                    <input type="color" v-model="customColorHex" class="native-color-picker" title="اختر اللون" />
-                    <input type="text" v-model="customColorHex" class="form-control custom-color-hex" placeholder="#111827" />
-                  </div>
-                  <button type="button" class="btn-add-variant" @click.prevent="addCustomColor">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    إضافة اللون
-                  </button>
-                </div>
-              </div>
-
-              <!-- Selected Colors Display -->
-              <div class="selected-items-block">
-                <div class="selected-header-row">
-                  <span class="presets-label">الألوان المختارة للمنتج ({{ form.colors.length }}):</span>
-                </div>
-                <div class="selected-colors-grid" v-if="form.colors.length > 0">
-                  <div class="color-chip-card" v-for="(col, cIdx) in form.colors" :key="cIdx">
-                    <div class="chip-swatch" :style="{ background: col.color }" :class="{ 'chip-light': isLightColor(col.color) }"></div>
-                    <div class="chip-info">
-                      <span class="chip-name">{{ col.label }}</span>
-                      <span class="chip-hex">{{ col.color }}</span>
                     </div>
-                    <button type="button" class="chip-del-btn" @click.prevent="removeColor(cIdx)" title="إزالة هذا اللون">✕</button>
-                  </div>
-                </div>
-                <div v-else class="empty-variants-hint">
-                  لم يتم تحديد ألوان لهذا المنتج. انقر على أحد الألوان المقترحة أعلاه أو أدخل لوناً مخصصاً.
-                </div>
-              </div>
-            </div>
 
-            <!-- 2. Sizes & Dimensions Management Section -->
-            <div v-if="false" class="variant-section-card">
-              <div class="variant-section-header">
-                <div class="variant-icon-wrapper size-icon-bg">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                </div>
-                <div>
-                  <h4 class="variant-section-title">المقاسات والأحجام والسعات (Sizes & Dimensions)</h4>
-                  <p class="variant-section-desc">حدد المقاسات، الأبعاد، أو السعة المتوفرة للمنتج (مثل: 60 سم، 90 سم، 8 لتر، إلخ)</p>
-                </div>
+          <div v-show="currentTab === 'images'" class="tab-pane" data-testid="pane-images">
+            <!-- Images Upload -->
+            <div class="form-group">
+              <div class="image-label-row">
+                <label class="form-label mb-0" style="text-align: right;">{{ tx('صور المنتج', 'Product Images') }} <span class="req">*</span></label>
+                <span class="images-count-badge">
+                  {{ form.existing_images.length + form.new_images.length }} / {{ maxImages }} {{ tx('صور', 'images') }}
+                </span>
               </div>
-
-              <!-- Popular Quick Size Presets -->
-              <div class="presets-block">
-                <span class="presets-label">مقاسات وسعات شائعة (اضغط للإضافة):</span>
-                <div class="size-presets-row">
-                  <button 
-                    type="button" 
-                    v-for="s in sizePresets" 
-                    :key="s" 
-                    class="size-preset-pill" 
-                    :class="{ active: isSizeSelected(s) }" 
-                    @click.prevent="toggleSizePreset(s)"
-                  >
-                    <span>{{ s }}</span>
-                    <span v-if="isSizeSelected(s)" class="preset-check">✓</span>
-                  </button>
+              <div class="image-uploader" :class="{ 'is-missing': imageMissing && form.existing_images.length + form.new_images.length === 0 }" data-testid="product-image-uploader">
+                <!-- Dropzone -->
+                <div class="upload-box" @click="triggerFileInput" v-if="(form.existing_images.length + form.new_images.length) < maxImages">
+                  <input type="file" ref="fileInput" @change="handleFileChange" accept="image/*" multiple class="hidden-input" />
+                  <ImageCropModal v-bind="cropModal" @close="closeCrop" @cropped="finishCrop" />
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#660033" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  <p>{{ tx('اضغط أو اسحب لرفع صور متعددة للمنتج', 'Click or drag to upload multiple product images') }}<br><span>(JPG, PNG, WebP | {{ tx('بحد أقصى', 'up to') }} {{ maxImages }} {{ tx('صورة', 'images') }})</span></p>
                 </div>
-              </div>
-
-              <!-- Custom Size Adder -->
-              <div class="custom-variant-box">
-                <span class="presets-label">إضافة مقاس أو سعة مخصصة:</span>
-                <div class="size-custom-row">
-                  <input 
-                    type="text" 
-                    v-model="customSizeInput" 
-                    placeholder="أدخل المقاس أو السعة (مثال: 75×50 سم، 15 لتر، 50 كغم)..." 
-                    class="form-control custom-size-input"
-                    @keydown.enter.prevent="addCustomSize"
-                  />
-                  <button type="button" class="btn-add-variant" @click.prevent="addCustomSize">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    إضافة المقاس
-                  </button>
+                <div class="upload-box disabled" v-else>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                  <p>{{ tx('تم بلوغ الحد الأقصى', 'Maximum reached') }} ({{ maxImages }} {{ tx('صورة', 'images') }})</p>
                 </div>
-              </div>
-
-              <!-- Selected Sizes Display -->
-              <div class="selected-items-block">
-                <div class="selected-header-row">
-                  <span class="presets-label">المقاسات المحددة للمنتج ({{ form.sizes.length }}):</span>
-                </div>
-                <div class="selected-sizes-grid" v-if="form.sizes.length > 0">
-                  <div class="size-chip-card" v-for="(size, sIdx) in form.sizes" :key="sIdx">
-                    <span class="size-chip-text">{{ size }}</span>
-                    <button type="button" class="chip-del-btn" @click.prevent="removeSize(sIdx)" title="إزالة هذا المقاس">✕</button>
-                  </div>
-                </div>
-                <div v-else class="empty-variants-hint">
-                  لم يتم تحديد مقاسات لهذا المنتج. انقر على أحد المقاسات المقترحة أعلاه أو أضف مقاساً مخصصاً.
-                </div>
-              </div>
-            </div>
-
-            <div v-if="attributesLoading" class="attributes-state-card">
-              {{ tx('جاري تحميل خصائص المنتجات من API...', 'Loading product attributes from API...') }}
-            </div>
-            <div v-else-if="attributesLoadError" class="attributes-state-card error">
-              {{ tx('تعذر تحميل خصائص المنتجات. اضغط لإعادة المحاولة.', 'Unable to load product attributes. Retry to try again.') }}
-              <button type="button" class="attributes-retry-btn" @click.prevent="fetchDependencies">{{ tx('إعادة المحاولة', 'Retry') }}</button>
-            </div>
-
-            <!-- Core attributes (marked «أساسية» on the attributes page): one value each, or «غير متوفر» -->
-            <div class="variant-section-card core-attributes-section" v-else-if="coreAttributeRows.length > 0">
-              <div class="core-attrs-header">
-                <h4 class="variant-section-title">{{ tx('الخصائص الأساسية', 'Core attributes') }}</h4>
-                <p class="variant-section-desc">{{ tx('اختر قيمة واحدة لكل خاصية، أو «غير متوفر» لو المنتج ما فيهوش الخاصية دي. القيم المختارة تظهر في المواصفات الفنية في صفحة المنتج.', 'Pick one value for each attribute, or «Not available» if the product does not have it. The chosen values show in the product\'s technical specifications.') }}</p>
-              </div>
-              <div class="core-attrs-list">
-                <div v-for="row in coreAttributeRows" :key="row.attribute.id" class="core-attr-row" :class="{ 'is-missing': !coreRowDone(row.attribute) }" :data-core-attribute="row.attribute.id">
-                  <div class="core-attr-title">
-                    <span>{{ attrTitle(row.attribute) }} <span class="req">*</span></span>
-                    <span class="core-attr-count" :class="{ complete: coreRowDone(row.attribute) }">
-                      {{ coreRowStatus(row.attribute) }}
-                    </span>
-                  </div>
-                  <div class="core-attr-values">
-                    <button
-                      v-for="val in row.attribute.values"
-                      :key="val.id"
-                      type="button"
-                      class="core-attr-chip"
-                      :class="{ active: isApiAttributeSelected(row.attribute.name, val.label) }"
-                      :aria-pressed="isApiAttributeSelected(row.attribute.name, val.label)"
-                      @click="toggleApiAttribute(row.attribute.name, val.label)"
-                    >
-                      <span v-if="val.color" class="api-attribute-color-dot" :style="{ background: val.color }"></span>
-                      <span class="val-text">{{ valTitle(val) }}</span>
+                <!-- Images Preview -->
+                <div class="preview-grid" v-if="imagePreviews.length > 0 || form.existing_images.length > 0 || duplicateLoading > 0 || duplicateFailed.length > 0">
+                  <!-- Existing Images -->
+                  <div class="preview-item" v-for="(img, idx) in form.existing_images" :key="'e'+idx">
+                    <img :src="img" />
+                    <span v-if="idx === 0" class="primary-tag-badge">{{ tx('الرئيسية', 'Primary') }}</span>
+                    <button v-else type="button" class="set-primary-btn" @click.prevent="setPrimaryExistingImage(idx)" :title="tx('تعيين كصورة رئيسية للمنتج', 'Set as primary product image')">
+                      ★ {{ tx('تعيين كرئيسية', 'Set primary') }}
                     </button>
-                    <span v-if="!row.attribute.values || !row.attribute.values.length" class="text-muted-xs">{{ tx('لا توجد قيم مسجلة لهذه الخاصية.', 'No values are registered for this attribute.') }}</span>
+                    <button type="button" class="remove-img-btn" @click.prevent="removeExistingImage(idx)" :title="tx('حذف الصورة', 'Delete image')">✕</button>
                   </div>
-                  <button
-                    type="button"
-                    class="core-attr-chip not-available-chip"
-                    :class="{ active: isNotAvailable(row.attribute.name) }"
-                    :aria-pressed="isNotAvailable(row.attribute.name)"
-                    data-testid="core-not-available"
-                    @click="setNotAvailable(row.attribute.name)"
-                  >{{ tx('غير متوفر', 'Not available') }}</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Other product attributes -->
-            <div class="variant-section-card api-attributes-section" v-if="otherAttributesList.length > 0 && !attributesLoading && !attributesLoadError">
-              <div class="core-attrs-header">
-                <h4 class="variant-section-title">{{ tx('مواصفات إضافية', 'Additional specifications') }}</h4>
-                <p class="variant-section-desc">{{ tx('قيمة واحدة لكل مواصفة (اختيارية).', 'One value per specification (optional).') }}</p>
-              </div>
-              <div class="other-attrs-list">
-                  <div v-for="attr in otherAttributesList" :key="attr.id" class="other-attr-row">
-                    <label class="other-attr-label">{{ locale === 'en' ? attrTitle(attr) : (attr.label === attr.name ? attr.label : `${attr.label} (${attr.name})`) }}</label>
-                    <div class="attr-values-list" v-if="attr.values && attr.values.length > 0">
-                      <button
-                        v-for="val in attr.values"
-                        :key="val.id"
-                        class="attr-val-checkbox"
-                        type="button"
-                        :aria-pressed="isApiAttributeSelected(attr.name, val.label)"
-                        @click="toggleApiAttribute(attr.name, val.label)"
-                      >
-                        <span class="checkmark" :class="{ active: isApiAttributeSelected(attr.name, val.label) }"></span>
-                        <span v-if="val.color" class="api-attribute-color-dot" :style="{ background: val.color }"></span>
-                        <span class="val-text">{{ valTitle(val) }}</span>
-                      </button>
+                  <!-- New Staged Images -->
+                  <div class="preview-item new-preview-item" v-for="(file, idx) in imagePreviews" :key="'p'+idx">
+                    <img :src="file.preview" />
+                    <span v-if="form.existing_images.length === 0 && idx === 0" class="primary-tag-badge">{{ tx('الرئيسية', 'Primary') }}</span>
+                    <button v-else type="button" class="set-primary-btn" @click.prevent="setPrimaryNewImage(idx)" :title="tx('تعيين كصورة رئيسية للمنتج', 'Set as primary product image')">
+                      ★ {{ tx('تعيين كرئيسية', 'Set primary') }}
+                    </button>
+                    <button type="button" class="remove-img-btn" @click.prevent="removeNewImage(idx)" :title="tx('إلغاء الصورة', 'Remove image')">✕</button>
+                    <ImageCropButton compact class="thumb-crop-btn" @crop="recropNewImage(idx)" />
                   </div>
-                  <div v-else class="attr-no-vals">
-                    <span class="text-muted-xs">{{ tx('لا توجد قيم مسجلة لهذه الخاصية.', 'No values are registered for this attribute.') }}</span>
+                  <!-- Duplicate: images still downloading from the original product -->
+                  <div class="preview-item copy-loading-item" v-for="n in duplicateLoading" :key="'l'+n" data-testid="duplicate-image-loading">
+                    <span class="copy-spinner"></span>
+                    <small>{{ tx('جاري نسخ الصورة…', 'Copying image…') }}</small>
+                  </div>
+                  <!-- Duplicate: images that could not be copied -->
+                  <div class="preview-item copy-failed-item" v-for="(url, idx) in duplicateFailed" :key="'f'+idx" data-testid="duplicate-image-failed">
+                    <img :src="url" />
+                    <small>{{ tx('تعذر نسخ الصورة', 'Could not copy') }}</small>
+                    <button type="button" class="retry-copy-btn" @click.prevent="retryDuplicateImage(idx)">{{ tx('إعادة المحاولة', 'Retry') }}</button>
+                    <button type="button" class="remove-img-btn" @click.prevent="duplicateFailed.splice(idx, 1)" :title="tx('تجاهل الصورة', 'Skip image')">✕</button>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- 4. Full Technical Specifications (Key-Value) Section -->
-            <div v-if="false" class="variant-section-card" style="background: rgba(255, 255, 255, 1);">
-              <div class="variant-section-header">
-                <div class="variant-icon-wrapper other-icon-bg">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-                </div>
-                <div>
-                  <h4 class="variant-section-title">المواصفات الفنية الكاملة (Full Technical Specifications)</h4>
-                  <p class="variant-section-desc">تغذي جدول المواصفات الفنية المباشر في صفحة تفاصيل المنتج (كالارتفاع، العرض، السعة، الجهد، وغيرها)</p>
-                </div>
-              </div>
-
-              <!-- Quick Presets -->
-              <div class="presets-block">
-                <span class="presets-label">مواصفات شائعة سريعة (اضغط لاختيار اسم الخاصية):</span>
-                <div class="specs-presets-row">
-                  <button 
-                    type="button" 
-                    v-for="preset in specPresets" 
-                    :key="preset" 
-                    class="spec-preset-pill"
-                    @click.prevent="newSpecKey = preset"
-                  >
-                    {{ preset }}
-                  </button>
-                </div>
-              </div>
-
-              <!-- Input Row -->
-              <div class="add-spec-row">
-                <input 
-                  type="text" 
-                  v-model="newSpecKey" 
-                  class="form-control" 
-                  placeholder="اسم المواصفة (مثلاً: الارتفاع، السعة)" 
-                />
-                <input 
-                  type="text" 
-                  v-model="newSpecVal" 
-                  class="form-control" 
-                  placeholder="القيمة (مثلاً: 59.5 سم أو 65 لتر)" 
-                  @keyup.enter.prevent="addCustomSpec"
-                />
-                <button type="button" class="btn-add-spec" @click.prevent="addCustomSpec">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  إضافة
-                </button>
-              </div>
-
-              <!-- Specs Table -->
-              <div class="specs-table-wrapper" v-if="form.specs && form.specs.length > 0">
-                <table class="specs-admin-table">
-                  <thead>
-                    <tr>
-                      <th style="width: 45%;">اسم المواصفة</th>
-                      <th>القيمة</th>
-                      <th style="width: 60px; text-align: center;">حذف</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="(sp, idx) in form.specs" :key="idx">
-                      <td class="font-bold">{{ sp.key }}</td>
-                      <td>{{ sp.value }}</td>
-                      <td style="text-align: center;">
-                        <button type="button" class="chip-del-btn" @click.prevent="removeSpec(idx)" title="حذف المواصفة">✕</button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div v-else class="empty-variants-hint">
-                لم يتم إدخال مواصفات فنية إضافية بعد. يمكنك كتابة أو اختيار اسم المواصفة وقيمتها أعلاه لتظهر ديناميكياً بجدول المواصفات بالمتجر.
-              </div>
-            </div>
-          </div>
-
-          <div class="form-actions">
-            <button type="button" class="btn-cancel" @click="closeModal">{{ tx('إلغاء', 'Cancel') }}</button>
-            <button type="submit" class="btn-submit" :disabled="isSubmitting">
-              {{ isSubmitting ? tx('جاري الحفظ...', 'Saving...') : (isEdit ? tx('تعديل', 'Update') : tx('إضافة المنتج', 'Add Product')) }}
-            </button>
           </div>
         </form>
+
+        <!-- Outside the product form (a form cannot hold another form): the builder adds attribute values with its own form.
+             Same builder for a new product and for editing one (then it starts with the product's saved variants). -->
+        <div v-show="currentTab === 'variants'" class="tab-pane build-pane" data-testid="build-pane">
+          <!-- A product without variants is one product: its price and stock are the default variant's own fields. -->
+          <div v-if="!hasVariants && !attributesLoading && !variantsLoading" class="default-variant-card" data-testid="default-variant-card">
+            <h4 class="variant-section-title">{{ tx('السعر والمخزون (المتغير الافتراضي)', 'Price & stock (default variant)') }}</h4>
+            <p class="points-hint">{{ tx('المنتج ده من غير متغيرات، فبياناته هنا. لو فعّلت خاصية تحت وحددت قيمها، كل تركيبة بتاخد سعرها ومخزونها.', 'This product has no variants, so its price and stock are set here. Turn on an attribute below and every combination gets its own price and stock.') }}</p>
+            <div class="form-row">
+              <div class="form-group half-width">
+                <label class="form-label">{{ tx('السعر', 'Price') }} ({{ cur }}) <span class="req">*</span></label>
+                <input type="number" step="0.01" min="0" v-model="form.price" class="form-control no-rtl-issue" placeholder="0.00" data-testid="product-price" />
+              </div>
+              <div class="form-group half-width">
+                <label class="form-label">{{ tx('المخزون', 'Stock') }} <span class="req">*</span></label>
+                <input type="number" min="0" v-model="form.quantity" class="form-control no-rtl-issue" placeholder="0" :disabled="isEdit" data-testid="product-stock" />
+                <router-link v-if="isEdit && editingId" :to="{ name: 'InventoryProduct', params: { id: editingId } }" class="stock-manage-link" data-testid="manage-stock-link">{{ tx('تعديل المخزون من «إدارة المخزون»', 'Change the stock in “Inventory”') }}</router-link>
+              </div>
+            </div>
+          </div>
+          <div v-if="attributesLoading || variantsLoading" class="attributes-state-card">{{ tx('جاري تحميل الخصائص والمتغيرات...', 'Loading attributes and variants...') }}</div>
+          <div v-else-if="attributesLoadError" class="attributes-state-card error">
+            {{ tx('تعذر تحميل الخصائص.', 'Unable to load the attributes.') }}
+            <button type="button" class="attributes-retry-btn" @click.prevent="fetchDependencies">{{ tx('إعادة المحاولة', 'Retry') }}</button>
+          </div>
+          <div v-else-if="variantsLoadError" class="attributes-state-card error">
+            {{ tx('تعذر تحميل متغيرات المنتج.', 'Unable to load the product variants.') }}
+            <button type="button" class="attributes-retry-btn" @click.prevent="loadEditVariants(editingId)">{{ tx('إعادة المحاولة', 'Retry') }}</button>
+          </div>
+          <ProductVariantBuilder
+            v-else
+            v-model="variantState"
+            :attributes="apiAttributesList"
+            :currency="cur"
+            :main-images="mainImagePreviews"
+            :main-active="form.is_active !== false"
+            :problem="variantProblem"
+            :editing="isEdit"
+            :locked-id="isEdit ? editingId : null"
+            @notify="triggerAlert"
+            @reload-attributes="reloadAttributes"
+          />
+        </div>
+
+        <div class="editor-footer">
+          <button type="button" class="btn-cancel" data-testid="editor-cancel" @click="closeModal">{{ tx('إلغاء', 'Cancel') }}</button>
+          <button type="button" class="btn-submit" :disabled="isSubmitting || variantsLoading" data-testid="editor-save" @click="submitForm">
+            {{ isSubmitting ? (saveProgress || tx('جاري الحفظ...', 'Saving...')) : (isEdit ? tx('تعديل', 'Update') : tx('إضافة المنتج', 'Add Product')) }}
+          </button>
+        </div>
+      </div>
+      </div><!-- /editor-body -->
+    </section>
+
+    <!-- Bulk "change category": pick the target category for the ticked products -->
+    <div class="modal-overlay" v-if="bulkCategoryPicker.open" @click.self="closeBulkCategoryPicker(null)" data-testid="bulk-category-dialog">
+      <div class="modal-content bulk-category-box" role="dialog" aria-modal="true">
+        <h3 class="bulk-category-title">{{ tx('نقل المنتجات المحددة إلى قسم', 'Move selected products to a category') }}</h3>
+        <select v-model="bulkCategoryPicker.value" class="form-select" data-testid="bulk-category-select">
+          <option value="">{{ tx('اختر القسم', 'Choose a category') }}</option>
+          <option v-for="c in categoryFilterOptions" :key="c.id" :value="c.id">{{ c.label }}</option>
+        </select>
+        <div class="bulk-category-footer">
+          <button type="button" class="btn-cancel bulk-category-btn" @click="closeBulkCategoryPicker(null)">{{ tx('إلغاء', 'Cancel') }}</button>
+          <button type="button" class="add-btn bulk-category-btn" :disabled="!bulkCategoryPicker.value" data-testid="bulk-category-confirm" @click="closeBulkCategoryPicker(bulkCategoryPicker.value)">{{ tx('نقل', 'Move') }}</button>
+        </div>
       </div>
     </div>
 
@@ -846,6 +623,20 @@
             </div>
           </div>
 
+          <!-- Variants of the product: list, add, edit and delete them here (/v1/dashboard/products/{id}/variants) -->
+          <section v-if="viewProduct?.id" class="v-section view-variants" data-testid="view-variants">
+            <h4 class="v-section-title">{{ tx('إدارة المتغيرات', 'Manage variants') }}</h4>
+            <div v-if="attributesLoading" class="attributes-state-card">{{ tx('جاري تحميل الخصائص...', 'Loading attributes...') }}</div>
+            <ProductVariantsPanel
+              v-else
+              :product-id="viewProduct.id"
+              :attributes="apiAttributesList"
+              :currency="cur"
+              @changed="fetchProducts"
+              @notify="triggerAlert"
+            />
+          </section>
+
           <div class="view-footer-actions">
             <button class="btn-cancel" @click="showViewModal = false;">{{ tx('إغلاق', 'Close') }}</button>
             <button class="btn-outline-edit" @click="showViewModal = false; openDuplicateModal(viewProduct);" data-testid="view-duplicate">
@@ -880,6 +671,7 @@ import { localizeMessage } from '../utils/uiMessages';
 import { useCurrencyLabel } from '../composables/useCurrencyLabel';
 import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import PointListInput from '../components/PointListInput.vue';
 import BilingualField from '../components/BilingualField.vue';
 import { provideBilingualForm } from '../composables/useBilingualForm';
@@ -887,7 +679,6 @@ import { hasText } from '../utils/bilingualText';
 import { useAdminText } from '../composables/useAdminText';
 import adminCatalogService from '../application/adminCatalogService';
 import { productCategoryName, toLines, toProductPayload, validateProductImages } from '../domain/catalog/adminCatalog';
-import { loadSavedCoreIds, resolveCoreIds, splitByCoreIds } from '../services/coreAttributes';
 import { loadSavedProductTabs } from '../services/productTabs';
 import { sourceTitle } from '../domain/productTabs';
 import { dedupeColorOptions, isColorAttribute, normalizeProductAttributes } from '../utils/productAttributes';
@@ -895,6 +686,12 @@ import { useDialog } from '../composables/useDialog';
 import { isTestProduct, visibleCategories, visibleProducts } from '../utils/catalogVisibility';
 import { safeObjectUrl } from '../utils/adminSecurity';
 import ImageCropModal from '../components/ImageCropModal.vue';
+import ProductVariantBuilder from '../components/ProductVariantBuilder.vue';
+import ProductVariantsPanel from '../components/ProductVariantsPanel.vue';
+import {
+  planEditChanges, rowLabel, stateFromVariants, validateVariantRows, variantRequests,
+} from '../domain/catalog/variantMatrix';
+import { normalizeHexColor } from '../constants/colors';
 import ImageCropButton from '../components/ImageCropButton.vue';
 import { useImageCrop } from '../composables/useImageCrop';
 
@@ -975,210 +772,17 @@ const getPresetColorHex = (name) => {
   return presetColorMap[trimmed] || presetColorMap[String(name).trim()] || null;
 };
 
-const isLightColor = (hex) => {
-  if (!hex) return false;
-  const h = String(hex).trim().toLowerCase();
-  if (h === '#ffffff' || h === '#fff' || h === 'white' || h === 'أبيض') return true;
-  if (h.startsWith('#') && h.length >= 7) {
-    const r = parseInt(h.substr(1, 2), 16) || 0;
-    const g = parseInt(h.substr(3, 2), 16) || 0;
-    const b = parseInt(h.substr(5, 2), 16) || 0;
-    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    return brightness > 190;
-  }
-  return false;
-};
-
-// Standard color choices are sourced from the product-attributes API.
-const apiColorPresets = computed(() => {
-  const colorAttribute = attributesList.value.find(attribute => isColorAttribute(attribute));
-  return dedupeColorOptions((colorAttribute?.values || [])
-    .map(value => ({
-      label: value.label,
-      color: value.color || getPresetColorHex(value.label) || '#111827',
-    }))
-    .filter(value => value.label));
-});
-
-const sizePresets = [
-  '60 سم',
-  '90 سم',
-  '70 سم',
-  '6 لتر',
-  '8 لتر',
-  '10 لتر',
-  '12.5 كغ',
-  'صغير (S)',
-  'وسط (M)',
-  'كبير (L)'
-];
-
 const customColorName = ref('');
 const customColorHex = ref('#111827');
 const customSizeInput = ref('');
+const hasColorType = (attr) => isColorAttribute(attr);
 
 // All rendered standard attributes displayed in the product form come from the API.
 // The legacy custom sections are intentionally removed from the attributes tab.
 const apiAttributesList = computed(() => attributesList.value);
-// Core attributes are the ones marked «أساسية» on the attributes page (settings key core_attribute_ids);
-// they come first and need one value each, or «غير متوفر». Every attribute takes a single value.
-const savedCoreIds = ref(null);
 // Field names follow the product page tab names set in Settings > Product details.
 const savedProductTabs = ref(null);
 const tabName = (source) => sourceTitle(savedProductTabs.value, source, locale.value === 'en' ? 'en' : 'ar');
-const coreAndOtherAttributes = computed(() => {
-  const { core, others } = splitByCoreIds(apiAttributesList.value, resolveCoreIds(savedCoreIds.value, apiAttributesList.value));
-  return { core: core.map((attribute) => ({ attribute })), others };
-});
-const coreAttributeRows = computed(() => coreAndOtherAttributes.value.core);
-const otherAttributesList = computed(() => coreAndOtherAttributes.value.others);
-const selectedCount = (attributeName) => (
-  Array.isArray(form.value.selectedAttributes[attributeName]) ? form.value.selectedAttributes[attributeName].length : 0
-);
-const isNotAvailable = (attributeName) => Boolean(form.value.notAvailable?.[attributeName]);
-const setNotAvailable = (attributeName) => {
-  const next = !isNotAvailable(attributeName);
-  form.value.notAvailable = { ...(form.value.notAvailable || {}), [attributeName]: next };
-  if (next) form.value.selectedAttributes = { ...form.value.selectedAttributes, [attributeName]: [] };
-};
-const coreRowDone = (attribute) => isNotAvailable(attribute.name) || selectedCount(attribute.name) === 1;
-const coreRowStatus = (attribute) => {
-  if (isNotAvailable(attribute.name)) return tx('غير متوفر', 'Not available');
-  const count = selectedCount(attribute.name);
-  if (count === 1) return form.value.selectedAttributes[attribute.name][0];
-  if (count > 1) return tx('اختر قيمة واحدة فقط', 'Pick one value only');
-  return tx('لم يتم الاختيار', 'Not chosen');
-};
-
-const isApiAttributeSelected = (attributeName, valueLabel) => (
-  Array.isArray(form.value.selectedAttributes[attributeName]) &&
-  form.value.selectedAttributes[attributeName].includes(valueLabel)
-);
-
-const toggleApiAttribute = (attributeName, valueLabel) => {
-  const selected = Array.isArray(form.value.selectedAttributes[attributeName])
-    ? form.value.selectedAttributes[attributeName]
-    : [];
-  // One value per attribute: picking another value replaces it; picking it again clears it.
-  const checked = selected.length === 1 && selected[0] === valueLabel;
-  const next = checked ? [] : [valueLabel];
-  if (form.value.notAvailable?.[attributeName]) {
-    form.value.notAvailable = { ...form.value.notAvailable, [attributeName]: false };
-  }
-
-  form.value.selectedAttributes = {
-    ...form.value.selectedAttributes,
-    [attributeName]: next,
-  };
-};
-
-const toggleColorPreset = (preset) => {
-  form.value.colors = dedupeColorOptions(form.value.colors);
-  const idx = form.value.colors.findIndex(c => c.label === preset.label || (c.color && c.color.toLowerCase() === preset.color.toLowerCase()));
-  if (idx > -1) {
-    form.value.colors.splice(idx, 1);
-  } else {
-    form.value.colors.push({ label: preset.label, color: preset.color });
-  }
-};
-
-const isColorSelected = (preset) => {
-  return (form.value.colors || []).some(c => c.label === preset.label || (c.color && c.color.toLowerCase() === preset.color.toLowerCase()));
-};
-
-const addCustomColor = () => {
-  const name = customColorName.value.trim();
-  const hex = customColorHex.value.trim() || '#111827';
-  if (!name) {
-    triggerAlert(tx('يرجى كتابة اسم اللون', 'Enter the color name'), 'error');
-    return;
-  }
-  const exists = form.value.colors.some(c => c.label.toLowerCase() === name.toLowerCase());
-  if (!exists) {
-    form.value.colors.push({ label: name, color: hex });
-    form.value.colors = dedupeColorOptions(form.value.colors);
-    customColorName.value = '';
-    customColorHex.value = '#111827';
-  } else {
-    triggerAlert(tx('هذا اللون مضاف بالفعل للمنتج', 'This color is already added to the product'), 'error');
-  }
-};
-
-const removeColor = (idx) => {
-  form.value.colors.splice(idx, 1);
-};
-
-const toggleSizePreset = (size) => {
-  const idx = form.value.sizes.indexOf(size);
-  if (idx > -1) {
-    form.value.sizes.splice(idx, 1);
-  } else {
-    form.value.sizes.push(size);
-  }
-};
-
-const isSizeSelected = (size) => {
-  return (form.value.sizes || []).includes(size);
-};
-
-const addCustomSize = () => {
-  const s = customSizeInput.value.trim();
-  if (!s) return;
-  if (!form.value.sizes.includes(s)) {
-    form.value.sizes.push(s);
-    customSizeInput.value = '';
-  } else {
-    triggerAlert(tx('هذا المقاس مضاف بالفعل للمنتج', 'This size is already added to the product'), 'error');
-  }
-};
-
-const removeSize = (idx) => {
-  form.value.sizes.splice(idx, 1);
-};
-
-const hasColorType = (attr) => {
-  return isColorAttribute(attr);
-};
-
-// Specifications Management
-const specPresets = [
-  'الارتفاع', 'العرض', 'العمق', 'السعة', 'الجهد الكهربائي', 
-  'نوع الطاقة', 'المؤقت الرقمي', 'وظائف الطهي', 'نظام الإشعال', 
-  'صمام الأمان', 'بلد المنشأ', 'الضمان'
-];
-const newSpecKey = ref('');
-const newSpecVal = ref('');
-
-const addCustomSpec = () => {
-  const k = newSpecKey.value.trim();
-  const v = newSpecVal.value.trim();
-  if (!k) {
-    triggerAlert(tx('يرجى تحديد أو كتابة اسم المواصفة', 'Select or enter the specification name'), 'error');
-    return;
-  }
-  if (!v) {
-    triggerAlert(tx('يرجى كتابة قيمة المواصفة', 'Enter the specification value'), 'error');
-    return;
-  }
-  if (!Array.isArray(form.value.specs)) {
-    form.value.specs = [];
-  }
-  const existingIdx = form.value.specs.findIndex(s => s.key === k);
-  if (existingIdx > -1) {
-    form.value.specs[existingIdx].value = v;
-  } else {
-    form.value.specs.push({ key: k, value: v });
-  }
-  newSpecKey.value = '';
-  newSpecVal.value = '';
-};
-
-const removeSpec = (idx) => {
-  if (form.value.specs && form.value.specs.length > idx) {
-    form.value.specs.splice(idx, 1);
-  }
-};
-
 // Modals
 const showFormModal = ref(false);
 // Set when a save was refused for lack of an image; the uploader turns red until one is added.
@@ -1191,14 +795,54 @@ const duplicateLoading = ref(0);
 const duplicateFailed = ref([]);
 let duplicateRun = 0;
 const editingId = ref(null);
-const currentTab = ref('info');
+// The editor's tabs (المعلومات الأساسية / الخصائص والمتغيرات / الصور). Price and stock live in the variants tab (the
+// default variant's own fields, or one row per variant). The variants builder sits outside the product form (a form
+// cannot hold another form).
+const EDITOR_TABS = [
+  { key: 'basic', label: ['المعلومات الأساسية', 'Basic information'] },
+  { key: 'variants', label: ['الخصائص والمتغيرات', 'Attributes & variants'] },
+  { key: 'images', label: ['الصور', 'Images'] },
+];
+const currentTab = ref('basic');
 const isSubmitting = ref(false);
+const saveProgress = ref(''); // "Saving variants (3/12)..." while the variants of a new product are added
 const viewProduct = ref(null);
 const currentImageIdx = ref(0);
 
 const fileInput = ref(null);
 const imagePreviews = ref([]); // new uploads
-watch(showFormModal, (open) => { if (open) imageMissing.value = false; });
+
+// ── Variants of the product ──────────────────────────────────────────────────
+// The admin ticks the values of the attributes the variants differ by (Colour 1·2·3, Size S·M) and every
+// combination becomes a row with its own price, stock and pictures (ProductVariantBuilder). Adding: the main row is
+// sent with the product, the others are added to it right after. Editing: the rows start as the product's saved
+// variants, and saving updates, creates and deletes variants to match.
+const newVariantState = () => ({ groups: [], rows: [], excluded: [], defaults: { price: '', number: '' }, archive: [] });
+const variantState = ref(newVariantState());
+// { key, field } of the row that failed validation, so the builder can scroll to it.
+const variantProblem = ref(null);
+const variantsLoading = ref(false);
+const variantsLoadError = ref(false);
+// Ids of the saved variants when the edit page opened: the ones missing at save time are deleted.
+const originalVariantIds = ref([]);
+// Price and stock live on the variants (not in the info tab) when the product has variants. When editing, the
+// variant saved with the product itself (its own id) must be one of the rows.
+const hasVariants = computed(() => {
+  const rows = variantState.value.rows;
+  if (!rows.length) return false;
+  return !isEdit.value || rows.some((row) => String(row.id) === String(editingId.value));
+});
+const mainImagePreviews = computed(() => [...(form.value.existing_images || []), ...imagePreviews.value.map((file) => file.preview)].filter(Boolean));
+// The main variant follows the product's status; the other rows have their own switch.
+watch(showFormModal, (open) => {
+  if (!open) return;
+  imageMissing.value = false;
+  variantProblem.value = null;
+  // Editing loads the product's own variants (loadEditVariants); everything else starts empty.
+  if (!isEdit.value) { variantState.value = newVariantState(); variantsLoading.value = false; variantsLoadError.value = false; }
+  // The page opens in place of the list: bring it into view.
+  nextTick(() => document.querySelector('.editor-page')?.scrollIntoView({ block: 'start' }));
+});
 // The form opens on the dashboard's language; Arabic tab sits on the right, English on the left.
 // Attribute and option names follow the dashboard language (the API labels are Arabic-first).
 const attrTitle = (attribute = {}) => (locale.value === 'en'
@@ -1428,13 +1072,11 @@ const fetchDependencies = async () => {
   attributesLoading.value = true;
   attributesLoadError.value = false;
   try {
-    const [allCategories, rawAttributes, coreIds, productTabs] = await Promise.all([
+    const [allCategories, rawAttributes, productTabs] = await Promise.all([
       adminCatalogService.listCategories(),
       adminCatalogService.listAttributes(),
-      loadSavedCoreIds().catch(() => savedCoreIds.value),
       loadSavedProductTabs().catch(() => savedProductTabs.value),
     ]);
-    savedCoreIds.value = coreIds;
     savedProductTabs.value = productTabs;
     const visibleCategoryList = visibleCategories(allCategories);
     categories.value = visibleCategoryList.filter(c => !c.parent_id);
@@ -1456,10 +1098,21 @@ const fetchDependencies = async () => {
   }
 };
 
+// Only the attributes (e.g. after a value was added in the variant builder): the rest of the form stays as it is.
+const reloadAttributes = async () => {
+  try {
+    const normalized = normalizeProductAttributes(await adminCatalogService.listAttributes()).filter((attribute) => attribute.is_active);
+    if (normalized.length) attributesList.value = normalized;
+  } catch (err) {
+    console.error('Failed to reload attributes', err);
+  }
+};
+
 onMounted(() => {
   fetchProducts();
   fetchStats();
-  fetchDependencies();
+  // A direct link to /admin/products/new or /admin/products/:id/edit opens the editor once the categories are in.
+  Promise.resolve(fetchDependencies()).finally(() => openEditorFromRoute());
 });
 
 // Category -> sub dropdown update
@@ -1478,7 +1131,7 @@ const openAddModal = () => {
   fetchDependencies();
   isEdit.value = false;
   editingId.value = null;
-  currentTab.value = 'info';
+  currentTab.value = 'basic';
   bilingual.reset();
   imagePreviews.value = [];
   subCategories.value = [];
@@ -1509,17 +1162,46 @@ const openAddModal = () => {
     sizes: [],
     specs: [],
     selectedAttributes: selAttr,
-    notAvailable: {},
   };
   showFormModal.value = true;
 };
 
-const openEditModal = (prod) => {
+// The product's saved variants become the rows of the builder (same screen as adding, filled with the data).
+let variantLoadRun = 0;
+const loadEditVariants = async (productId) => {
+  const run = ++variantLoadRun;
+  variantsLoading.value = true;
+  variantsLoadError.value = false;
+  variantState.value = newVariantState();
+  originalVariantIds.value = [];
+  try {
+    const variants = await adminCatalogService.listVariants(productId);
+    // The attributes may still be loading: the saved options are matched against them.
+    for (let waited = 0; attributesLoading.value && waited < 80; waited += 1) await new Promise((resolve) => setTimeout(resolve, 100));
+    if (run !== variantLoadRun) return;
+    const index = new Map();
+    attributesList.value.forEach((attribute) => (attribute.values || []).forEach((value) => index.set(String(value.id), {
+      attributeId: attribute.id,
+      attributeName: attrTitle(attribute),
+      label: valTitle(value),
+      color: attribute.type === 'color' ? (value.hex || normalizeHexColor(value.color)) : null,
+    })));
+    variantState.value = { ...newVariantState(), ...stateFromVariants(variants, index, attributesList.value.map((attribute) => attribute.id)) };
+    originalVariantIds.value = variants.map((variant) => variant.id);
+  } catch (error) {
+    if (run === variantLoadRun) variantsLoadError.value = true;
+    console.error('Failed to load the product variants', error);
+  } finally {
+    if (run === variantLoadRun) variantsLoading.value = false;
+  }
+};
+
+const openEditModal = (prod, { duplicate = false } = {}) => {
   resetDuplicate();
   if (!attributesList.value.length && !attributesLoading.value) fetchDependencies();
   isEdit.value = true;
   editingId.value = prod.id;
-  currentTab.value = 'info';
+  currentTab.value = 'basic';
   bilingual.reset();
   imagePreviews.value = [];
   customColorName.value = '';
@@ -1650,12 +1332,10 @@ const openEditModal = (prod) => {
     sizes: extractedSizes,
     specs: extractedSpecs,
     selectedAttributes: selAttr,
-    // A saved product without a value for a core attribute had it as «غير متوفر».
-    notAvailable: Object.fromEntries(coreAttributeRows.value
-      .filter(({ attribute }) => !(selAttr[attribute.name] || []).length && !(custAttr[attribute.name] || []).length)
-      .map(({ attribute }) => [attribute.name, true])),
   };
   showFormModal.value = true;
+  // A copy starts without variants (only the main product is copied); an edit loads the saved ones.
+  if (duplicate) { variantLoadRun += 1; variantState.value = newVariantState(); variantsLoading.value = false; } else loadEditVariants(prod.id);
 };
 
 const openViewModal = (prod) => {
@@ -1760,7 +1440,7 @@ const retryDuplicateImage = (idx) => {
 };
 
 const openDuplicateModal = (prod) => {
-  openEditModal(prod);
+  openEditModal(prod, { duplicate: true });
   // Same data, but saved as a new product.
   isEdit.value = false;
   editingId.value = null;
@@ -1853,31 +1533,53 @@ const setPrimaryNewImage = (idx) => {
 };
 
 // Form Submission
+// Returns { message, tab } for the first problem (the tab that holds the field), or null.
 const validateProductForm = (f, { isEdit = false } = {}) => {
-  if (!f.category_id && !f.subcategory_id) return tx('القسم الرئيسي مطلوب', 'Main category is required');
-  if (f.price === '' || f.price == null || !(Number(f.price) >= 0)) return tx('السعر يجب أن يكون رقماً صحيحاً (0 أو أكبر)', 'Price must be a valid number (0 or more)');
+  if (!f.category_id && !f.subcategory_id) return { message: tx('القسم الرئيسي مطلوب', 'Main category is required'), tab: 'basic' };
+  if (f.price === '' || f.price == null || !(Number(f.price) >= 0)) return { message: tx('السعر يجب أن يكون رقماً صحيحاً (0 أو أكبر)', 'Price must be a valid number (0 or more)'), tab: 'variants' };
   // The stock is entered once, when the product is added; it is locked (and not sent) when editing.
-  if (!isEdit && (f.quantity === '' || f.quantity == null || !Number.isInteger(Number(f.quantity)) || Number(f.quantity) < 0)) return tx('المخزون يجب أن يكون عدداً صحيحاً (0 أو أكبر)', 'Stock must be a whole number (0 or more)');
-  return '';
+  if (!isEdit && (f.quantity === '' || f.quantity == null || !Number.isInteger(Number(f.quantity)) || Number(f.quantity) < 0)) return { message: tx('المخزون يجب أن يكون عدداً صحيحاً (0 أو أكبر)', 'Stock must be a whole number (0 or more)'), tab: 'variants' };
+  return null;
 };
 
 const submitForm = async () => {
   if (!hasText(form.value.name_ar)) {
-    currentTab.value = 'info';
+    currentTab.value = 'basic';
     bilingual.reveal();
     triggerAlert(tx('اسم المنتج بالعربي مطلوب', 'Arabic product name is required'), 'error');
     return;
   }
   if (!hasText(form.value.name_en)) {
-    currentTab.value = 'info';
+    currentTab.value = 'basic';
     bilingual.reveal();
     triggerAlert(tx('اسم المنتج بالإنجليزية مطلوب', 'English product name is required'), 'error');
     return;
   }
+  const variantRows = variantState.value.rows;
+  if (variantRows.length) {
+    const badRow = validateVariantRows(variantRows);
+    if (badRow) {
+      currentTab.value = 'variants';
+      variantProblem.value = { key: badRow.key, field: badRow.field };
+      triggerAlert(badRow.code === 'price'
+        ? tx('اكتب سعرًا صحيحًا (0 أو أكبر) لكل متغير', 'Enter a valid price (0 or more) for every variant')
+        : tx('اكتب مخزونًا صحيحًا (عدد 0 أو أكبر) لكل متغير', 'Enter a valid stock (a whole number, 0 or more) for every variant'), 'error');
+      return;
+    }
+  }
+  // With variants the product itself carries the price (and stock when new) of its own variant: the main one when
+  // adding, the one saved with the product when editing.
+  const anchorRow = hasVariants.value
+    ? (isEdit.value ? variantRows.find((row) => String(row.id) === String(editingId.value)) : (variantRows.find((row) => row.is_main) || variantRows[0]))
+    : null;
+  if (anchorRow) {
+    form.value.price = anchorRow.price;
+    form.value.quantity = anchorRow.number;
+  }
   const productError = validateProductForm(form.value, { isEdit: isEdit.value });
   if (productError) {
-    currentTab.value = 'info';
-    triggerAlert(productError, 'error');
+    currentTab.value = productError.tab;
+    triggerAlert(productError.message, 'error');
     return;
   }
 
@@ -1891,7 +1593,7 @@ const submitForm = async () => {
   // Every new product needs at least one image (a copy keeps its own, so it counts too).
   const imageError = validateProductImages(form.value, { isEdit: isEdit.value });
   if (imageError) {
-    currentTab.value = 'info';
+    currentTab.value = 'images';
     imageMissing.value = true;
     triggerAlert(imageError, 'error');
     await nextTick();
@@ -1899,86 +1601,94 @@ const submitForm = async () => {
     return;
   }
 
-  const attrName = attrTitle;
-  const missingCore = coreAttributeRows.value.find(({ attribute }) => !coreRowDone(attribute));
-  if (missingCore) {
-    currentTab.value = 'attributes';
-    triggerAlert(selectedCount(missingCore.attribute.name) > 1
-      ? tx(`اختر قيمة واحدة فقط لـ «${attrName(missingCore.attribute)}»`, `Choose only one value for "${attrName(missingCore.attribute)}"`)
-      : tx(`اختر قيمة لـ «${attrName(missingCore.attribute)}» أو «غير متوفر»`, `Choose a value for "${attrName(missingCore.attribute)}" or "Not available"`), 'error');
-    return;
+  const payload = toProductPayload(form.value);
+  if (isEdit.value) delete payload.number;
+  if (isEdit.value && form.value.deleted_image_ids?.length) payload.deleted_images = form.value.deleted_image_ids;
+
+  // What the variants need. Adding: the main row goes into the product request, the others are added to the product
+  // right after. Editing: the variant saved with the product goes with the product; the others are updated, created
+  // or deleted one by one.
+  const variantPlan = !isEdit.value && hasVariants.value ? variantRequests(variantRows, []) : null;
+  const editPlan = isEdit.value && variantRows.length
+    ? planEditChanges(variantRows, { originalIds: originalVariantIds.value, anchorId: editingId.value })
+    : null;
+  if (variantPlan) {
+    payload.option_ids = variantPlan.main.option_ids;
+    payload.price = variantPlan.main.price;
+    payload.number = variantPlan.main.number;
   }
-  const multiValued = otherAttributesList.value.find((attribute) => selectedCount(attribute.name) > 1);
-  if (multiValued) {
-    currentTab.value = 'attributes';
-    triggerAlert(tx(`اختر قيمة واحدة فقط لـ «${attrName(multiValued)}»`, `Choose only one value for "${attrName(multiValued)}"`), 'error');
-    return;
+  if (isEdit.value && anchorRow) {
+    payload.option_ids = anchorRow.optionIds;
+    payload.price = Number(anchorRow.price);
+  }
+
+  // Variants that are no longer in the list are deleted for good: ask first.
+  if (editPlan?.deletes.length) {
+    const names = editPlan.deletes.map((id) => {
+      const gone = (variantState.value.archive || []).find((row) => String(row.id) === String(id));
+      return gone ? rowLabel(gone) || `#${id}` : `#${id}`;
+    });
+    const ok = await dialog.confirm(
+      tx(`سيتم حذف ${names.length} متغير نهائيًا: ${names.join('، ')}.`, `${names.length} variants will be deleted permanently: ${names.join(', ')}.`),
+      { type: 'error', title: tx('حذف المتغيرات؟', 'Delete the variants?'), confirmText: tx('حذف وحفظ', 'Delete and save') },
+    );
+    if (!ok) return;
   }
 
   isSubmitting.value = true;
-  
-  // Merge attributes
-  const finalAttributes = {};
-  const normalizedColors = dedupeColorOptions(form.value.colors || []);
-  const colorAttribute = attributesList.value.find(attribute => isColorAttribute(attribute));
-  const canonicalColorKey = colorAttribute?.name || 'color';
-  const selectedColorValues = Object.entries(form.value.selectedAttributes || {})
-    .filter(([key]) => isColorAttribute({ name: key, label: key }))
-    .flatMap(([, values]) => Array.isArray(values) ? values : []);
-  const selectedColors = selectedColorValues.map(value => {
-    const raw = value && typeof value === 'object'
-      ? (value.label || value.name || value.value || '')
-      : String(value || '');
-    const [label, inlineColor] = raw.split('|', 2);
-    const matched = colorAttribute?.values?.find(item => item.label === label.trim());
-    return {
-      label: label.trim(),
-      color: inlineColor?.trim() || matched?.color || getPresetColorHex(label.trim()) || '#111827',
-    };
-  });
-  const payloadColors = dedupeColorOptions(normalizedColors.length > 0 ? normalizedColors : selectedColors);
-
-  // 1. Color Options
-  if (payloadColors.length > 0) {
-    finalAttributes[canonicalColorKey] = payloadColors.map(c => `${c.label}|${c.color}`);
-  }
-
-  // 2. Size Options
-  if (form.value.sizes && form.value.sizes.length > 0) {
-    finalAttributes['size'] = [...form.value.sizes];
-    finalAttributes['المقاس'] = [...form.value.sizes];
-  }
-
-  // 3. Other attributes
-  Object.keys(form.value.selectedAttributes).forEach(key => {
-    if (isColorAttribute({ name: key, label: key }) || ['size', 'المقاس', 'الحجم'].includes(key)) return;
-    const combined = [
-      ...(form.value.selectedAttributes[key] || []),
-      ...(customAttributes.value[key] || [])
-    ];
-    if (combined.length > 0) {
-      finalAttributes[key] = Array.from(new Set(combined));
-    }
-  });
-  const payload = toProductPayload(form.value);
-  if (isEdit.value) delete payload.number;
-  if (isEdit.value && form.value.deleted_image_ids?.length) payload.delete_image_ids = form.value.deleted_image_ids;
-  payload.attributes = JSON.stringify(finalAttributes);
-  payload.color_options = JSON.stringify(payloadColors);
-  payload.size_options = JSON.stringify(form.value.sizes || []);
-  payload.option_ids = attributesList.value.flatMap((attribute) => (
-    (form.value.selectedAttributes[attribute.name] || [])
-      .map((label) => attribute.values.find((value) => value.label === label)?.id)
-      .filter(Boolean)
-  ));
 
   try {
     if (isEdit.value) {
       await adminCatalogService.updateProduct(editingId.value, payload, form.value.new_images);
-      triggerAlert(tx('تم تحديث المنتج بنجاح', 'Product updated successfully'));
+      const failed = [];
+      const steps = editPlan
+        ? [
+          ...editPlan.updates.map((item) => ({ label: item.label, run: () => adminCatalogService.updateVariant(editingId.value, item.id, item.payload, item.files) })),
+          ...editPlan.creates.map((item) => ({ label: item.label, run: () => adminCatalogService.createVariant(editingId.value, item.payload, item.files) })),
+          ...editPlan.deletes.map((id) => ({ label: `#${id}`, run: () => adminCatalogService.deleteVariant(editingId.value, id) })),
+          ...(editPlan.newMainId ? [{ label: tx('المتغير الأساسي', 'main variant'), run: () => adminCatalogService.updateVariant(editingId.value, editPlan.newMainId, { is_main: true }) }] : []),
+        ]
+        : [];
+      for (const [index, step] of steps.entries()) {
+        saveProgress.value = tx(`جاري حفظ المتغيرات (${index + 1}/${steps.length})...`, `Saving variants (${index + 1}/${steps.length})...`);
+        try {
+          await step.run();
+        } catch (stepError) {
+          failed.push(step.label);
+          console.error('Variant step failed', step.label, stepError);
+        }
+      }
+      if (failed.length) {
+        triggerAlert(tx(
+          `تم تحديث المنتج لكن تعذر حفظ ${failed.length} من تغييرات المتغيرات: ${failed.join('، ')}. افتح المنتج وراجع المتغيرات.`,
+          `The product was updated but ${failed.length} variant changes could not be saved: ${failed.join(', ')}. Open the product and check its variants.`,
+        ), 'error');
+      } else {
+        triggerAlert(tx('تم تحديث المنتج بنجاح', 'Product updated successfully'));
+      }
     } else {
-      await adminCatalogService.createProduct(payload, form.value.new_images);
-      triggerAlert(duplicateSource.value ? tx('تم نسخ المنتج وإضافته كمنتج جديد (غير نشط)', 'Product copied and added as a new inactive product') : tx('تم إضافة المنتج بنجاح', 'Product added successfully'));
+      const created = await adminCatalogService.createProduct(payload, form.value.new_images);
+      const extras = variantPlan?.others || [];
+      if (extras.length && !created?.id) throw new Error('The API did not return the new product id.');
+      const failed = [];
+      for (const [index, extra] of extras.entries()) {
+        saveProgress.value = tx(`جاري حفظ المتغيرات (${index + 1}/${extras.length})...`, `Saving variants (${index + 1}/${extras.length})...`);
+        try {
+          await adminCatalogService.createVariant(created.id, extra.payload, extra.files);
+        } catch (variantError) {
+          failed.push({ label: extra.label, message: apiErrorMessage(variantError, '') });
+        }
+      }
+      if (failed.length) {
+        triggerAlert(tx(
+          `تمت إضافة المنتج لكن تعذر حفظ ${failed.length} من المتغيرات: ${failed.map((item) => item.label).join('، ')}. أضفها من تبويب «المتغيرات» عند تعديل المنتج.`,
+          `The product was added but ${failed.length} variants could not be saved: ${failed.map((item) => item.label).join(', ')}. Add them from the “Variants” tab when you edit the product.`,
+        ), 'error');
+      } else if (extras.length) {
+        triggerAlert(tx(`تم إضافة المنتج و${extras.length + 1} متغير`, `Product added with ${extras.length + 1} variants`));
+      } else {
+        triggerAlert(duplicateSource.value ? tx('تم نسخ المنتج وإضافته كمنتج جديد (غير نشط)', 'Product copied and added as a new inactive product') : tx('تم إضافة المنتج بنجاح', 'Product added successfully'));
+      }
     }
     closeModal();
     fetchProducts();
@@ -1988,6 +1698,7 @@ const submitForm = async () => {
     triggerAlert(msg, 'error');
   } finally {
     isSubmitting.value = false;
+    saveProgress.value = '';
   }
 };
 
@@ -2017,16 +1728,120 @@ const confirmDelete = async (prod) => {
   }
 };
 
-// Bulk actions on the ticked rows (checkbox column + BulkActionBar)
+// Bulk actions on the ticked rows (checkbox column + BulkActionBar). Each one is a single request to
+// POST /v1/dashboard/products/actions with { action, target_ids, inputs }.
 const bulk = useBulkSelection(() => filteredProducts.value);
+const isActiveProduct = (p) => p.status === 'active';
+const isFeaturedProduct = (p) => [true, 1, '1', 'true'].includes(p.is_featured);
+const bulkCategoryPicker = ref({ open: false, value: '' });
+let bulkCategoryResolve = null;
+const closeBulkCategoryPicker = (value) => {
+  bulkCategoryPicker.value.open = false;
+  const resolve = bulkCategoryResolve;
+  bulkCategoryResolve = null;
+  if (resolve) resolve(value);
+};
+const askBulkCategory = () => new Promise((resolve) => {
+  bulkCategoryResolve = resolve;
+  bulkCategoryPicker.value = { open: true, value: '' };
+});
+const refreshAfterBulk = () => { fetchProducts(); fetchStats(); };
+const bulkProducts = (action) => (rows, inputs) => adminCatalogService.bulkProductAction(action, rows.map((p) => p.id), inputs);
 const bulkActions = computed(() => [
+  { key: 'activate', label: tx('تفعيل', 'Activate'), icon: 'check', applies: (p) => !isActiveProduct(p),
+    all: bulkProducts('activate'), done: refreshAfterBulk, success: (n) => tx(`تم تفعيل ${n} منتج`, `${n} products activated`) },
+  { key: 'deactivate', label: tx('إيقاف', 'Deactivate'), icon: 'ban', applies: isActiveProduct,
+    all: bulkProducts('deactivate'), done: refreshAfterBulk, success: (n) => tx(`تم إيقاف ${n} منتج`, `${n} products deactivated`) },
+  { key: 'feature', label: tx('تمييز', 'Feature'), icon: 'star', applies: (p) => !isFeaturedProduct(p),
+    all: bulkProducts('feature'), done: refreshAfterBulk, success: (n) => tx(`تم تمييز ${n} منتج`, `${n} products featured`) },
+  { key: 'unfeature', label: tx('إلغاء التمييز', 'Unfeature'), icon: 'star', applies: isFeaturedProduct,
+    all: bulkProducts('unfeature'), done: refreshAfterBulk, success: (n) => tx(`تم إلغاء تمييز ${n} منتج`, `${n} products unfeatured`) },
+  { key: 'change_category', label: tx('نقل لقسم', 'Move to category'), icon: 'folder',
+    prepare: async () => {
+      const categoryId = await askBulkCategory();
+      return categoryId ? { category_id: Number(categoryId) } : null;
+    },
+    all: bulkProducts('change_category'), done: refreshAfterBulk, success: (n) => tx(`تم نقل ${n} منتج`, `${n} products moved`) },
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
     confirm: (rows) => tx(`هتحذف ${rows.length} منتج. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} products? This cannot be undone.`),
-    each: (p) => adminCatalogService.deleteProduct(p.id), done: () => { fetchProducts(); fetchStats(); }, success: (n) => tx(`تم حذف ${n} منتج`, `${n} products deleted`) },
+    all: bulkProducts('delete'), done: refreshAfterBulk, success: (n) => tx(`تم حذف ${n} منتج`, `${n} products deleted`) },
 ]);
+
+// ── Editor URLs ──────────────────────────────────────────────────────────────
+// The add / edit pages have their own address, so a refresh or a shared link lands on the same page:
+//   /admin/products              the list
+//   /admin/products/new          add a product (?from=<id> when duplicating one)
+//   /admin/products/:id/edit     edit a product
+const route = useRoute();
+const router = useRouter();
+const PRODUCT_ROUTES = ['Products', 'ProductNew', 'ProductEdit'];
+
+const editorPath = () => {
+  if (!showFormModal.value) return '/admin/products';
+  if (isEdit.value && editingId.value) return `/admin/products/${editingId.value}/edit`;
+  if (duplicateSource.value?.id) return `/admin/products/new?from=${duplicateSource.value.id}`;
+  return '/admin/products/new';
+};
+
+// Opening / closing the editor from the page updates the address.
+watch(() => [showFormModal.value, isEdit.value, editingId.value, duplicateSource.value?.id], () => {
+  if (!PRODUCT_ROUTES.includes(route.name)) return; // the page is kept alive in the background
+  const target = editorPath();
+  if (route.fullPath !== target) router.push(target);
+});
+
+const loadProductForEditor = async (id) => {
+  const listed = products.value.find((product) => String(product.id) === String(id));
+  if (listed) return listed;
+  try {
+    if (!categories.value.length) await fetchDependencies();
+    return await adminCatalogService.getProduct(id);
+  } catch {
+    return null;
+  }
+};
+
+// The address opens the matching editor (direct link, refresh, back / forward buttons).
+const openEditorFromRoute = async () => {
+  if (route.name === 'Products') {
+    if (showFormModal.value) closeModal();
+    return;
+  }
+  if (route.name === 'ProductNew') {
+    const from = route.query.from;
+    if (!from) {
+      if (!(showFormModal.value && !isEdit.value && !duplicateSource.value)) openAddModal();
+      return;
+    }
+    if (showFormModal.value && String(duplicateSource.value?.id) === String(from)) return;
+    const source = await loadProductForEditor(from);
+    if (source) openDuplicateModal(source);
+    else router.replace('/admin/products');
+    return;
+  }
+  if (route.name === 'ProductEdit') {
+    const id = route.params.id;
+    if (showFormModal.value && isEdit.value && String(editingId.value) === String(id)) return;
+    const product = await loadProductForEditor(id);
+    if (product) openEditModal(product);
+    else {
+      triggerAlert(tx('المنتج غير موجود', 'Product not found'), 'error');
+      router.replace('/admin/products');
+    }
+  }
+};
+
+watch(() => route.fullPath, () => {
+  if (PRODUCT_ROUTES.includes(route.name)) openEditorFromRoute();
+});
 </script>
 
 <style scoped>
+.bulk-category-box { width: min(420px, 100%); padding: 1.4rem; display: flex; flex-direction: column; gap: 1rem; }
+.bulk-category-title { margin: 0; font-size: 1rem; font-weight: 800; color: #111827; }
+.bulk-category-footer { display: flex; gap: 0.6rem; }
+.bulk-category-btn { flex: 1; justify-content: center; padding: 0.7rem; border-radius: 10px; cursor: pointer; font-family: inherit; font-weight: 700; }
+.bulk-category-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .points-hint { margin: 0 0 0.5rem; font-size: 0.78rem; color: #9ca3af; }
 .points-group { margin-bottom: 1.25rem; }
 .overview-box { position: relative; }
@@ -2036,6 +1851,9 @@ const bulkActions = computed(() => [
 .products-page {
   display: flex; flex-direction: column; gap: 1.5rem; direction: inherit; font-family: 'IBM Plex Sans Arabic', sans-serif; padding-bottom: 2rem;
 }
+
+/* The list sections sit in their own wrapper (so the add / edit page can replace them): it keeps the page's spacing. */
+.products-list-view { display: flex; flex-direction: column; gap: 1.5rem; }
 
 /* Page Header */
 .page-header { display: flex; align-items: center; justify-content: space-between; }
@@ -2073,12 +1891,14 @@ const bulkActions = computed(() => [
 .main-icon { background: #fefce8; color: #ca8a04; }
 
 /* Filters */
-.filters-row { display: flex; gap: 1rem; align-items: center; }
-.search-box { flex: 1; position: relative; display: flex; align-items: center; }
+.filters-row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: stretch; margin-bottom: -0.5rem; }
+.search-box { flex: 1 1 260px; min-width: 0; position: relative; display: flex; align-items: center; }
+.filters-columns { flex: 0 0 auto; display: flex; }
+.filters-row :deep(.col-btn) { height: 100%; padding: 0.7rem 1rem; border-radius: 8px; font-size: 0.85rem; }
 .search-icon { position: absolute; right: 1rem; color: #9ca3af; }
 .search-input { width: 100%; padding: 0.7rem 2.8rem 0.7rem 1rem; border: 1px solid #e5e7eb; border-radius: 8px; font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 0.85rem; outline: none; background: #fff; transition: border-color 0.2s; }
 .search-input:focus { border-color: #660033; }
-.filter-select { position: relative; display: flex; align-items: center; min-width: 150px; }
+.filter-select { position: relative; display: flex; align-items: center; flex: 0 1 170px; min-width: 140px; }
 .form-select { width: 100%; padding: 0.7rem 1rem 0.7rem 2.5rem; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 0.85rem; color: #374151; appearance: none; outline: none; cursor: pointer; }
 .filter-select .select-icon { position: absolute; left: 1rem; color: #9ca3af; pointer-events: none; }
 
@@ -2235,6 +2055,7 @@ const bulkActions = computed(() => [
 .color-icon-bg { background: #f3f4f6; color: #660033; }
 .size-icon-bg { background: #eff6ff; color: #2563eb; }
 .other-icon-bg { background: #f3f4f6; color: #660033; }
+.default-variant-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 1rem 1.1rem; background: #fff; margin-bottom: 1rem; }
 .variant-section-title { font-size: 0.95rem; font-weight: 800; color: #111827; margin: 0 0 0.2rem 0; }
 .variant-section-desc { font-size: 0.75rem; color: #6b7280; margin: 0; }
 
@@ -2450,19 +2271,37 @@ const bulkActions = computed(() => [
 @media (max-width: 600px) { .form-modal .cat-form, .form-modal .prod-form, .form-modal .value-form { padding: 0 1.25rem 1.5rem; } .form-modal .modal-tabs { margin: 0 1.25rem 1.5rem; } }
 
 /* Core attributes (color, capacity, size) */
-.attributes-tab-pane > .core-attributes-section { order: -1; border-color: #660033; }
-.core-attrs-header { margin-bottom: 0.75rem; }
-.core-attr-row.is-missing { border-color: #fecaca; }
 .not-available-chip { margin-top: 8px; border-style: dashed !important; color: #6b7280; }
 .not-available-chip.active { background: #6b7280 !important; border-color: #6b7280 !important; color: #fff !important; }
-.core-attrs-list { display: flex; flex-direction: column; gap: 0.9rem; }
-.core-attr-row { background: #f9fafb; padding: 0.85rem 1rem; border-radius: 10px; border: 1px solid #e5e7eb; }
-.core-attr-title { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; font-weight: 700; margin-bottom: 0.6rem; }
-.core-attr-count { font-size: 0.8rem; font-weight: 600; color: #b45309; background: #fef3c7; border-radius: 999px; padding: 0.1rem 0.6rem; }
-.core-attr-count.complete { color: #047857; background: #d1fae5; }
-.core-attr-values { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.core-attr-chip { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.4rem 0.85rem; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; font: inherit; cursor: pointer; }
-.core-attr-chip.active { border-color: #660033; background: #660033; color: #fff; }
-.core-attr-chip .api-attribute-color-dot { border: 1px solid #d1d5db; }
-.core-attr-chip.active .val-text { color: #fff; }
+/* ===== Add / edit product: an inline page (not a dialog) ===== */
+.editor-page { display: flex; flex-direction: column; gap: 1.25rem; }
+.editor-top { display: flex; align-items: center; gap: 1.1rem; flex-wrap: wrap; }
+.editor-back { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.55rem 0.95rem; border: 1px solid var(--border-color, #e5e7eb); border-radius: 10px; background: var(--bg-card, #fff); color: var(--text-main, #374151); font-family: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; transition: 0.15s; }
+.editor-back:hover { border-color: #660033; color: #660033; }
+.editor-back-ico { flex: 0 0 auto; }
+.editor-titles { min-width: 0; }
+.editor-title { margin: 0; font-size: 1.3rem; font-weight: 800; color: var(--text-main, #111827); }
+.editor-sub { margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--text-muted, #9ca3af); }
+.editor-body { display: block; }
+.editor-main.form-modal { background: var(--bg-card, #fff); border: 1px solid var(--border-color, #e5e7eb); border-radius: 18px; padding-top: 1.25rem; min-width: 0; }
+.editor-main .modal-tabs { flex-wrap: wrap; justify-content: flex-start; }
+.tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; margin-inline-start: 6px; border-radius: 999px; background: #660033; color: #fff; font-size: 0.7rem; font-weight: 800; }
+.editor-main .build-pane { padding: 0 1.5rem 1.5rem; }
+.editor-footer { position: sticky; bottom: 0; display: flex; gap: 1rem; padding: 1rem 2.5rem; border-top: 1px solid var(--border-color, #e5e7eb); background: color-mix(in srgb, var(--bg-card, #fff) 92%, transparent); backdrop-filter: blur(6px); border-radius: 0 0 18px 18px; z-index: 5; }
+.editor-footer .btn-cancel { flex: 1; padding: 0.85rem; border-radius: 10px; border: 1px solid var(--border-color, #e5e7eb); background: var(--bg-card, #fff); color: var(--text-muted, #6b7280); font-family: inherit; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
+.editor-footer .btn-submit { flex: 2; padding: 0.85rem; border-radius: 10px; border: none; background: #660033; color: #fff; font-family: inherit; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: 0.2s; }
+.editor-footer .btn-submit:hover:not(:disabled) { background: #4d0026; }
+.editor-footer .btn-submit:disabled { opacity: 0.6; cursor: wait; }
+@media (max-width: 600px) {
+  .editor-main .build-pane { padding: 0 1rem 1rem; }
+  .editor-footer { padding: 0.9rem 1.25rem; }
+}
+@media (max-width: 640px) {
+  .filters-row { gap: 0.6rem; }
+  .search-box { flex: 1 1 100%; }
+  .filter-select { flex: 1 1 calc(50% - 0.3rem); min-width: 0; }
+  .filters-columns { flex: 1 1 100%; }
+  .filters-columns :deep(.col-picker) { width: 100%; }
+  .filters-columns :deep(.col-btn) { width: 100%; justify-content: center; }
+}
 </style>
