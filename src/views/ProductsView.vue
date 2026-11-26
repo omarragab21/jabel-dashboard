@@ -201,23 +201,30 @@
 
       <div class="editor-body">
       <div class="editor-main form-modal">
-        <!-- Tabs: basic information, attributes & variants, images, prices and stock -->
-        <div class="modal-tabs" role="tablist" data-testid="editor-tabs">
-          <button
-            v-for="tab in EDITOR_TABS"
-            :key="tab.key"
-            type="button"
-            role="tab"
-            class="tab-btn"
-            :class="{ active: currentTab === tab.key }"
-            :aria-selected="currentTab === tab.key"
-            :data-testid="`tab-${tab.key}`"
-            @click.prevent="currentTab = tab.key"
-          >
-            {{ tx(tab.label[0], tab.label[1]) }}
-            <span v-if="tab.key === 'variants' && variantState.rows.length" class="tab-count" data-testid="tab-variants-count">{{ variantState.rows.length }}</span>
-          </button>
-        </div>
+        <!-- Stepper: 1 basic information, 2 attributes & variants (with price and stock), 3 images -->
+        <ol class="stepper" role="tablist" data-testid="editor-tabs">
+          <template v-for="(tab, index) in EDITOR_TABS" :key="tab.key">
+            <li class="step" :class="{ active: currentTab === tab.key, done: index < stepIndex }">
+              <button
+                type="button"
+                role="tab"
+                class="step-btn"
+                :aria-selected="currentTab === tab.key"
+                :aria-current="currentTab === tab.key ? 'step' : undefined"
+                :data-testid="`tab-${tab.key}`"
+                @click.prevent="goStep(tab.key)"
+              >
+                <span class="step-dot">{{ index < stepIndex ? '✓' : index + 1 }}</span>
+                <span class="step-text">
+                  <small>{{ tx('الخطوة', 'Step') }} {{ index + 1 }}</small>
+                  <b>{{ tx(tab.label[0], tab.label[1]) }}</b>
+                </span>
+                <span v-if="tab.key === 'variants' && variantState.rows.length" class="tab-count" data-testid="tab-variants-count">{{ variantState.rows.length }}</span>
+              </button>
+            </li>
+            <li v-if="index < EDITOR_TABS.length - 1" class="step-line" :class="{ done: index < stepIndex }" aria-hidden="true"></li>
+          </template>
+        </ol>
 
         <form id="product-form" v-show="currentTab !== 'variants'" @submit.prevent="submitForm" class="prod-form" novalidate>
           <div v-show="currentTab === 'basic'" class="tab-pane" data-testid="pane-basic">
@@ -512,8 +519,12 @@
 
         <div class="editor-footer">
           <button type="button" class="btn-cancel" data-testid="editor-cancel" @click="closeModal">{{ tx('إلغاء', 'Cancel') }}</button>
-          <button type="button" class="btn-submit" :disabled="isSubmitting || variantsLoading" data-testid="editor-save" @click="submitForm">
-            {{ isSubmitting ? (saveProgress || tx('جاري الحفظ...', 'Saving...')) : (isEdit ? tx('تعديل', 'Update') : tx('إضافة المنتج', 'Add Product')) }}
+          <button v-if="stepIndex > 0" type="button" class="btn-back" data-testid="editor-prev" @click="prevStep">{{ tx('السابق', 'Back') }}</button>
+          <button v-if="!isLastStep" type="button" class="btn-next" :class="{ primary: !isEdit }" data-testid="editor-next" @click="nextStep">
+            {{ tx('التالي', 'Next') }}
+          </button>
+          <button v-if="isLastStep || isEdit" type="button" class="btn-submit" :disabled="isSubmitting || variantsLoading" data-testid="editor-save" @click="submitForm">
+            {{ isSubmitting ? (saveProgress || tx('جاري الحفظ...', 'Saving...')) : (isEdit ? tx('حفظ التعديلات', 'Save changes') : tx('إضافة المنتج', 'Add Product')) }}
           </button>
         </div>
       </div>
@@ -804,6 +815,58 @@ const EDITOR_TABS = [
   { key: 'images', label: ['الصور', 'Images'] },
 ];
 const currentTab = ref('basic');
+const stepIndex = computed(() => Math.max(0, EDITOR_TABS.findIndex((tab) => tab.key === currentTab.value)));
+const isLastStep = computed(() => stepIndex.value === EDITOR_TABS.length - 1);
+
+// The first problem of one step, or null. Adding a product walks the steps in order: a step must be
+// complete before the next opens. (Editing: the steps open freely and Save checks everything.)
+const stepProblem = (key) => {
+  if (key === 'basic') {
+    if (!hasText(form.value.name_ar)) return { message: tx('اسم المنتج بالعربي مطلوب', 'Arabic product name is required'), reveal: true };
+    if (!hasText(form.value.name_en)) return { message: tx('اسم المنتج بالإنجليزية مطلوب', 'English product name is required'), reveal: true };
+    if (!form.value.category_id && !form.value.subcategory_id) return { message: tx('القسم الرئيسي مطلوب', 'Main category is required') };
+    return null;
+  }
+  if (key === 'variants') {
+    const rows = variantState.value.rows;
+    if (rows.length) {
+      const bad = validateVariantRows(rows);
+      if (bad) {
+        variantProblem.value = { key: bad.key, field: bad.field };
+        return { message: bad.code === 'price'
+          ? tx('اكتب سعرًا صحيحًا (0 أو أكبر) لكل متغير', 'Enter a valid price (0 or more) for every variant')
+          : tx('اكتب مخزونًا صحيحًا (عدد 0 أو أكبر) لكل متغير', 'Enter a valid stock (a whole number, 0 or more) for every variant') };
+      }
+      return null;
+    }
+    const price = form.value.price;
+    if (price === '' || price == null || !(Number(price) >= 0)) return { message: tx('السعر يجب أن يكون رقماً صحيحاً (0 أو أكبر)', 'Price must be a valid number (0 or more)') };
+    const qty = form.value.quantity;
+    if (!isEdit.value && (qty === '' || qty == null || !Number.isInteger(Number(qty)) || Number(qty) < 0)) return { message: tx('المخزون يجب أن يكون عدداً صحيحاً (0 أو أكبر)', 'Stock must be a whole number (0 or more)') };
+    return null;
+  }
+  return null;
+};
+
+const goStep = (key) => {
+  const target = EDITOR_TABS.findIndex((tab) => tab.key === key);
+  if (target < 0 || target === stepIndex.value) return;
+  if (target > stepIndex.value && !isEdit.value) {
+    for (let index = stepIndex.value; index < target; index += 1) {
+      const problem = stepProblem(EDITOR_TABS[index].key);
+      if (problem) {
+        currentTab.value = EDITOR_TABS[index].key;
+        if (problem.reveal) bilingual.reveal();
+        triggerAlert(problem.message, 'error');
+        return;
+      }
+    }
+  }
+  currentTab.value = key;
+  nextTick(() => document.querySelector('[data-testid="product-editor"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+};
+const nextStep = () => { if (!isLastStep.value) goStep(EDITOR_TABS[stepIndex.value + 1].key); };
+const prevStep = () => { if (stepIndex.value > 0) goStep(EDITOR_TABS[stepIndex.value - 1].key); };
 const isSubmitting = ref(false);
 const saveProgress = ref(''); // "Saving variants (3/12)..." while the variants of a new product are added
 const viewProduct = ref(null);
@@ -2285,10 +2348,38 @@ watch(() => route.fullPath, () => {
 .editor-body { display: block; }
 .editor-main.form-modal { background: var(--bg-card, #fff); border: 1px solid var(--border-color, #e5e7eb); border-radius: 18px; padding-top: 1.25rem; min-width: 0; }
 .editor-main .modal-tabs { flex-wrap: wrap; justify-content: flex-start; }
+/* Stepper */
+.stepper { list-style: none; display: flex; align-items: center; gap: 0; margin: 0 2.5rem 1.5rem; padding: 0 0 1.25rem; border-bottom: 1px solid var(--border-color, #e5e7eb); }
+.step { flex: none; }
+.step-btn { display: flex; align-items: center; gap: 0.7rem; background: none; border: none; padding: 0.25rem 0.4rem; cursor: pointer; font-family: inherit; text-align: start; color: var(--text-muted, #6b7280); -webkit-tap-highlight-color: transparent; }
+.step-dot { width: 38px; height: 38px; flex: none; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.95rem;
+  background: var(--bg-card, #fff); border: 2px solid #cbd5e1; color: #94a3b8; transition: 0.2s; }
+.step-text { display: flex; flex-direction: column; line-height: 1.25; }
+.step-text small { font-size: 0.72rem; font-weight: 600; color: var(--text-muted, #9ca3af); }
+.step-text b { font-size: 0.92rem; font-weight: 800; }
+.step.active .step-dot { background: #660033; border-color: #660033; color: #fff; box-shadow: 0 0 0 5px rgba(102, 0, 51, 0.14); }
+.step.active .step-text b { color: #660033; }
+.step.done .step-dot { background: rgba(102, 0, 51, 0.1); border-color: #660033; color: #660033; }
+.step.done .step-text b { color: var(--text-main, #111827); }
+.step-btn:hover .step-dot { border-color: #660033; }
+.step-line { flex: 1; min-width: 24px; height: 3px; margin: 0 0.6rem; border-radius: 999px; background: #e2e8f0; }
+.step-line.done { background: #660033; }
+.stepper .tab-count { margin-inline-start: 0; }
+@media (max-width: 720px) {
+  .stepper { margin: 0 1rem 1.25rem; padding-bottom: 1rem; }
+  .step-text small { display: none; }
+  .step:not(.active) .step-text { display: none; }
+  .step-dot { width: 34px; height: 34px; }
+  .step-line { margin: 0 0.35rem; }
+}
 .tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; margin-inline-start: 6px; border-radius: 999px; background: #660033; color: #fff; font-size: 0.7rem; font-weight: 800; }
 .editor-main .build-pane { padding: 0 1.5rem 1.5rem; }
 .editor-footer { position: sticky; bottom: 0; display: flex; gap: 1rem; padding: 1rem 2.5rem; border-top: 1px solid var(--border-color, #e5e7eb); background: color-mix(in srgb, var(--bg-card, #fff) 92%, transparent); backdrop-filter: blur(6px); border-radius: 0 0 18px 18px; z-index: 5; }
 .editor-footer .btn-cancel { flex: 1; padding: 0.85rem; border-radius: 10px; border: 1px solid var(--border-color, #e5e7eb); background: var(--bg-card, #fff); color: var(--text-muted, #6b7280); font-family: inherit; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
+.editor-footer .btn-back, .editor-footer .btn-next { flex: 1; padding: 0.85rem; border-radius: 10px; font-family: inherit; font-weight: 700; font-size: 0.9rem; cursor: pointer; background: var(--bg-card, #fff); color: #660033; border: 1.5px solid #660033; }
+.editor-footer .btn-back { color: var(--text-main, #374151); border-color: var(--border-color, #cbd5e1); }
+.editor-footer .btn-next.primary { flex: 2; background: #660033; color: #fff; }
+.editor-footer .btn-next.primary:hover { background: #4d0026; }
 .editor-footer .btn-submit { flex: 2; padding: 0.85rem; border-radius: 10px; border: none; background: #660033; color: #fff; font-family: inherit; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: 0.2s; }
 .editor-footer .btn-submit:hover:not(:disabled) { background: #4d0026; }
 .editor-footer .btn-submit:disabled { opacity: 0.6; cursor: wait; }
