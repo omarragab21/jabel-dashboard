@@ -750,7 +750,7 @@ const bulkActions = computed(() => [
   { key: 'deactivate', label: tx('إيقاف', 'Deactivate'), icon: 'ban', applies: (o) => o.is_active,
     each: (o) => adminCatalogService.togglePromotion(o.id), done: () => fetchOffers(), success: (n) => tx(`تم إيقاف ${n} عرض`, `${n} offers deactivated`) },
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
-    confirm: (rows) => tx(`هتحذف ${rows.length} عرض. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} offers? This cannot be undone.`),
+    confirm: (rows) => tx(`سيتم حذف ${rows.length} عرض. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} offers? This cannot be undone.`),
     each: (o) => adminCatalogService.deletePromotion(o.id), done: () => fetchOffers(), success: (n) => tx(`تم حذف ${n} عرض`, `${n} offers deleted`) },
 ]);
 </script>

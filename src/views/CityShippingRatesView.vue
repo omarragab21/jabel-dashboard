@@ -313,7 +313,7 @@ onMounted(() => {
 const bulk = useBulkSelection(() => rates.value);
 const bulkActions = computed(() => [
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
-    confirm: (rows) => tx(`هتحذف ${rows.length} سعر شحن. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} shipping rates? This cannot be undone.`),
+    confirm: (rows) => tx(`سيتم حذف ${rows.length} سعر شحن. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} shipping rates? This cannot be undone.`),
     each: (r) => api.delete(`/dashboard/city-shipping-rates/${r.id}`), done: fetchRates, success: (n) => tx(`تم حذف ${n} سعر شحن`, `${n} shipping rates deleted`) },
 ]);
 </script>

@@ -98,7 +98,7 @@ const save = async () => {
   try {
     await settingsService.bulkUpdate({ [BANNER_ANIMATION_KEY]: selected.value });
     saved.value = selected.value;
-    message.value = { text: tx('تم الحفظ. الموقع هيعرض الحركة الجديدة خلال دقيقة تقريباً.', 'Saved. The website shows the new animation within about a minute.'), error: false };
+    message.value = { text: tx('تم الحفظ. سيعرض الموقع الحركة الجديدة خلال دقيقة تقريبًا.', 'Saved. The website shows the new animation within about a minute.'), error: false };
   } catch {
     message.value = { text: tx('فشل الحفظ، حاول مرة أخرى', 'Could not save, try again'), error: true };
   } finally {
@@ -142,7 +142,7 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('keydown', onKey); })
         <div class="ba-dialog-head">
           <div>
             <h2>{{ tx('حركة البانرات', 'Banner animation') }}</h2>
-            <p>{{ tx('اختار حركة وشوفها في المعاينة قبل ما تحفظ. نفس الحركة هتظهر في الموقع.', 'Pick an animation and watch it in the preview before you save. The website plays the same one.') }}</p>
+            <p>{{ tx('اختر حركة وشاهدها في المعاينة قبل الحفظ. ستظهر الحركة نفسها في الموقع.', 'Pick an animation and watch it in the preview before you save. The website plays the same one.') }}</p>
           </div>
           <button type="button" class="ba-x" :aria-label="tx('إغلاق', 'Close')" data-testid="banner-animation-close" @click="close">×</button>
         </div>
@@ -183,7 +183,7 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('keydown', onKey); })
               </label>
             </div>
           </div>
-          <p class="ba-note">{{ tx('على الأجهزة الضعيفة بيتعرض تلاشي بدل الحركات الثقيلة (3D والضبابية)، وللي مفعّل «تقليل الحركة» بدون حركة.', 'On weak devices heavy animations (3D, blur) play as a fade, and with "reduce motion" there is no animation.') }}</p>
+          <p class="ba-note">{{ tx('على الأجهزة الضعيفة يُعرض تلاشٍ بدل الحركات الثقيلة (ثلاثية الأبعاد والضبابية)، ولمن فعّل «تقليل الحركة» تُعرض بدون حركة.', 'On weak devices heavy animations (3D, blur) play as a fade, and with "reduce motion" there is no animation.') }}</p>
         </div>
 
         <div class="ba-dialog-foot">

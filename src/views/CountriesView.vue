@@ -231,7 +231,7 @@ onMounted(fetchCountries);
 const bulk = useBulkSelection(() => countries.value);
 const bulkActions = computed(() => [
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
-    confirm: (rows) => tx(`هتحذف ${rows.length} دولة. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} countries? This cannot be undone.`),
+    confirm: (rows) => tx(`سيتم حذف ${rows.length} دولة. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} countries? This cannot be undone.`),
     each: (c) => api.delete(`/dashboard/countries/${c.id}`), done: fetchCountries, success: (n) => tx(`تم حذف ${n} دولة`, `${n} countries deleted`) },
 ]);
 </script>

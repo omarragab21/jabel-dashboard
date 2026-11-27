@@ -101,7 +101,7 @@ onMounted(() => { loadProduct(); loadHistory(); });
 
     <div v-if="loading" class="state-card"><span class="loader"></span>{{ tx('جاري التحميل...', 'Loading...') }}</div>
     <div v-else-if="notFound" class="state-card" data-testid="product-not-found">
-      {{ tx('المنتج ده مش موجود أو اتحذف.', 'This product does not exist or was deleted.') }}
+      {{ tx('هذا المنتج غير موجود أو تم حذفه.', 'This product does not exist or was deleted.') }}
       <router-link :to="{ name: 'Inventory' }" class="link-btn">{{ tx('رجوع لإدارة المخزون', 'Back to inventory') }}</router-link>
     </div>
     <div v-else-if="loadError" class="state-card" data-testid="product-error">

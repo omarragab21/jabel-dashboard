@@ -217,7 +217,7 @@ const bulkActions = computed(() => [
   { key: 'draft', label: tx('تحويل لمسودة', 'Move to draft'), icon: 'ban', applies: (t) => t.status === 'published',
     each: (t) => api.put(`/dashboard/topics/${t.id}`, { ...t, status: 'draft' }), done: fetchTopics, success: (n) => tx(`تم تحويل ${n} صفحة لمسودة`, `${n} pages moved to draft`) },
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
-    confirm: (rows) => tx(`هتحذف ${rows.length} صفحة. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} pages? This cannot be undone.`),
+    confirm: (rows) => tx(`سيتم حذف ${rows.length} صفحة. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} pages? This cannot be undone.`),
     each: (t) => api.delete(`/dashboard/topics/${t.id}`), done: fetchTopics, success: (n) => tx(`تم حذف ${n} صفحة`, `${n} pages deleted`) },
 ]);
 </script>

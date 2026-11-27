@@ -461,7 +461,7 @@ const bulkActions = computed(() => [
   { key: 'deactivate', label: tx('إيقاف', 'Deactivate'), icon: 'ban', applies: (b) => b.is_active,
     each: async (b) => { b.is_active = await locationService.toggleBranch(b.id, true); }, done: load, success: (n) => tx(`تم إيقاف ${n} فرع`, `${n} branches deactivated`) },
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
-    confirm: (rows) => tx(`هتحذف ${rows.length} فرع. الحذف نهائي.`, `Delete ${rows.length} branches? This cannot be undone.`),
+    confirm: (rows) => tx(`سيتم حذف ${rows.length} فرع. الحذف نهائي.`, `Delete ${rows.length} branches? This cannot be undone.`),
     each: (b) => locationService.deleteBranch(b.id), done: load, success: (n) => tx(`تم حذف ${n} فرع`, `${n} branches deleted`) },
 ]);
 </script>

@@ -169,7 +169,7 @@ const triggerAlert = (message, type = 'success') => {
 const bulk = useBulkSelection(() => permissions.value);
 const bulkActions = computed(() => [
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
-    confirm: (rows) => tx(`هتحذف ${rows.length} صلاحية. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} permissions? This cannot be undone.`),
+    confirm: (rows) => tx(`سيتم حذف ${rows.length} صلاحية. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} permissions? This cannot be undone.`),
     each: (p) => api.delete(`/dashboard/permissions/${p.id}`), done: fetchData, success: (n) => tx(`تم حذف ${n} صلاحية`, `${n} permissions deleted`) },
 ]);
 </script>

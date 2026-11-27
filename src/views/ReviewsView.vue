@@ -363,7 +363,7 @@ const bulkActions = computed(() => [
   { key: 'approve', label: tx('موافقة ونشر', 'Approve'), icon: 'check', applies: (r) => !r.is_approved,
     each: (r) => adminManagementService.updateReview(r.id, { is_approved: 1 }), done: fetchReviews, success: (n) => tx(`تمت الموافقة على ${n} تقييم`, `${n} reviews approved`) },
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
-    confirm: (rows) => tx(`هتحذف ${rows.length} تقييم. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} reviews? This cannot be undone.`),
+    confirm: (rows) => tx(`سيتم حذف ${rows.length} تقييم. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} reviews? This cannot be undone.`),
     each: (r) => adminManagementService.deleteReview(r.id), done: fetchReviews, success: (n) => tx(`تم حذف ${n} تقييم`, `${n} reviews deleted`) },
 ]);
 </script>

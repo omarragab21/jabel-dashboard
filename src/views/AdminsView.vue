@@ -247,7 +247,7 @@ const bulkActions = computed(() => [
   { key: 'deactivate', label: tx('تعطيل', 'Deactivate'), icon: 'ban', applies: (a) => a.is_active,
     each: (a) => adminManagementService.updateUser(a.id, { ...a, email: '', is_active: false, permissions: undefined }), done: fetchAdmins, success: (n) => tx(`تم تعطيل ${n} مدير`, `${n} admins deactivated`) },
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
-    confirm: (rows) => tx(`هتحذف ${rows.length} مدير. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} admins? This cannot be undone.`),
+    confirm: (rows) => tx(`سيتم حذف ${rows.length} مدير. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} admins? This cannot be undone.`),
     each: (a) => adminManagementService.deleteUser(a.id), done: fetchAdmins, success: (n) => tx(`تم حذف ${n} مدير`, `${n} admins deleted`) },
 ]);
 </script>

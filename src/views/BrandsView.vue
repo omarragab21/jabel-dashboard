@@ -283,7 +283,7 @@ const bulkActions = computed(() => [
     each: (b) => api.post(`/dashboard/brands/${b.id}`, brandStatusForm(b, false), { headers: { 'Content-Type': 'multipart/form-data' } }),
     done: fetchBrands, success: (n) => tx(`تم تعطيل ${n} علامة`, `${n} brands deactivated`) },
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
-    confirm: (rows) => tx(`هتحذف ${rows.length} علامة تجارية. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} brands? This cannot be undone.`),
+    confirm: (rows) => tx(`سيتم حذف ${rows.length} علامة تجارية. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} brands? This cannot be undone.`),
     each: (b) => api.delete(`/dashboard/brands/${b.id}`), done: fetchBrands, success: (n) => tx(`تم حذف ${n} علامة`, `${n} brands deleted`) },
 ]);
 

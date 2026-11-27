@@ -20,7 +20,7 @@ export const ATTRIBUTE_TEMPLATES = [
     id: 'general',
     icon: '🛍️',
     name: ['عام (لأي متجر)', 'General (any store)'],
-    description: ['الخصائص المشتركة اللي بتناسب أغلب المتاجر.', 'Common attributes that fit most stores.'],
+    description: ['الخصائص المشتركة التي تناسب معظم المتاجر.', 'Common attributes that fit most stores.'],
     attributes: [
       { name: ['اللون', 'Color'], type: 'color', values: COLORS },
       { name: ['المقاس', 'Size'], values: ['صغير|Small', 'وسط|Medium', 'كبير|Large', 'كبير جداً|Extra Large'] },

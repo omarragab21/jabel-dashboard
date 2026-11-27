@@ -194,7 +194,7 @@ export const adjustErrorText = (error, lang = 'ar') => {
   if (exceeds) return en ? `Cannot remove ${exceeds[1]} units: only ${exceeds[2]} in stock.` : `لا يمكن خصم ${exceeds[1]} قطعة: المتوفر ${exceeds[2]} فقط.`;
   if (/must be an integer/i.test(raw)) return en ? 'The quantity must be a whole number.' : 'الكمية لازم تكون رقم صحيح.';
   if (/selected quantity is invalid/i.test(raw)) return en ? 'The quantity must not be zero.' : 'الكمية لازم تكون أكبر من صفر.';
-  if (status === 404) return en ? 'This product no longer exists.' : 'المنتج ده مش موجود.';
+  if (status === 404) return en ? 'This product no longer exists.' : 'هذا المنتج غير موجود.';
   if (status >= 500 || !raw) return '';
   return raw;
 };

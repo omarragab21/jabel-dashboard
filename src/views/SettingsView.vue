@@ -42,7 +42,7 @@ const sectionMeta = computed(() => ({
     location: { title: tx('العنوان وساعات العمل', 'Address & working hours'), subtitle: tx('عنوان المتجر ومواعيد العمل', 'Store address and opening hours') },
     newsbar: { title: tx('شريط الأخبار', 'News bar'), subtitle: tx('الأخبار التي تظهر في الشريط الأزرق تحت قائمة الموقع، بالعربي والإنجليزي', 'The news shown in the blue bar under the website menu, in Arabic and English') },
     branding: { title: tx('الهوية البصرية', 'Visual identity'), subtitle: tx('الشعارات وأيقونة المتصفح والألوان الأساسية', 'Logos, browser icon and brand colours') },
-    seo: { title: tx('السيو ومعاينة الروابط', 'SEO & link preview'), subtitle: tx('النص والصورة اللي بتظهر في جوجل وعند مشاركة رابط الموقع على واتساب وتيليجرام وفيسبوك', 'The text and image shown on Google and when the site link is shared on WhatsApp, Telegram and Facebook') },
+    seo: { title: tx('السيو ومعاينة الروابط', 'SEO & link preview'), subtitle: tx('النص والصورة اللذان يظهران في جوجل وعند مشاركة رابط الموقع على واتساب وتيليجرام وفيسبوك', 'The text and image shown on Google and when the site link is shared on WhatsApp, Telegram and Facebook') },
     about: { title: tx('من نحن', 'About us'), subtitle: tx('محتوى صفحة «من نحن» في الموقع', 'Content of the website About page') },
     status: { title: tx('حالة الموقع', 'Website status'), subtitle: tx('يعمل الموقع أو هو قيد الإنشاء أو قيد التحديث: ما تختاره يظهر للزوار بدلاً من الموقع', 'Live, under construction or updating: what you pick is shown to visitors instead of the site') },
     preview: { title: tx('معاينة الموقع', 'Site preview'), subtitle: tx('رابط الموقع الحقيقي الذي يفتحه زر «معاينة الموقع» أعلى لوحة التحكم', 'The live website link opened by the «Preview site» button at the top of the dashboard') },
@@ -370,8 +370,8 @@ const aboutSectionStatus = (section) => {
     const ar = filled(settings.value[section.titleAr]) || filled(settings.value[section.contentAr]);
     const en = filled(settings.value[section.titleEn]) || filled(settings.value[section.contentEn]);
     if (ar && en) return { tone: 'shown', label: tx('ظاهر في الموقع', 'Shown on the site') };
-    if (ar) return { tone: 'partial', label: tx('ظاهر بالعربي فقط — الإنجليزي فاضي', 'Arabic only — English is empty') };
-    if (en) return { tone: 'partial', label: tx('ظاهر بالإنجليزي فقط — العربي فاضي', 'English only — Arabic is empty') };
+    if (ar) return { tone: 'partial', label: tx('ظاهر بالعربية فقط — الإنجليزية فارغة', 'Arabic only — English is empty') };
+    if (en) return { tone: 'partial', label: tx('ظاهر بالإنجليزية فقط — العربية فارغة', 'English only — Arabic is empty') };
     return { tone: 'hidden', label: tx('مخفي من الموقع — العنوان والوصف فاضيين', 'Hidden — no title or description') };
 };
 const aboutSectionHasContent = (section) => [section.titleAr, section.titleEn, section.contentAr, section.contentEn]
@@ -935,7 +935,7 @@ const triggerAlert = (message, type = 'success') => {
                 <div class="form-group full-width">
                     <div class="info-alert">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                        {{ tx('غيّر اسم كل تبويب من تبويبات صفحة المنتج بالعربي والإنجليزي. كل تبويب بيعرض بيانات من المنتج نفسه (تملأها في تعديل المنتج)، والتبويب اللي ما فيهوش بيانات ما يظهرش. تبويب «التقييمات» ثابت. الأسماء بتظهر كمان في خانات إضافة المنتج.', 'Rename each product page tab in Arabic and English. Each tab shows data from the product itself (filled in when editing the product); a tab with no data is hidden. «Reviews» is fixed. The names also label the fields in the product form.') }}
+                        {{ tx('غيّر اسم كل تبويب من تبويبات صفحة المنتج بالعربية والإنجليزية. يعرض كل تبويب بيانات من المنتج نفسه (تُملأ عند تعديل المنتج)، والتبويب الذي لا تتوفر له بيانات لا يظهر. تبويب «التقييمات» ثابت. وتظهر الأسماء أيضًا في خانات إضافة المنتج.', 'Rename each product page tab in Arabic and English. Each tab shows data from the product itself (filled in when editing the product); a tab with no data is hidden. «Reviews» is fixed. The names also label the fields in the product form.') }}
                     </div>
                 </div>
 
@@ -1061,7 +1061,7 @@ const triggerAlert = (message, type = 'success') => {
                 </BilingualField>
 
                 <BilingualField class="form-group full-width" :ar="settings.seo_description_ar" :en="settings.seo_description_en" testid="seo-description">
-                    <template #label><label>{{ tx('الوصف (الرسالة اللي تظهر تحت العنوان)', 'Description (the message shown under the title)') }}</label></template>
+                    <template #label><label>{{ tx('الوصف (الرسالة التي تظهر تحت العنوان)', 'Description (the message shown under the title)') }}</label></template>
                     <template #default="{ lang }">
                         <textarea v-show="lang === 'ar'" v-model="settings.seo_description_ar" rows="3" maxlength="300" dir="rtl" placeholder="مثال: الرائد الأول في توفير الأجهزة المنزلية الإيطالية الفاخرة في المملكة العربية السعودية." data-testid="seo-description-ar"></textarea>
                         <textarea v-show="lang === 'en'" v-model="settings.seo_description_en" rows="3" maxlength="300" dir="ltr" placeholder="e.g. The leading provider of premium Italian home appliances in Saudi Arabia." class="ltr-input" data-testid="seo-description-en"></textarea>
@@ -1094,7 +1094,7 @@ const triggerAlert = (message, type = 'success') => {
                             <span>JPG / PNG · 1200×630</span>
                         </div>
                     </div>
-                    <small class="field-hint">{{ tx('الصورة اللي بتظهر فوق الرسالة لما حد يشارك رابط الموقع. لحد ما ترفع صورة، بيُستخدم الشعار الأساسي (الهوية البصرية). الأفضل صورة عريضة (نسبة 2:1) فيها الشعار.', 'The image shown above the message when someone shares the site link. Until you upload one, the main logo (Visual identity) is used. A wide image (2:1) with the logo works best.') }}</small>
+                    <small class="field-hint">{{ tx('الصورة التي تظهر فوق الرسالة عند مشاركة رابط الموقع. إلى أن ترفع صورة يُستخدم الشعار الأساسي (الهوية البصرية). يُفضَّل استخدام صورة عريضة (بنسبة 2:1) تتضمن الشعار.', 'The image shown above the message when someone shares the site link. Until you upload one, the main logo (Visual identity) is used. A wide image (2:1) with the logo works best.') }}</small>
                 </div>
 
                 <div class="form-group full-width seo-preview" data-testid="seo-preview">
@@ -1129,7 +1129,7 @@ const triggerAlert = (message, type = 'success') => {
                             </div>
                         </div>
                     </div>
-                    <small class="field-hint">{{ tx('بعد الحفظ، واتساب وتيليجرام بيحتفظوا بنسخة قديمة من المعاينة لفترة؛ جرّب الرابط في محادثة جديدة أو استخدم أداة إعادة الفحص من فيسبوك.', 'After saving, WhatsApp and Telegram keep an old copy of the preview for a while; try the link in a new chat or use the Facebook re-scrape tool.') }}</small>
+                    <small class="field-hint">{{ tx('بعد الحفظ، يحتفظ واتساب وتيليجرام بنسخة قديمة من المعاينة لفترة؛ جرّب الرابط في محادثة جديدة أو استخدم أداة إعادة الفحص من فيسبوك.', 'After saving, WhatsApp and Telegram keep an old copy of the preview for a while; try the link in a new chat or use the Facebook re-scrape tool.') }}</small>
                 </div>
             </div>
         </div>
@@ -1174,7 +1174,7 @@ const triggerAlert = (message, type = 'success') => {
                         <span class="about-setting-step">0{{ section.number }}</span>
                         <div class="about-setting-heading-text">
                             <h3>{{ tx('القسم', 'Section') }} {{ section.number }}</h3>
-                            <p>{{ tx('صورة وعنوان ووصف يظهروا معاً في الصفحة (بالعربي والإنجليزي). لو العنوان والوصف فاضيين القسم مش هيظهر.', 'An image, title and description shown together on the page (Arabic and English). If the title and description are empty the section does not show.') }}</p>
+                            <p>{{ tx('صورة وعنوان ووصف تظهر معًا في الصفحة (بالعربية والإنجليزية). إذا كان العنوان والوصف فارغين فلن يظهر القسم.', 'An image, title and description shown together on the page (Arabic and English). If the title and description are empty the section does not show.') }}</p>
                             <span :class="['about-section-status', aboutSectionStatus(section).tone]" :data-testid="`about-section-status-${section.number}`">{{ aboutSectionStatus(section).label }}</span>
                         </div>
                         <button
@@ -1236,7 +1236,7 @@ const triggerAlert = (message, type = 'success') => {
                         </span>
                         <div class="about-setting-heading-text">
                             <h3>{{ tx(group.title[0], group.title[1]) }}</h3>
-                            <p>{{ tx('نصوص صفحة «من نحن» بالعربي والإنجليزي. أي خانة تسيبها فاضية وتحفظ، الجزء ده بيتشال من الصفحة في الموقع.', 'About page texts in Arabic and English. Any field you leave empty and save is removed from the page on the website.') }}</p>
+                            <p>{{ tx('نصوص صفحة «من نحن» بالعربية والإنجليزية. أي خانة تتركها فارغة وتحفظ، يُحذف الجزء الخاص بها من الصفحة في الموقع.', 'About page texts in Arabic and English. Any field you leave empty and save is removed from the page on the website.') }}</p>
                         </div>
                     </div>
                     <div v-for="item in group.fields" :key="item.key" class="about-section-fields">

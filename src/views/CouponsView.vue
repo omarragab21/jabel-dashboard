@@ -440,7 +440,7 @@ const confirmDelete = async (coupon) => {
 const bulk = useBulkSelection(() => filteredCoupons.value);
 const bulkActions = computed(() => [
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
-    confirm: (rows) => tx(`هتحذف ${rows.length} كود خصم. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} coupons? This cannot be undone.`),
+    confirm: (rows) => tx(`سيتم حذف ${rows.length} كود خصم. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} coupons? This cannot be undone.`),
     each: (c) => api.delete(`/dashboard/coupons/${c.id}`), done: fetchCoupons, success: (n) => tx(`تم حذف ${n} كود خصم`, `${n} coupons deleted`) },
 ]);
 </script>

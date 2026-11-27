@@ -279,7 +279,7 @@ const filteredCustomers = computed(() => {
 const bulk = useBulkSelection(() => filteredCustomers.value);
 const bulkActions = computed(() => [
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
-    confirm: (rows) => tx(`هتحذف ${rows.length} عميل. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} customers? This cannot be undone.`),
+    confirm: (rows) => tx(`سيتم حذف ${rows.length} عميل. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} customers? This cannot be undone.`),
     each: (c) => adminManagementService.deleteUser(c.id), done: fetchCustomers, success: (n) => tx(`تم حذف ${n} عميل`, `${n} customers deleted`) },
 ]);
 </script>

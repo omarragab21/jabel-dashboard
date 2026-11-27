@@ -414,7 +414,7 @@ const bulkActions = computed(() => [
   { key: 'deactivate', label: tx('تعطيل', 'Deactivate'), icon: 'ban', applies: (s) => s.status === 'active',
     each: (s) => adminManagementService.updateSlider(s.id, toUpdateForm(s, { status: 'inactive' })), done: () => fetchSliders({ notify: false }), success: (n) => tx(`تم تعطيل ${n} شريحة`, `${n} slides deactivated`) },
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
-    confirm: (rows) => tx(`هتحذف ${rows.length} شريحة. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} slides? This cannot be undone.`),
+    confirm: (rows) => tx(`سيتم حذف ${rows.length} شريحة. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} slides? This cannot be undone.`),
     each: (s) => adminManagementService.deleteSlider(s.id), done: () => fetchSliders({ notify: false }), success: (n) => tx(`تم حذف ${n} شريحة`, `${n} slides deleted`) },
 ]);
 </script>

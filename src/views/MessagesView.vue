@@ -171,7 +171,7 @@ const bulkActions = computed(() => [
       if (saved?.status !== 'read') throw new Error(tx('لم يؤكد الخادم القراءة', 'Not confirmed by the server'));
     }, done: fetchMessages, success: (n) => tx(`تم تعيين ${n} رسالة كمقروءة`, `${n} messages marked as read`) },
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
-    confirm: (rows) => tx(`هتحذف ${rows.length} رسالة. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} messages? This cannot be undone.`),
+    confirm: (rows) => tx(`سيتم حذف ${rows.length} رسالة. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} messages? This cannot be undone.`),
     each: (m) => adminManagementService.deleteContact(m.id), done: fetchMessages, success: (n) => tx(`تم حذف ${n} رسالة`, `${n} messages deleted`) },
 ]);
 </script>

@@ -138,7 +138,7 @@ const dropRow = (row) => {
     return;
   }
   if (rows.value.length <= 1) {
-    emit('notify', tx('لازم يفضل متغير واحد على الأقل. ألغِ الخاصية لو عايز منتج بدون متغيرات.', 'At least one variant must stay. Turn the attribute off for a product without variants.'), 'error');
+    emit('notify', tx('يجب أن يبقى متغير واحد على الأقل. ألغِ تفعيل الخاصية إذا أردت منتجًا بدون متغيرات.', 'At least one variant must stay. Turn the attribute off for a product without variants.'), 'error');
     return;
   }
   const archive = row.existing ? [...(state.value.archive || []).filter((saved) => saved.key !== row.key), row] : state.value.archive || [];
@@ -247,7 +247,7 @@ const isProblem = (row, field) => props.problem?.key === row.key && props.proble
         <span class="vb-step">1</span>
         <div>
           <h4>{{ tx('اختر الخصائص والقيم', 'Choose the attributes and values') }}</h4>
-          <p>{{ tx('فعّل الخاصية اللي بتختلف بين المتغيرات (مثل اللون والمقاس) وحدد قيمها. كل تركيبة بين القيم هتتحول لمتغير بسعر ومخزون خاص بيه.', 'Turn on the attributes the variants differ by (such as colour and size) and tick their values. Every combination of the values becomes a variant with its own price and stock.') }}</p>
+          <p>{{ tx('فعّل الخاصية التي تختلف بها المتغيرات (مثل اللون والمقاس) وحدد قيمها. كل تركيبة بين القيم تتحول إلى متغير له سعر ومخزون خاصان به.', 'Turn on the attributes the variants differ by (such as colour and size) and tick their values. Every combination of the values becomes a variant with its own price and stock.') }}</p>
         </div>
       </header>
 
@@ -309,17 +309,17 @@ const isProblem = (row, field) => props.problem?.key === row.key && props.proble
         <span class="vb-step">2</span>
         <div>
           <h4>{{ tx('المتغيرات الناتجة', 'Generated variants') }}</h4>
-          <p v-if="rows.length && editing">{{ tx('دي متغيرات المنتج الحالية. عدّل السعر والحالة، أضف تركيبات جديدة بتفعيل قيم، أو احذف متغير. المخزون بيتعدل من «إدارة المخزون».', 'These are the product’s current variants. Change the price and status, add combinations by ticking values, or remove a variant. Stock is changed in “Inventory”.') }}</p>
-          <p v-else-if="rows.length">{{ tx('حدد السعر والمخزون لكل متغير. المتغير الأساسي هو اللي بيظهر أولًا للعميل وبياخد صور المنتج.', 'Set the price and stock of every variant. The main variant is the one customers see first and it carries the product pictures.') }}</p>
-          <p v-else>{{ tx('لما تختار قيم، المتغيرات بتتولد هنا تلقائيًا.', 'Once you tick values, the variants appear here automatically.') }}</p>
+          <p v-if="rows.length && editing">{{ tx('هذه متغيرات المنتج الحالية. عدّل السعر والحالة، وأضف تركيبات جديدة بتفعيل قيم، أو احذف متغيرًا. يُعدَّل المخزون من «إدارة المخزون».', 'These are the product’s current variants. Change the price and status, add combinations by ticking values, or remove a variant. Stock is changed in “Inventory”.') }}</p>
+          <p v-else-if="rows.length">{{ tx('حدد السعر والمخزون لكل متغير. المتغير الأساسي هو الذي يظهر أولًا للعميل وتُنسَب إليه صور المنتج.', 'Set the price and stock of every variant. The main variant is the one customers see first and it carries the product pictures.') }}</p>
+          <p v-else>{{ tx('عند اختيار القيم تُولَّد المتغيرات هنا تلقائيًا.', 'Once you tick values, the variants appear here automatically.') }}</p>
         </div>
       </header>
 
       <div v-if="!rows.length" class="vb-none" data-testid="vb-none">
         <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></svg>
         <strong>{{ tx('منتج بدون متغيرات', 'A product without variants') }}</strong>
-        <span v-if="editing">{{ tx('المنتج ده مالوش متغيرات. سعره ومخزونه في الخانتين أعلاه. لو فعّلت خاصية وحددت قيمها، التركيبات الجديدة بتتضاف كمتغيرات للمنتج.', 'This product has no variants: its price and stock are in the fields above. Turn on an attribute and tick values to add variants to it.') }}</span>
-        <span v-else>{{ tx('هيتحفظ كمنتج واحد بالسعر والمخزون المكتوبين أعلاه. فعّل خاصية أعلاه لو عايز لون أو مقاس أو غيره.', 'It is saved as one product with the price and stock entered above. Turn on an attribute above for colours, sizes and so on.') }}</span>
+        <span v-if="editing">{{ tx('ليس لهذا المنتج متغيرات. سعره ومخزونه في الخانتين أعلاه. إذا فعّلت خاصية وحددت قيمها، تُضاف التركيبات الجديدة كمتغيرات للمنتج.', 'This product has no variants: its price and stock are in the fields above. Turn on an attribute and tick values to add variants to it.') }}</span>
+        <span v-else>{{ tx('سيُحفظ كمنتج واحد بالسعر والمخزون المكتوبين أعلاه. فعّل خاصية أعلاه إذا أردت لونًا أو مقاسًا أو غيرهما.', 'It is saved as one product with the price and stock entered above. Turn on an attribute above for colours, sizes and so on.') }}</span>
       </div>
 
       <template v-else>
@@ -371,7 +371,7 @@ const isProblem = (row, field) => props.problem?.key === row.key && props.proble
                   <input :value="row.price" type="number" min="0" step="0.01" placeholder="0.00" :class="{ bad: isProblem(row, 'price') }" data-vb-field="price" data-testid="vb-price" :aria-label="tx('السعر', 'Price')" @input="patchRow(row.key, { price: $event.target.value })" />
                 </td>
                 <td class="c-stock">
-                  <input :value="row.number" type="number" min="0" step="1" placeholder="0" :disabled="Boolean(row.existing)" :title="row.existing ? tx('المخزون بيتعدل من «إدارة المخزون»', 'Stock is changed in “Inventory”') : ''" :class="{ bad: isProblem(row, 'number'), locked: row.existing }" data-vb-field="number" data-testid="vb-stock" :aria-label="tx('المخزون', 'Stock')" @input="patchRow(row.key, { number: $event.target.value })" />
+                  <input :value="row.number" type="number" min="0" step="1" placeholder="0" :disabled="Boolean(row.existing)" :title="row.existing ? tx('يُعدَّل المخزون من «إدارة المخزون»', 'Stock is changed in “Inventory”') : ''" :class="{ bad: isProblem(row, 'number'), locked: row.existing }" data-vb-field="number" data-testid="vb-stock" :aria-label="tx('المخزون', 'Stock')" @input="patchRow(row.key, { number: $event.target.value })" />
                 </td>
                 <td class="c-pics">
                   <div v-if="row.is_main" class="vb-pics">

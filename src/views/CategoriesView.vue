@@ -893,10 +893,10 @@ const bulkActions = computed(() => [
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
     // Sub-categories go first in the request so a main category is never removed while its children are still there.
     order: (rows) => [...rows].sort((a, b) => Number(isSubRow(b)) - Number(isSubRow(a))),
-    confirm: (rows) => tx(`هتحذف ${rows.length} قسم. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} categories? This cannot be undone.`),
+    confirm: (rows) => tx(`سيتم حذف ${rows.length} قسم. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} categories? This cannot be undone.`),
     all: async (rows, inputs) => {
       const linked = allProducts.value.length ? rows.filter((c) => (productCounts.value[Number(c.id)] || 0) > 0).length : 0;
-      if (linked) throw new Error(tx(`${linked} من الأقسام المحددة مرتبطة بمنتجات — ألغِ تحديدها وحاول تاني`, `${linked} of the selected categories have products — untick them and try again`));
+      if (linked) throw new Error(tx(`${linked} من الأقسام المحددة مرتبطة بمنتجات — ألغِ تحديدها وحاول مرة أخرى`, `${linked} of the selected categories have products — untick them and try again`));
       return bulkCategories('delete')(rows, inputs);
     }, done: () => fetchCategories(), success: (n) => tx(`تم حذف ${n} قسم`, `${n} categories deleted`) },
 ]);

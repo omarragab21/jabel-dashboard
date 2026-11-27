@@ -116,9 +116,9 @@ const close = () => { if (step.value === 'running') return; if (step.value === '
         <button v-else-if="step === 'review'" type="button" class="tpl-back" @click="step = 'gallery'">← {{ tx('رجوع للقوالب', 'Back to templates') }}</button>
         <div class="tpl-titles">
           <h2>{{ step === 'gallery' ? tx('قوالب الخصائص الجاهزة', 'Ready-made attribute templates') : step === 'review' ? tx('مراجعة السلة', 'Review your basket') : template ? `${template.icon} ${pick(template.name)}` : '' }}</h2>
-          <p v-if="step === 'gallery'">{{ tx('ادخل على أي قالب واختار منه اللي يعجبك، وارجع واختار من قالب تاني. كل اللي تختاره بيتجمع في سلة واحدة وتنشئه مرة واحدة.', 'Open any template and pick what you like, then go back and pick from another. Everything you pick is collected into one basket and created at once.') }}</p>
+          <p v-if="step === 'gallery'">{{ tx('ادخل إلى أي قالب واختر منه ما يناسبك، ثم ارجع واختر من قالب آخر. كل ما تختاره يُجمَع في سلة واحدة وتُنشئه مرة واحدة.', 'Open any template and pick what you like, then go back and pick from another. Everything you pick is collected into one basket and created at once.') }}</p>
           <p v-else-if="step === 'preview'">{{ pick(template.description) }}</p>
-          <p v-else-if="step === 'review'">{{ tx('ده كل اللي اخترته من كل القوالب. الخاصية المشتركة بين قالبين بتتدمج.', 'Everything you picked across templates. An attribute shared by two templates is merged into one.') }}</p>
+          <p v-else-if="step === 'review'">{{ tx('هذا كل ما اخترته من جميع القوالب. الخاصية المشتركة بين قالبين تُدمَج في خاصية واحدة.', 'Everything you picked across templates. An attribute shared by two templates is merged into one.') }}</p>
         </div>
         <button v-if="step !== 'running'" type="button" class="tpl-close" :aria-label="tx('إغلاق', 'Close')" @click="close">×</button>
       </header>
@@ -143,13 +143,13 @@ const close = () => { if (step.value === 'running') return; if (step.value === '
       <div v-else-if="step === 'preview'" class="tpl-body">
         <div class="tpl-tools">
           <label class="tpl-check"><input type="checkbox" :checked="allIncluded" @change="toggleAll" /> {{ tx('تحديد كل خصائص القالب', 'Select the whole template') }}</label>
-          <span class="tpl-hint">{{ tx('علّم ✓ على الخصائص اللي عايزها بس. تقدر تفتح القيم وتشيل منها.', 'Tick only the attributes you want. Open the values to untick some.') }}</span>
+          <span class="tpl-hint">{{ tx('ضع علامة ✓ على الخصائص التي تريدها فقط. يمكنك فتح القيم وإلغاء تحديد ما لا تريده منها.', 'Tick only the attributes you want. Open the values to untick some.') }}</span>
         </div>
         <div v-for="(attribute, index) in template.attributes" :key="attribute.name[1]" class="tpl-attr" :class="{ off: !selection[index].include }">
           <div class="tpl-attr-head">
             <label class="tpl-check strong"><input v-model="selection[index].include" type="checkbox" /> {{ pick(attribute.name) }}</label>
             <span v-if="attribute.type === 'color'" class="tpl-tag">{{ tx('ألوان', 'Colors') }}</span>
-            <span v-if="existsOnServer(attribute)" class="tpl-tag warn">{{ tx('موجودة — هتتضاف القيم الناقصة بس', 'Already exists — only missing values are added') }}</span>
+            <span v-if="existsOnServer(attribute)" class="tpl-tag warn">{{ tx('موجودة — ستُضاف القيم الناقصة فقط', 'Already exists — only missing values are added') }}</span>
             <button type="button" class="tpl-toggle" @click="selection[index].open = !selection[index].open">
               {{ chosenCount(index) }}/{{ attribute.values.length }} {{ tx('قيمة', 'values') }} {{ selection[index].open ? '▲' : '▼' }}
             </button>
@@ -175,9 +175,9 @@ const close = () => { if (step.value === 'running') return; if (step.value === '
             <strong class="tpl-name">{{ pick(attribute.name) }}</strong>
             <span v-if="attribute.type === 'color'" class="tpl-tag">{{ tx('ألوان', 'Colors') }}</span>
             <span v-for="id in attribute.sources" :key="id" class="tpl-tag src">{{ templateName(id) }}</span>
-            <span v-if="existsInBasket(index)" class="tpl-tag warn">{{ tx('موجودة — هتتضاف القيم الناقصة بس', 'Already exists — only missing values are added') }}</span>
+            <span v-if="existsInBasket(index)" class="tpl-tag warn">{{ tx('موجودة — ستُضاف القيم الناقصة فقط', 'Already exists — only missing values are added') }}</span>
             <span class="tpl-count">{{ attribute.values.length }} {{ tx('قيمة', 'values') }}</span>
-            <button type="button" class="tpl-remove" :title="tx('شيل من السلة', 'Remove from basket')" @click="removeFromBasket(attribute)">✕</button>
+            <button type="button" class="tpl-remove" :title="tx('إزالة من السلة', 'Remove from basket')" @click="removeFromBasket(attribute)">✕</button>
           </div>
           <div class="tpl-values">
             <span v-for="raw in attribute.values" :key="raw" class="tpl-chip on">
@@ -186,7 +186,7 @@ const close = () => { if (step.value === 'running') return; if (step.value === '
             </span>
           </div>
         </div>
-        <p v-if="!combined.attributes.length" class="tpl-hint">{{ tx('السلة فاضية. ارجع واختار خصائص من القوالب.', 'The basket is empty. Go back and pick attributes from the templates.') }}</p>
+        <p v-if="!combined.attributes.length" class="tpl-hint">{{ tx('السلة فارغة. ارجع واختر خصائص من القوالب.', 'The basket is empty. Go back and pick attributes from the templates.') }}</p>
       </div>
 
       <!-- 3. Running -->
@@ -196,18 +196,18 @@ const close = () => { if (step.value === 'running') return; if (step.value === '
         <div class="tpl-bar"><span :style="{ width: percent + '%' }"></span></div>
         <p class="tpl-progress">{{ progress.done }} / {{ progress.total }} · {{ percent }}%</p>
         <p class="tpl-label">{{ progress.label }}</p>
-        <p class="tpl-hint">{{ tx('ما تقفلش الصفحة لحد ما يخلص.', 'Please keep this page open until it finishes.') }}</p>
+        <p class="tpl-hint">{{ tx('لا تُغلق الصفحة حتى تنتهي العملية.', 'Please keep this page open until it finishes.') }}</p>
       </div>
 
       <!-- 4. Result -->
       <div v-else-if="step === 'result'" class="tpl-body tpl-center">
         <div class="tpl-done" :class="{ bad: summary.failures.length }">{{ summary.failures.length ? '!' : '✓' }}</div>
-        <h3>{{ summary.failures.length ? tx('اتعمل القالب مع بعض الأخطاء', 'Template created with some errors') : tx('تم إنشاء القالب بنجاح', 'Template created successfully') }}</h3>
+        <h3>{{ summary.failures.length ? tx('تم إنشاء القالب مع بعض الأخطاء', 'Template created with some errors') : tx('تم إنشاء القالب بنجاح', 'Template created successfully') }}</h3>
         <ul class="tpl-summary">
           <li><b>{{ summary.createdAttributes }}</b> {{ tx('خاصية جديدة', 'new attributes') }}</li>
-          <li v-if="summary.reusedAttributes"><b>{{ summary.reusedAttributes }}</b> {{ tx('خاصية كانت موجودة (اتضافت لها القيم الناقصة)', 'attributes already existed (missing values added)') }}</li>
+          <li v-if="summary.reusedAttributes"><b>{{ summary.reusedAttributes }}</b> {{ tx('خاصية كانت موجودة (أُضيفت إليها القيم الناقصة)', 'attributes already existed (missing values added)') }}</li>
           <li><b>{{ summary.createdValues }}</b> {{ tx('قيمة جديدة', 'new values') }}</li>
-          <li v-if="summary.skippedValues"><b>{{ summary.skippedValues }}</b> {{ tx('قيمة موجودة قبل كده (اتخطّت)', 'values already existed (skipped)') }}</li>
+          <li v-if="summary.skippedValues"><b>{{ summary.skippedValues }}</b> {{ tx('قيمة كانت موجودة من قبل (تم تخطّيها)', 'values already existed (skipped)') }}</li>
         </ul>
         <div v-if="summary.failures.length" class="tpl-errors">
           <strong>{{ tx('تعذر إنشاء:', 'Could not create:') }}</strong>
@@ -217,20 +217,20 @@ const close = () => { if (step.value === 'running') return; if (step.value === '
 
       <footer v-if="step === 'gallery' || step === 'preview'" class="tpl-foot">
         <div class="tpl-total">
-          <template v-if="!basketAttributes">{{ step === 'preview' ? tx('لسه ما اخترتش حاجة من القالب ده.', 'Nothing picked from this template yet.') : tx('السلة فاضية.', 'The basket is empty.') }}</template>
+          <template v-if="!basketAttributes">{{ step === 'preview' ? tx('لم تختر شيئًا من هذا القالب بعد.', 'Nothing picked from this template yet.') : tx('السلة فارغة.', 'The basket is empty.') }}</template>
           <template v-else>
             🧺 {{ tx('في السلة', 'In basket') }}: <b>{{ basketAttributes }}</b> {{ tx('خاصية', 'attributes') }} · <b>{{ basketValues }}</b> {{ tx('قيمة', 'values') }}
             <template v-if="basketTemplates.length > 1"> · {{ tx('من', 'from') }} <b>{{ basketTemplates.length }}</b> {{ tx('قوالب', 'templates') }}</template>
           </template>
         </div>
         <button v-if="basketAttributes" type="button" class="tpl-btn ghost" @click="clearBasket">{{ tx('تفريغ السلة', 'Clear basket') }}</button>
-        <button v-if="step === 'preview'" type="button" class="tpl-btn ghost" @click="step = 'gallery'">{{ tx('إضافة من قالب تاني', 'Pick from another template') }}</button>
+        <button v-if="step === 'preview'" type="button" class="tpl-btn ghost" @click="step = 'gallery'">{{ tx('الإضافة من قالب آخر', 'Pick from another template') }}</button>
         <button type="button" class="tpl-btn" :disabled="!basketAttributes" data-testid="template-review" @click="step = 'review'">{{ tx('مراجعة وإنشاء', 'Review & create') }}</button>
       </footer>
       <footer v-else-if="step === 'review'" class="tpl-foot">
         <div class="tpl-total">
-          <template v-if="nothingToCreate">{{ tx('مفيش حاجة جديدة هتتعمل: كل اللي اخترته موجود.', 'Nothing new to create: everything you picked already exists.') }}</template>
-          <template v-else>{{ tx('هيتم إنشاء', 'Will create') }} <b>{{ basketPlan.attributes }}</b> {{ tx('خاصية و', 'attributes and') }} <b>{{ basketPlan.values }}</b> {{ tx('قيمة', 'values') }}</template>
+          <template v-if="nothingToCreate">{{ tx('لا يوجد شيء جديد لإنشائه: كل ما اخترته موجود بالفعل.', 'Nothing new to create: everything you picked already exists.') }}</template>
+          <template v-else>{{ tx('سيتم إنشاء', 'Will create') }} <b>{{ basketPlan.attributes }}</b> {{ tx('خاصية و', 'attributes and') }} <b>{{ basketPlan.values }}</b> {{ tx('قيمة', 'values') }}</template>
         </div>
         <button type="button" class="tpl-btn ghost" @click="step = 'gallery'">{{ tx('إضافة المزيد', 'Add more') }}</button>
         <button type="button" class="tpl-btn" :disabled="nothingToCreate" data-testid="template-apply" @click="run">{{ tx('إنشاء الكل', 'Create all') }}</button>

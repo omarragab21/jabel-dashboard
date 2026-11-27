@@ -574,7 +574,7 @@ const deleteValueItem = async (val) => {
 const bulk = useBulkSelection(() => attributes.value);
 const bulkActions = computed(() => [
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
-    confirm: (rows) => tx(`هتحذف ${rows.length} خاصية. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} attributes? This cannot be undone.`),
+    confirm: (rows) => tx(`سيتم حذف ${rows.length} خاصية. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} attributes? This cannot be undone.`),
     each: (a) => productAttributeService.delete(a.id), done: fetchAttributes, success: (n) => tx(`تم حذف ${n} خاصية`, `${n} attributes deleted`) },
 ]);
 </script>

@@ -480,7 +480,7 @@
           <!-- A product without variants is one product: its price and stock are the default variant's own fields. -->
           <div v-if="!hasVariants && !attributesLoading && !variantsLoading" class="default-variant-card" data-testid="default-variant-card">
             <h4 class="variant-section-title">{{ tx('السعر والمخزون (المتغير الافتراضي)', 'Price & stock (default variant)') }}</h4>
-            <p class="points-hint">{{ tx('المنتج ده من غير متغيرات، فبياناته هنا. لو فعّلت خاصية تحت وحددت قيمها، كل تركيبة بتاخد سعرها ومخزونها.', 'This product has no variants, so its price and stock are set here. Turn on an attribute below and every combination gets its own price and stock.') }}</p>
+            <p class="points-hint">{{ tx('هذا المنتج بلا متغيرات، لذا تُدخَل بياناته هنا. إذا فعّلت خاصية أدناه وحددت قيمها، تحصل كل تركيبة على سعرها ومخزونها.', 'This product has no variants, so its price and stock are set here. Turn on an attribute below and every combination gets its own price and stock.') }}</p>
             <div class="form-row">
               <div class="form-group half-width">
                 <label class="form-label">{{ tx('السعر', 'Price') }} ({{ cur }}) <span class="req">*</span></label>
@@ -1826,7 +1826,7 @@ const bulkActions = computed(() => [
     },
     all: bulkProducts('change_category'), done: refreshAfterBulk, success: (n) => tx(`تم نقل ${n} منتج`, `${n} products moved`) },
   { key: 'delete', label: tx('حذف', 'Delete'), icon: 'trash', tone: 'danger',
-    confirm: (rows) => tx(`هتحذف ${rows.length} منتج. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} products? This cannot be undone.`),
+    confirm: (rows) => tx(`سيتم حذف ${rows.length} منتج. الحذف نهائي ولا يمكن التراجع عنه.`, `Delete ${rows.length} products? This cannot be undone.`),
     all: bulkProducts('delete'), done: refreshAfterBulk, success: (n) => tx(`تم حذف ${n} منتج`, `${n} products deleted`) },
 ]);
 
