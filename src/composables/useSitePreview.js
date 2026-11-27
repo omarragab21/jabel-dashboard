@@ -8,7 +8,7 @@ export const SITE_PREVIEW_KEY = 'site_preview_url';
 const previewUrl = ref('');
 let loaded = null;
 
-/** A usable http(s) address, or '' ("mastergas.com" becomes "https://mastergas.com"). */
+/** A usable http(s) address, or '' ("example.com" becomes "https://example.com"). */
 export const normalizePreviewUrl = (raw) => {
   const text = String(raw ?? '').trim();
   if (!text) return '';

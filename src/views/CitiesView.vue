@@ -139,8 +139,8 @@
           <BilingualField class="loc-field" required :ar="form.name_ar" :en="form.name_en" :invalid-ar="!!fieldError('name_ar')" :invalid-en="!!fieldError('name_en')" testid="city-name">
             <template #label="{ lang }"><label class="loc-label" :for="`city-name-${lang}`">{{ tx('اسم المدينة', 'City name') }} <span class="loc-req">*</span></label></template>
             <template #default="{ lang }">
-              <input v-show="lang === 'ar'" id="city-name-ar" v-model="form.name_ar" class="loc-input" :class="{ 'is-invalid': fieldError('name_ar') }" dir="rtl" maxlength="255" :placeholder="tx('مثال: الرياض', 'e.g. الرياض')" data-testid="city-name-ar" />
-              <input v-show="lang === 'en'" id="city-name-en" v-model="form.name_en" class="loc-input" :class="{ 'is-invalid': fieldError('name_en') }" dir="ltr" maxlength="255" placeholder="e.g. Riyadh" data-testid="city-name-en" />
+              <input v-show="lang === 'ar'" id="city-name-ar" v-model="form.name_ar" class="loc-input" :class="{ 'is-invalid': fieldError('name_ar') }" dir="rtl" maxlength="255" :placeholder="tx('مثال: عمّان', 'e.g. عمّان')" data-testid="city-name-ar" />
+              <input v-show="lang === 'en'" id="city-name-en" v-model="form.name_en" class="loc-input" :class="{ 'is-invalid': fieldError('name_en') }" dir="ltr" maxlength="255" placeholder="e.g. Amman" data-testid="city-name-en" />
             </template>
           </BilingualField>
           <p v-if="fieldError('name_ar')" class="loc-error" data-testid="city-name-ar-error">{{ fieldError('name_ar') }}</p>

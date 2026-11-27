@@ -6,7 +6,6 @@ const serverUrl = 'https://backend-tijara-plus-stage.be-kite.com/api';
 const envUrl = import.meta.env.VITE_API_BASE_URL;
 
 const isBrowser = typeof window !== 'undefined';
-const frappeMode = import.meta.env.VITE_FRAPPE_MODE === 'true';
 // Every request goes to the remote Tijara API; there is no local data source.
 const baseURL = envUrl || (import.meta.env.DEV && isBrowser ? '/api' : serverUrl);
 
@@ -72,7 +71,7 @@ export const recordApiMetric = (metric) => {
   apiMetrics.push(entry);
   if (apiMetrics.length > MAX_METRICS) apiMetrics.shift();
   if (import.meta.env?.DEV && typeof window !== 'undefined') {
-    window.__mastergasApiMetrics = apiMetrics;
+    window.__jabelApiMetrics = apiMetrics;
   }
   return entry;
 };
@@ -104,21 +103,21 @@ api.interceptors.request.use(config => {
   const lang = storage?.getItem('lang') || 'ar';
   config.headers['Accept-Language'] = lang;
 
-  const requestId = config.headers['X-Request-ID'] || `mg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const requestId = config.headers['X-Request-ID'] || `jb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   config.headers['X-Request-ID'] = requestId;
   // A timeout passed on the call wins; otherwise the route decides (axios leaves 0 when unset).
   config.timeout = config.timeout || getRequestTimeout(config.url);
-  config.__mastergasRequest = {
+  config.__jabelRequest = {
     requestId,
     startedAt: performanceNow(),
     endpoint: getRequestPath(config),
     retryCount: config.__retryCount || 0,
   };
-  if (!globalThis.__mastergasFirstApiRequest) {
-    globalThis.__mastergasFirstApiRequest = true;
-    performanceMark('mastergas:first-api-request');
+  if (!globalThis.__jabelFirstApiRequest) {
+    globalThis.__jabelFirstApiRequest = true;
+    performanceMark('jabel:first-api-request');
   }
-  performanceMark(`mastergas:api:start:${requestId}`);
+  performanceMark(`jabel:api:start:${requestId}`);
 
   const requestUrl = config.url || '';
   const cleanPath = normalizePath(requestUrl);
@@ -131,19 +130,6 @@ api.interceptors.request.use(config => {
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-  }
-  if (frappeMode && cleanPath.startsWith('/frontend') && config.method?.toLowerCase() === 'get') {
-    const parts = cleanPath.split('/').filter(Boolean);
-    const resource = parts[1];
-    const methodMap = { products: 'get_products', categories: 'get_categories', offers: 'get_offers', brands: 'get_brands', settings: 'get_settings', sliders: 'get_sliders', reviews: 'get_product_reviews', coupons: 'get_coupons', topics: 'get_topics' };
-    if (resource === 'products' && parts[2]) {
-      config.baseURL = '/api';
-      config.url = '/method/mastergas_core.api.frontend.get_product_detail';
-      config.params = { ...(config.params || {}), id_or_slug: decodeURIComponent(parts[2]) };
-    } else if (methodMap[resource]) {
-      config.baseURL = '/api';
-      config.url = `/method/mastergas_core.api.frontend.${methodMap[resource]}`;
-    }
   }
   return config;
 });
@@ -159,11 +145,11 @@ const performanceNow = () => {
 };
 
 const finalizeMetric = (config, overrides = {}) => {
-  const request = config?.__mastergasRequest || {};
+  const request = config?.__jabelRequest || {};
   const start = request.startedAt || performanceNow();
   const duration = Math.max(0, performanceNow() - start);
   const requestId = request.requestId || config?.headers?.['X-Request-ID'];
-  performanceMark(`mastergas:api:end:${requestId || 'unknown'}`);
+  performanceMark(`jabel:api:end:${requestId || 'unknown'}`);
   return recordApiMetric({
     endpoint: request.endpoint || getRequestPath(config),
     parameters: sanitizeParameters(config?.params || {}),
@@ -190,9 +176,8 @@ api.interceptors.response.use(
     finalizeMetric(response.config, { status: response.status });
     // A successful write makes every cached admin screen potentially stale.
     if (isDataWrite(response.config)) markDataChanged();
-    if (frappeMode && response.data?.message?.success) response.data = response.data.message;
     if (getRequestPath(response.config).startsWith('/frontend/products')) {
-      performanceMark('mastergas:products-api-complete');
+      performanceMark('jabel:products-api-complete');
     }
     return response;
   },

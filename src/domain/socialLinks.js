@@ -1,6 +1,6 @@
 // Social links in Settings > Contact. The website opens each one as a normal web address, so whatever the admin
 // types is turned into one here: a WhatsApp number becomes a wa.me link, a bare "facebook.com/page" gets https://,
-// and a plain handle ("@mastergas") becomes that platform's profile address. Anything else is reported as invalid
+// and a plain handle ("@jabel") becomes that platform's profile address. Anything else is reported as invalid
 // instead of being dropped silently.
 export const SOCIAL_KEYS = ['whatsapp', 'facebook', 'instagram', 'x_twitter', 'linkedin', 'youtube', 'snapchat', 'tiktok'];
 
@@ -54,10 +54,10 @@ export const normalizeSocialLink = (key, raw) => {
     return digits.length >= 8 && digits.length <= 15 ? { value: `https://wa.me/${digits}` } : { error: 'invalid' };
   }
 
-  // "facebook.com/mastergas" without https://
+  // "facebook.com/jabel" without https://
   if (/^[^\s/@]+\.[a-z]{2,}(?:[/?#]\S*)?$/i.test(text) && isHttpUrl(`https://${text}`)) return { value: `https://${text}` };
 
-  // "@mastergas" or "mastergas": a handle on that platform
+  // "@jabel" or "jabel": a handle on that platform
   const handle = text.replace(/^@/, '');
   if (HANDLE_URLS[key] && /^[A-Za-z0-9._-]{2,60}$/.test(handle)) return { value: HANDLE_URLS[key](handle) };
   return { error: 'invalid' };

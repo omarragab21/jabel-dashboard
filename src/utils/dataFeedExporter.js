@@ -1,5 +1,5 @@
 /**
- * Product Data Feed Exporter for Mastergas CMS
+ * Product Data Feed Exporter for the Jabel store
  * Transforms product data into Facebook Catalog CSV, Google Shopping XML, and JSON feeds.
  */
 
@@ -35,7 +35,7 @@ function escapeXML(val) {
  * Generate Meta / Facebook Catalog Feed in CSV format
  * Fields: id, title, description, availability, condition, price, link, image_link, brand, google_product_category
  */
-export function generateMetaCSV(products = [], storeUrl = 'https://mastergas.sa', currency = 'JOD') {
+export function generateMetaCSV(products = [], storeUrl = 'https://jabel-website.vercel.app', currency = 'JOD') {
   const headers = [
     'id',
     'title',
@@ -72,7 +72,7 @@ export function generateMetaCSV(products = [], storeUrl = 'https://mastergas.sa'
       imageLink = `${baseUrl}${imageLink.startsWith('/') ? '' : '/'}${imageLink}`;
     }
 
-    const brand = product.brand_name || product.brand?.name || 'Mastergas';
+    const brand = product.brand_name || product.brand?.name || 'Jabel';
     const category = product.category_name || product.category?.name || 'Shopping';
 
     return [
@@ -95,7 +95,7 @@ export function generateMetaCSV(products = [], storeUrl = 'https://mastergas.sa'
 /**
  * Generate Google Merchant Center RSS 2.0 XML Feed
  */
-export function generateGoogleXML(products = [], storeUrl = 'https://mastergas.sa', currency = 'JOD') {
+export function generateGoogleXML(products = [], storeUrl = 'https://jabel-website.vercel.app', currency = 'JOD') {
   const baseUrl = storeUrl.replace(/\/$/, '');
   
   const itemsXML = products.map(product => {
@@ -116,7 +116,7 @@ export function generateGoogleXML(products = [], storeUrl = 'https://mastergas.s
     }
     imageLink = escapeXML(imageLink);
     
-    const brand = escapeXML(product.brand_name || product.brand?.name || 'Mastergas');
+    const brand = escapeXML(product.brand_name || product.brand?.name || 'Jabel');
     const category = escapeXML(product.category_name || product.category?.name || 'Shopping');
 
     return `
@@ -137,7 +137,7 @@ export function generateGoogleXML(products = [], storeUrl = 'https://mastergas.s
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
   <channel>
-    <title>Mastergas Product Catalog Feed</title>
+    <title>Jabel Product Catalog Feed</title>
     <link>${baseUrl}</link>
     <description>Live Product Data Feed for Google Merchant Center &amp; Meta Catalog</description>
     ${itemsXML}
@@ -148,7 +148,7 @@ export function generateGoogleXML(products = [], storeUrl = 'https://mastergas.s
 /**
  * Generate JSON Catalog Feed
  */
-export function generateJSONFeed(products = [], storeUrl = 'https://mastergas.sa', currency = 'JOD') {
+export function generateJSONFeed(products = [], storeUrl = 'https://jabel-website.vercel.app', currency = 'JOD') {
   const baseUrl = storeUrl.replace(/\/$/, '');
   
   const items = products.map(product => {
@@ -169,14 +169,14 @@ export function generateJSONFeed(products = [], storeUrl = 'https://mastergas.sa
       price: `${parseFloat(product.price || 0).toFixed(2)} ${currency}`,
       currency: currency,
       condition: 'new',
-      brand: product.brand_name || product.brand?.name || 'Mastergas',
+      brand: product.brand_name || product.brand?.name || 'Jabel',
       category: product.category_name || product.category?.name || ''
     };
   });
 
   return JSON.stringify({
     version: 'https://jsonfeed.org/version/1.1',
-    title: 'Mastergas Product Data Feed',
+    title: 'Jabel Product Data Feed',
     home_page_url: baseUrl,
     feed_url: `${baseUrl}/api/feeds/products.json`,
     items: items

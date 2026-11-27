@@ -355,8 +355,8 @@ const returnStatusLabel = (status) => (RETURN_STATUS_KEYS[status] ? t(`admin.das
 // Stale-while-revalidate: the last snapshot (per admin and language) paints at once,
 // even after a reload, and one refresh runs whenever freshness.version moved past it.
 const DASHBOARD_STORAGE_KEY = 'admin_dashboard_cache_v1';
-const dashboardCache = globalThis.__mastergasDashboardCache || { data: null, version: -1, owner: null, inFlight: null };
-globalThis.__mastergasDashboardCache = dashboardCache;
+const dashboardCache = globalThis.__jabelDashboardCache || { data: null, version: -1, owner: null, inFlight: null };
+globalThis.__jabelDashboardCache = dashboardCache;
 
 const cacheOwner = () => {
   try {

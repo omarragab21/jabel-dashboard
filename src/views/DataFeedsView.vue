@@ -62,7 +62,7 @@ const downloadFeed = async (feedKey) => {
   try {
     const products = await adminCatalogService.listAllProducts({ include_inactive: 1, show_all: 1 });
     const origin = window.location.origin;
-    const storeUrl = origin && origin !== 'null' && !/localhost|127\.0\.0\.1/.test(origin) ? origin : 'https://mastergas.sa';
+    const storeUrl = origin && origin !== 'null' && !/localhost|127\.0\.0\.1/.test(origin) ? origin : 'https://jabel-website.vercel.app';
     downloadFile(feed.build(products, storeUrl, 'JOD'), feed.file, feed.mime);
   } catch {
     downloadError.value = tx('تعذر تحميل المنتجات لإنشاء الملف.', 'Could not load the products to build the file.');

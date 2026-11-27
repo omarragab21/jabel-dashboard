@@ -203,11 +203,11 @@ export function clearAdminSessionArtifacts(storage = typeof localStorage !== 'un
   } catch {
     // Ignore storage errors
   }
-  if (typeof globalThis !== 'undefined' && globalThis.__mastergasDashboardCache) {
-    globalThis.__mastergasDashboardCache.data = null;
-    globalThis.__mastergasDashboardCache.version = -1;
-    globalThis.__mastergasDashboardCache.owner = null;
-    globalThis.__mastergasDashboardCache.inFlight = null;
+  if (typeof globalThis !== 'undefined' && globalThis.__jabelDashboardCache) {
+    globalThis.__jabelDashboardCache.data = null;
+    globalThis.__jabelDashboardCache.version = -1;
+    globalThis.__jabelDashboardCache.owner = null;
+    globalThis.__jabelDashboardCache.inFlight = null;
   }
 }
 

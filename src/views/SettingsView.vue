@@ -161,10 +161,10 @@ const aboutSections = [
         contentAr: 'about_content_ar',
         contentEn: 'about_content_en',
         placeholders: {
-            titleAr: 'عن Mastergas',
-            titleEn: 'About Mastergas',
-            contentAr: 'تأسست Mastergas لتكون رائدة في تقديم أحدث تقنيات أجهزة ومطابخ الطهي الإيطالية الفاخرة...',
-            contentEn: 'Mastergas was founded to lead in providing cutting-edge luxury Italian culinary appliances...',
+            titleAr: 'عن جبل',
+            titleEn: 'About Jabel',
+            contentAr: 'جبل متجر متخصص في منتجات الصحة والعناية، يقدم لك منتجات أصلية وتجربة تسوق موثوقة...',
+            contentEn: 'Jabel is a store specialising in health and care products, bringing you original products and a trusted shopping experience...',
         },
     },
     {
@@ -175,10 +175,10 @@ const aboutSections = [
         contentAr: 'about_section_2_content_ar',
         contentEn: 'about_section_2_content_en',
         placeholders: {
-            titleAr: 'الحرفية الإيطالية والتكنولوجيا المعاصرة',
-            titleEn: 'Italian Craftsmanship & Contemporary Technology',
-            contentAr: 'نتميز بأننا نجمع بين عراقة الحرفية اليدوية والتكنولوجيا الصناعية المتقدمة...',
-            contentEn: 'We uniquely blend traditional artisanal heritage with cutting-edge industrial technology...',
+            titleAr: 'خبرة صيدلانية وتقنية حديثة',
+            titleEn: 'Pharmaceutical Expertise & Modern Technology',
+            contentAr: 'نجمع بين الخبرة الصيدلانية والتقنية لنقدم لك تجربة تسوق صحية موثوقة...',
+            contentEn: 'We combine pharmaceutical expertise and technology to give you a trusted health shopping experience...',
         },
     },
     {
@@ -189,10 +189,10 @@ const aboutSections = [
         contentAr: 'about_section_3_content_ar',
         contentEn: 'about_section_3_content_en',
         placeholders: {
-            titleAr: 'مصمم لثقافتنا واحتياجاتنا المحلية',
-            titleEn: 'Designed for Our Local Culture & Needs',
-            contentAr: 'صُممت أجهزة ماستر غاز لتلبي متطلبات الطهي العربي والسعودي...',
-            contentEn: 'Mastergas appliances are purposefully engineered for Arabian and Saudi culinary requirements...',
+            titleAr: 'قريبون من احتياجاتك',
+            titleEn: 'Close to Your Needs',
+            contentAr: 'نختار منتجاتنا بعناية لتلبي احتياجاتك الصحية اليومية...',
+            contentEn: 'We choose our products carefully to meet your everyday health needs...',
         },
     },
 ];
@@ -552,7 +552,7 @@ const saveSettings = async (successMessage = t('admin.settings.success')) => {
     }
     const previewRaw = String(settings.value.site_preview_url ?? '').trim();
     if (previewRaw && !normalizePreviewUrl(previewRaw)) {
-        triggerAlert(tx('رابط الموقع غير صحيح. اكتبه مثل https://mastergas.com.sa', 'The site link is not valid. Write it like https://mastergas.com.sa'), 'error');
+        triggerAlert(tx('رابط الموقع غير صحيح. اكتبه مثل https://jabel-website.vercel.app', 'The site link is not valid. Write it like https://jabel-website.vercel.app'), 'error');
         return;
     }
     settings.value.site_preview_url = normalizePreviewUrl(previewRaw);
@@ -666,7 +666,7 @@ const triggerAlert = (message, type = 'success') => {
                     <label>{{ tx('رابط الموقع', 'Website link') }}</label>
                     <div class="preview-url-field">
                         <span class="preview-url-icon"><svg width="16" height="16" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><path fill="currentColor" d="M579.8 267.7c56.5-56.5 56.5-148 0-204.5c-50-50-128.8-56.5-186.3-15.4l-1.6 1.1c-14.4 10.3-17.7 30.3-7.4 44.6s30.3 17.7 44.6 7.4l1.6-1.1c32.1-22.9 76-19.3 103.8 8.6c31.5 31.5 31.5 82.5 0 114L422.3 334.8c-31.5 31.5-82.5 31.5-114 0c-27.9-27.9-31.5-71.8-8.6-103.8l1.1-1.6c10.3-14.4 6.9-34.4-7.4-44.6s-34.4-6.9-44.6 7.4l-1.1 1.6C206.5 251.2 213 330 263 380c56.5 56.5 148 56.5 204.5 0L579.8 267.7zM60.2 244.3c-56.5 56.5-56.5 148 0 204.5c50 50 128.8 56.5 186.3 15.4l1.6-1.1c14.4-10.3 17.7-30.3 7.4-44.6s-30.3-17.7-44.6-7.4l-1.6 1.1c-32.1 22.9-76 19.3-103.8-8.6C74 372 74 321 105.5 289.5L217.7 177.2c31.5-31.5 82.5-31.5 114 0c27.9 27.9 31.5 71.8 8.6 103.9l-1.1 1.6c-10.3 14.4-6.9 34.4 7.4 44.6s34.4 6.9 44.6-7.4l1.1-1.6C433.5 260.8 427 182 377 132c-56.5-56.5-148-56.5-204.5 0L60.2 244.3z"/></svg></span>
-                        <input type="url" v-model="settings.site_preview_url" placeholder="https://mastergas.com.sa" class="ltr-input" data-testid="site-preview-url" />
+                        <input type="url" v-model="settings.site_preview_url" placeholder="https://jabel-website.vercel.app" class="ltr-input" data-testid="site-preview-url" />
                         <a
                             v-if="normalizePreviewUrl(settings.site_preview_url)"
                             class="preview-url-open"
@@ -758,8 +758,8 @@ const triggerAlert = (message, type = 'success') => {
                 <BilingualField class="form-group full-width" required :ar="settings.address_ar" :en="settings.address_en" testid="address">
                     <template #label><label>{{ tx('العنوان', 'Address') }} <span class="req">*</span></label></template>
                     <template #default="{ lang }">
-                        <textarea v-show="lang === 'ar'" v-model="settings.address_ar" rows="2" dir="rtl" placeholder="المملكة العربية السعودية - الرياض" data-testid="address-ar"></textarea>
-                        <textarea v-show="lang === 'en'" v-model="settings.address_en" rows="2" dir="ltr" placeholder="Kingdom of Saudi Arabia - Riyadh" class="ltr-input" data-testid="address-en"></textarea>
+                        <textarea v-show="lang === 'ar'" v-model="settings.address_ar" rows="2" dir="rtl" placeholder="المملكة الأردنية الهاشمية - عمّان" data-testid="address-ar"></textarea>
+                        <textarea v-show="lang === 'en'" v-model="settings.address_en" rows="2" dir="ltr" placeholder="Hashemite Kingdom of Jordan - Amman" class="ltr-input" data-testid="address-en"></textarea>
                     </template>
                 </BilingualField>
 
@@ -1054,8 +1054,8 @@ const triggerAlert = (message, type = 'success') => {
                 <BilingualField class="form-group full-width" :ar="settings.seo_title_ar" :en="settings.seo_title_en" testid="seo-title">
                     <template #label><label>{{ tx('عنوان الموقع في جوجل ومشاركة الرابط', 'Site title on Google and link sharing') }}</label></template>
                     <template #default="{ lang }">
-                        <input v-show="lang === 'ar'" type="text" v-model="settings.seo_title_ar" dir="rtl" maxlength="120" placeholder="مثال: جبل | أجهزة مطبخ بمعايير إيطالية فاخرة" data-testid="seo-title-ar" />
-                        <input v-show="lang === 'en'" type="text" v-model="settings.seo_title_en" dir="ltr" maxlength="120" placeholder="e.g. Jabel | Premium Italian kitchen appliances" class="ltr-input" data-testid="seo-title-en" />
+                        <input v-show="lang === 'ar'" type="text" v-model="settings.seo_title_ar" dir="rtl" maxlength="120" placeholder="مثال: جبل | منتجات الصحة والعناية الأصلية" data-testid="seo-title-ar" />
+                        <input v-show="lang === 'en'" type="text" v-model="settings.seo_title_en" dir="ltr" maxlength="120" placeholder="e.g. Jabel | Original health and care products" class="ltr-input" data-testid="seo-title-en" />
                         <small class="field-hint" :class="{ 'seo-over': seoLength(`seo_title_${lang}`) > SEO_TITLE_GOOD }">{{ seoLength(`seo_title_${lang}`) }} / {{ SEO_TITLE_GOOD }} — {{ tx('الأفضل ألا يزيد عن 60 حرفًا حتى لا يُقصّ في جوجل.', 'Best kept under 60 characters so Google does not cut it.') }}</small>
                     </template>
                 </BilingualField>
@@ -1063,8 +1063,8 @@ const triggerAlert = (message, type = 'success') => {
                 <BilingualField class="form-group full-width" :ar="settings.seo_description_ar" :en="settings.seo_description_en" testid="seo-description">
                     <template #label><label>{{ tx('الوصف (الرسالة التي تظهر تحت العنوان)', 'Description (the message shown under the title)') }}</label></template>
                     <template #default="{ lang }">
-                        <textarea v-show="lang === 'ar'" v-model="settings.seo_description_ar" rows="3" maxlength="300" dir="rtl" placeholder="مثال: الرائد الأول في توفير الأجهزة المنزلية الإيطالية الفاخرة في المملكة العربية السعودية." data-testid="seo-description-ar"></textarea>
-                        <textarea v-show="lang === 'en'" v-model="settings.seo_description_en" rows="3" maxlength="300" dir="ltr" placeholder="e.g. The leading provider of premium Italian home appliances in Saudi Arabia." class="ltr-input" data-testid="seo-description-en"></textarea>
+                        <textarea v-show="lang === 'ar'" v-model="settings.seo_description_ar" rows="3" maxlength="300" dir="rtl" placeholder="مثال: متجر جبل لمنتجات الصحة والعناية الأصلية، مع توصيل سريع وخدمة موثوقة." data-testid="seo-description-ar"></textarea>
+                        <textarea v-show="lang === 'en'" v-model="settings.seo_description_en" rows="3" maxlength="300" dir="ltr" placeholder="e.g. Jabel, the store for original health and care products, with fast delivery and trusted service." class="ltr-input" data-testid="seo-description-en"></textarea>
                         <small class="field-hint" :class="{ 'seo-over': seoLength(`seo_description_${lang}`) > SEO_DESCRIPTION_GOOD }">{{ seoLength(`seo_description_${lang}`) }} / {{ SEO_DESCRIPTION_GOOD }} — {{ tx('الأفضل ألا يزيد عن 160 حرفًا.', 'Best kept under 160 characters.') }}</small>
                     </template>
                 </BilingualField>
@@ -1072,8 +1072,8 @@ const triggerAlert = (message, type = 'success') => {
                 <BilingualField class="form-group full-width" :ar="settings.seo_keywords_ar" :en="settings.seo_keywords_en" testid="seo-keywords">
                     <template #label><label>{{ tx('الكلمات المفتاحية', 'Keywords') }}</label></template>
                     <template #default="{ lang }">
-                        <input v-show="lang === 'ar'" type="text" v-model="settings.seo_keywords_ar" dir="rtl" placeholder="جبل, أجهزة مطبخ, أفران غاز إيطالية" data-testid="seo-keywords-ar" />
-                        <input v-show="lang === 'en'" type="text" v-model="settings.seo_keywords_en" dir="ltr" placeholder="Jabel, kitchen appliances, Italian gas ovens" class="ltr-input" data-testid="seo-keywords-en" />
+                        <input v-show="lang === 'ar'" type="text" v-model="settings.seo_keywords_ar" dir="rtl" placeholder="جبل, صيدلية, منتجات العناية" data-testid="seo-keywords-ar" />
+                        <input v-show="lang === 'en'" type="text" v-model="settings.seo_keywords_en" dir="ltr" placeholder="Jabel, pharmacy, care products" class="ltr-input" data-testid="seo-keywords-en" />
                         <small class="field-hint">{{ tx('افصل بين الكلمات بفاصلة.', 'Separate the words with commas.') }}</small>
                     </template>
                 </BilingualField>

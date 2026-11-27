@@ -372,7 +372,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* Mirrors the Zalameh dashboard crop modal; the accent follows the Mastergas brand. */
+/* Crop modal; the accent follows the dashboard brand colour. */
 .crop-overlay {
   --crop-accent: #660033;
   --crop-accent-hover: #4d0026;

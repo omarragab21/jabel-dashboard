@@ -157,8 +157,8 @@
           <BilingualField class="loc-field" required :ar="form.name_ar" :en="form.name_en" :invalid-ar="!!fieldError('name_ar')" :invalid-en="!!fieldError('name_en')" testid="branch-name">
             <template #label="{ lang }"><label class="loc-label" :for="`branch-name-${lang}`">{{ tx('اسم الفرع', 'Branch name') }} <span class="loc-req">*</span></label></template>
             <template #default="{ lang }">
-              <input v-show="lang === 'ar'" id="branch-name-ar" v-model="form.name_ar" class="loc-input" :class="{ 'is-invalid': fieldError('name_ar') }" dir="rtl" maxlength="255" :placeholder="tx('مثال: فرع الرياض الرئيسي', 'e.g. فرع الرياض الرئيسي')" data-testid="branch-name-ar" />
-              <input v-show="lang === 'en'" id="branch-name-en" v-model="form.name_en" class="loc-input" :class="{ 'is-invalid': fieldError('name_en') }" dir="ltr" maxlength="255" placeholder="e.g. Riyadh Main Branch" data-testid="branch-name-en" />
+              <input v-show="lang === 'ar'" id="branch-name-ar" v-model="form.name_ar" class="loc-input" :class="{ 'is-invalid': fieldError('name_ar') }" dir="rtl" maxlength="255" :placeholder="tx('مثال: فرع عمّان الرئيسي', 'e.g. فرع عمّان الرئيسي')" data-testid="branch-name-ar" />
+              <input v-show="lang === 'en'" id="branch-name-en" v-model="form.name_en" class="loc-input" :class="{ 'is-invalid': fieldError('name_en') }" dir="ltr" maxlength="255" placeholder="e.g. Amman Main Branch" data-testid="branch-name-en" />
             </template>
           </BilingualField>
           <p v-if="fieldError('name_ar')" class="loc-error" data-testid="branch-name-ar-error">{{ fieldError('name_ar') }}</p>
