@@ -41,8 +41,8 @@ const sectionMeta = computed(() => ({
     contact: { title: tx('التواصل والبريد', 'Contact & email'), subtitle: tx('البريد الرئيسي وبريد الدعم ومواقع التواصل', 'Main and support email, and social links') },
     location: { title: tx('العنوان وساعات العمل', 'Address & working hours'), subtitle: tx('عنوان المتجر ومواعيد العمل', 'Store address and opening hours') },
     newsbar: { title: tx('شريط الأخبار', 'News bar'), subtitle: tx('الأخبار التي تظهر في الشريط الأزرق تحت قائمة الموقع، بالعربي والإنجليزي', 'The news shown in the blue bar under the website menu, in Arabic and English') },
-    branding: { title: tx('الهوية البصرية', 'Visual identity'), subtitle: tx('الشعارات وأيقونة المتصفح والألوان الأساسية', 'Logos, browser icon and brand colours') },
-    seo: { title: tx('السيو ومعاينة الروابط', 'SEO & link preview'), subtitle: tx('النص والصورة اللذان يظهران في جوجل وعند مشاركة رابط الموقع على واتساب وتيليجرام وفيسبوك', 'The text and image shown on Google and when the site link is shared on WhatsApp, Telegram and Facebook') },
+    branding: { title: tx('الهوية البصرية', 'Visual identity'), subtitle: tx('الشعارات وأيقونة المتصفح وصورة مشاركة الرابط والألوان الأساسية', 'Logos, browser icon, link-share image and brand colours') },
+    seo: { title: tx('تهيئة محركات البحث', 'Search engine optimization'), subtitle: tx('عنوان الموقع ووصفه وكلماته المفتاحية كما تظهر في جوجل ومحركات البحث', 'The site title, description and keywords as Google and other search engines show them') },
     about: { title: tx('من نحن', 'About us'), subtitle: tx('محتوى صفحة «من نحن» في الموقع', 'Content of the website About page') },
     status: { title: tx('حالة الموقع', 'Website status'), subtitle: tx('يعمل الموقع أو هو قيد الإنشاء أو قيد التحديث: ما تختاره يظهر للزوار بدلاً من الموقع', 'Live, under construction or updating: what you pick is shown to visitors instead of the site') },
     preview: { title: tx('معاينة الموقع', 'Site preview'), subtitle: tx('رابط الموقع الحقيقي الذي يفتحه زر «معاينة الموقع» أعلى لوحة التحكم', 'The live website link opened by the «Preview site» button at the top of the dashboard') },
@@ -251,7 +251,9 @@ const fetchSettings = async () => {
         const nestedLinks = socialLinks && typeof socialLinks === 'object' && !Array.isArray(socialLinks) ? socialLinks : {};
         SOCIAL_KEYS.forEach((key) => {
             const flat = data.find((setting) => setting.key === key)?.value;
-            const value = String(flat ?? '').trim() || String(nestedLinks[key] ?? '').trim();
+            // WhatsApp may still be stored under its older key «whatsapp_url» (the website reads both).
+            const legacy = key === 'whatsapp' ? data.find((setting) => setting.key === 'whatsapp_url')?.value : '';
+            const value = String(flat ?? '').trim() || String(legacy ?? '').trim() || String(nestedLinks[key] ?? '').trim();
             settings.value[key] = /\.\.\.|…/.test(value) ? '' : value;
         });
 
@@ -391,28 +393,13 @@ const deleteAboutSection = async (section) => {
     await saveSettings(tx(`تم حذف القسم ${section.number} من صفحة «من نحن»`, `Section ${section.number} was removed from the About page`));
 };
 
-// ── SEO & link preview ───────────────────────────────────────────────────────
+// ── Search engine optimization ───────────────────────────────────────────────────────
 // Google shows about 60 characters of the title and 160 of the description; link previews cut at similar lengths.
 const SEO_TITLE_GOOD = 60;
 const SEO_DESCRIPTION_GOOD = 160;
-const seoPreviewLang = ref(typeof document !== 'undefined' && document.documentElement.lang === 'en' ? 'en' : 'ar');
 // The uploaded share image; until one is uploaded the website uses the main logo, so the preview shows that.
 const seoImageUploaded = computed(() => aboutImagePreviews.value.seo_image || resolveSettingAsset(settings.value.seo_image));
 const seoImagePreview = computed(() => seoImageUploaded.value || resolveSettingAsset(settings.value.logo));
-const seoHost = computed(() => {
-    try { return new URL(normalizePreviewUrl(settings.value.site_preview_url)).host; } catch { return 'your-site.com'; }
-});
-// The text as visitors will get it in the chosen language (the other language fills in when this one is empty).
-const seoPreview = computed(() => {
-    const lang = seoPreviewLang.value;
-    const other = lang === 'ar' ? 'en' : 'ar';
-    const pick = (key) => String(settings.value[`${key}_${lang}`] || '').trim() || String(settings.value[`${key}_${other}`] || '').trim();
-    return {
-        title: pick('seo_title'),
-        description: pick('seo_description'),
-        siteName: String(settings.value[`site_name_${lang}`] || settings.value[`site_name_${other}`] || settings.value.site_name || '').trim(),
-    };
-});
 const seoLength = (key) => String(settings.value[key] || '').trim().length;
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
@@ -552,7 +539,7 @@ const saveSettings = async (successMessage = t('admin.settings.success')) => {
     }
     const previewRaw = String(settings.value.site_preview_url ?? '').trim();
     if (previewRaw && !normalizePreviewUrl(previewRaw)) {
-        triggerAlert(tx('رابط الموقع غير صحيح. اكتبه مثل https://jabel-website.vercel.app', 'The site link is not valid. Write it like https://jabel-website.vercel.app'), 'error');
+        triggerAlert(tx('رابط الموقع غير صحيح. اكتبه مثل https://example.com', 'The site link is not valid. Write it like https://example.com'), 'error');
         return;
     }
     settings.value.site_preview_url = normalizePreviewUrl(previewRaw);
@@ -666,7 +653,7 @@ const triggerAlert = (message, type = 'success') => {
                     <label>{{ tx('رابط الموقع', 'Website link') }}</label>
                     <div class="preview-url-field">
                         <span class="preview-url-icon"><svg width="16" height="16" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><path fill="currentColor" d="M579.8 267.7c56.5-56.5 56.5-148 0-204.5c-50-50-128.8-56.5-186.3-15.4l-1.6 1.1c-14.4 10.3-17.7 30.3-7.4 44.6s30.3 17.7 44.6 7.4l1.6-1.1c32.1-22.9 76-19.3 103.8 8.6c31.5 31.5 31.5 82.5 0 114L422.3 334.8c-31.5 31.5-82.5 31.5-114 0c-27.9-27.9-31.5-71.8-8.6-103.8l1.1-1.6c10.3-14.4 6.9-34.4-7.4-44.6s-34.4-6.9-44.6 7.4l-1.1 1.6C206.5 251.2 213 330 263 380c56.5 56.5 148 56.5 204.5 0L579.8 267.7zM60.2 244.3c-56.5 56.5-56.5 148 0 204.5c50 50 128.8 56.5 186.3 15.4l1.6-1.1c14.4-10.3 17.7-30.3 7.4-44.6s-30.3-17.7-44.6-7.4l-1.6 1.1c-32.1 22.9-76 19.3-103.8-8.6C74 372 74 321 105.5 289.5L217.7 177.2c31.5-31.5 82.5-31.5 114 0c27.9 27.9 31.5 71.8 8.6 103.9l-1.1 1.6c-10.3 14.4-6.9 34.4 7.4 44.6s34.4 6.9 44.6-7.4l1.1-1.6C433.5 260.8 427 182 377 132c-56.5-56.5-148-56.5-204.5 0L60.2 244.3z"/></svg></span>
-                        <input type="url" v-model="settings.site_preview_url" placeholder="https://jabel-website.vercel.app" class="ltr-input" data-testid="site-preview-url" />
+                        <input type="url" v-model="settings.site_preview_url" :placeholder="tx('مثال: https://example.com', 'e.g. https://example.com')" :dir="settings.site_preview_url ? 'ltr' : tx('rtl', 'ltr')" :class="{ 'ltr-input': settings.site_preview_url }" data-testid="site-preview-url" />
                         <a
                             v-if="normalizePreviewUrl(settings.site_preview_url)"
                             class="preview-url-open"
@@ -1027,6 +1014,25 @@ const triggerAlert = (message, type = 'success') => {
                     </div>
                 </div>
 
+                <div class="form-group full-width" data-testid="branding-seo-image">
+                    <label>{{ tx('صورة مشاركة الرابط', 'Link-share image') }}</label>
+                    <div class="about-image-card">
+                        <div class="about-image-preview-frame">
+                            <img v-if="seoImagePreview" :src="seoImagePreview" :alt="tx('صورة مشاركة الرابط', 'Link-share image')" class="seo-image-contain" />
+                            <span v-else>{{ tx('لا توجد صورة مرفوعة', 'No image uploaded') }}</span>
+                        </div>
+                        <div class="about-image-card-actions">
+                            <div class="upload-btn-wrapper">
+                                <button class="btn-outline-upload" type="button">{{ tx('اختيار صورة', 'Choose image') }}</button>
+                                <input type="file" @change="onSettingsImageChange('seo_image', $event)" accept="image/*" data-testid="seo-image-input" />
+                            </div>
+                            <ImageCropButton v-if="settingsImageSource('seo_image')" @crop="recropSettingsImage('seo_image')" />
+                            <span>JPG / PNG · 1200×630</span>
+                        </div>
+                    </div>
+                    <small class="field-hint">{{ tx('الصورة التي تظهر فوق الرسالة عند مشاركة رابط الموقع. إلى أن ترفع صورة يُستخدم الشعار الأساسي أعلاه. يُفضَّل استخدام صورة عريضة (بنسبة 2:1) تتضمن الشعار.', 'The image shown above the message when someone shares the site link. Until you upload one, the main logo above is used. A wide image (2:1) with the logo works best.') }}</small>
+                </div>
+
                 <div class="form-group">
                     <label>{{ tx('اللون الأساسي', 'Primary colour') }}</label>
                     <div class="color-field">
@@ -1048,7 +1054,7 @@ const triggerAlert = (message, type = 'success') => {
             </div>
         </div>
 
-        <!-- SEO & link preview: what Google and link previews show -->
+        <!-- Search engine optimization: the title, description and keywords search engines show -->
         <div v-if="section === 'seo'" class="tab-pane fade-in" data-testid="seo-pane">
             <div class="form-grid">
                 <BilingualField class="form-group full-width" :ar="settings.seo_title_ar" :en="settings.seo_title_en" testid="seo-title">
@@ -1078,59 +1084,6 @@ const triggerAlert = (message, type = 'success') => {
                     </template>
                 </BilingualField>
 
-                <div class="form-group full-width">
-                    <label>{{ tx('صورة مشاركة الرابط', 'Link-share image') }}</label>
-                    <div class="about-image-card">
-                        <div class="about-image-preview-frame">
-                            <img v-if="seoImagePreview" :src="seoImagePreview" :alt="tx('صورة مشاركة الرابط', 'Link-share image')" class="seo-image-contain" />
-                            <span v-else>{{ tx('لا توجد صورة مرفوعة', 'No image uploaded') }}</span>
-                        </div>
-                        <div class="about-image-card-actions">
-                            <div class="upload-btn-wrapper">
-                                <button class="btn-outline-upload" type="button">{{ tx('اختيار صورة', 'Choose image') }}</button>
-                                <input type="file" @change="onSettingsImageChange('seo_image', $event)" accept="image/*" data-testid="seo-image-input" />
-                            </div>
-                            <ImageCropButton v-if="settingsImageSource('seo_image')" @crop="recropSettingsImage('seo_image')" />
-                            <span>JPG / PNG · 1200×630</span>
-                        </div>
-                    </div>
-                    <small class="field-hint">{{ tx('الصورة التي تظهر فوق الرسالة عند مشاركة رابط الموقع. إلى أن ترفع صورة يُستخدم الشعار الأساسي (الهوية البصرية). يُفضَّل استخدام صورة عريضة (بنسبة 2:1) تتضمن الشعار.', 'The image shown above the message when someone shares the site link. Until you upload one, the main logo (Visual identity) is used. A wide image (2:1) with the logo works best.') }}</small>
-                </div>
-
-                <div class="form-group full-width seo-preview" data-testid="seo-preview">
-                    <div class="seo-preview-head">
-                        <label>{{ tx('معاينة', 'Preview') }}</label>
-                        <div class="seo-lang-switch" role="tablist">
-                            <button type="button" role="tab" :class="{ active: seoPreviewLang === 'ar' }" :aria-selected="seoPreviewLang === 'ar'" @click="seoPreviewLang = 'ar'">عربي</button>
-                            <button type="button" role="tab" :class="{ active: seoPreviewLang === 'en' }" :aria-selected="seoPreviewLang === 'en'" @click="seoPreviewLang = 'en'">English</button>
-                        </div>
-                    </div>
-                    <div class="seo-preview-grid">
-                        <div class="seo-card">
-                            <span class="seo-card-label">{{ tx('نتيجة جوجل', 'Google result') }}</span>
-                            <div class="seo-google" :dir="seoPreviewLang === 'ar' ? 'rtl' : 'ltr'">
-                                <span class="seo-google-host">{{ seoHost }}</span>
-                                <span class="seo-google-title">{{ seoPreview.title || seoPreview.siteName || tx('عنوان الموقع سيظهر هنا', 'Your site title appears here') }}</span>
-                                <span class="seo-google-desc">{{ seoPreview.description || tx('وصف الموقع سيظهر هنا', 'Your site description appears here') }}</span>
-                            </div>
-                        </div>
-                        <div class="seo-card">
-                            <span class="seo-card-label">{{ tx('مشاركة الرابط (واتساب / تيليجرام)', 'Link share (WhatsApp / Telegram)') }}</span>
-                            <div class="seo-share" :dir="seoPreviewLang === 'ar' ? 'rtl' : 'ltr'">
-                                <div class="seo-share-image">
-                                    <img v-if="seoImagePreview" :src="seoImagePreview" alt="" />
-                                    <span v-else>{{ tx('بدون صورة', 'No image') }}</span>
-                                </div>
-                                <div class="seo-share-body">
-                                    <strong>{{ seoPreview.title || seoPreview.siteName || tx('عنوان الموقع', 'Site title') }}</strong>
-                                    <span>{{ seoPreview.description || tx('وصف الموقع', 'Site description') }}</span>
-                                    <small>{{ seoHost }}</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <small class="field-hint">{{ tx('بعد الحفظ، يحتفظ واتساب وتيليجرام بنسخة قديمة من المعاينة لفترة؛ جرّب الرابط في محادثة جديدة أو استخدم أداة إعادة الفحص من فيسبوك.', 'After saving, WhatsApp and Telegram keep an old copy of the preview for a while; try the link in a new chat or use the Facebook re-scrape tool.') }}</small>
-                </div>
             </div>
         </div>
 
@@ -1343,29 +1296,9 @@ const triggerAlert = (message, type = 'success') => {
 .form-group input:focus, .form-group textarea:focus { border-color: #660033; background: white; box-shadow: 0 0 0 4px rgba(0,0,0, 0.05); }
 
 
-/* SEO & link preview */
+/* Search engine optimization */
 .seo-image-contain { object-fit: contain !important; background: #fff; }
 .seo-over { color: #b45309 !important; }
-.seo-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-.seo-preview-head label { margin-bottom: 0; }
-.seo-lang-switch { display: inline-flex; padding: 3px; border-radius: 10px; background: #f1f5f9; }
-.seo-lang-switch button { border: none; background: transparent; padding: 6px 14px; border-radius: 8px; font-family: inherit; font-size: 0.8rem; font-weight: 700; color: #64748b; cursor: pointer; }
-.seo-lang-switch button.active { background: #fff; color: #111827; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-.seo-preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.seo-card { border: 1px solid #edf0f4; border-radius: 14px; padding: 14px; background: #fafbfc; min-width: 0; }
-.seo-card-label { display: block; margin-bottom: 10px; font-size: 0.72rem; font-weight: 800; color: #9ca3af; }
-.seo-google { display: flex; flex-direction: column; gap: 4px; background: #fff; border-radius: 10px; padding: 14px 16px; border: 1px solid #eef0f3; }
-.seo-google-host { font-size: 0.78rem; color: #4d5156; direction: ltr; text-align: start; }
-.seo-google-title { font-size: 1.1rem; line-height: 1.35; color: #1a0dab; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.seo-google-desc { font-size: 0.85rem; line-height: 1.5; color: #4d5156; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
-.seo-share { overflow: hidden; border-radius: 12px; background: #fff; border: 1px solid #eef0f3; }
-.seo-share-image { aspect-ratio: 1.91 / 1; display: flex; align-items: center; justify-content: center; background: #eef1f5; color: #9ca3af; font-size: 0.78rem; overflow: hidden; }
-.seo-share-image img { width: 100%; height: 100%; object-fit: contain; background: #fff; display: block; }
-.seo-share-body { display: flex; flex-direction: column; gap: 3px; padding: 10px 14px 12px; border-inline-start: 3px solid #660033; }
-.seo-share-body strong { font-size: 0.9rem; color: #111827; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.seo-share-body span { font-size: 0.8rem; color: #6b7280; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.seo-share-body small { font-size: 0.72rem; color: #9ca3af; direction: ltr; text-align: start; }
-@media (max-width: 900px) { .seo-preview-grid { grid-template-columns: 1fr; } }
 
 .ltr-input { direction: ltr; text-align: left; }
 .req { color: #dc2626; }

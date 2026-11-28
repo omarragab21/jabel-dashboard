@@ -180,6 +180,27 @@ export const tijaraAdminApi = {
   listOrders: (params = {}) => api.get('/v1/dashboard/orders', { params }),
   getOrder: (id) => api.get(`/v1/dashboard/orders/${encodePathSegment(id, 'order id')}`),
   updateOrder: (id, payload) => api.patch(`/v1/dashboard/orders/${encodePathSegment(id, 'order id')}`, payload, json),
+
+  // Discount products: add or remove some products without resending the whole list.
+  attachDiscountProducts: (id, productIds) => api.post(`/v1/dashboard/discounts/${encodePathSegment(id, 'discount id')}/products/attach`, { product_ids: productIds }, json),
+  detachDiscountProducts: (id, productIds) => api.post(`/v1/dashboard/discounts/${encodePathSegment(id, 'discount id')}/products/detach`, { product_ids: productIds }, json),
+
+  // One setting row switched on / off.
+  toggleSetting: (id) => api.patch(`/v1/dashboard/settings/${encodePathSegment(id, 'setting id')}/toggle`),
+
+  // Site images (the pictures the settings pages upload): list, view, edit, delete.
+  listSiteImages: (params = {}) => api.get('/v1/dashboard/site-images', { params }),
+  getSiteImage: (id) => api.get(`/v1/dashboard/site-images/${encodePathSegment(id, 'site image id')}`),
+  updateSiteImage: (id, payload, image) => api.post(`/v1/dashboard/site-images/${encodePathSegment(id, 'site image id')}`, multipart({ ...payload, _method: 'PUT' }, { image_file: image }), formHeaders),
+  deleteSiteImage: (id) => api.delete(`/v1/dashboard/site-images/${encodePathSegment(id, 'site image id')}`),
+
+  // News bar lines (New Paper Lines): { description_ar, description_en, link, is_active (1/0), image_file, delete_image }.
+  listNewsLines: (params = {}) => api.get('/v1/dashboard/new-paper-lines', { params }),
+  getNewsLine: (id) => api.get(`/v1/dashboard/new-paper-lines/${encodePathSegment(id, 'news line id')}`),
+  createNewsLine: (payload, image) => api.post('/v1/dashboard/new-paper-lines', multipart(payload, { image_file: image }), formHeaders),
+  updateNewsLine: (id, payload, image) => api.post(`/v1/dashboard/new-paper-lines/${encodePathSegment(id, 'news line id')}`, multipart({ ...payload, _method: 'PUT' }, { image_file: image }), formHeaders),
+  toggleNewsLineStatus: (id) => api.patch(`/v1/dashboard/new-paper-lines/${encodePathSegment(id, 'news line id')}/toggle-status`),
+  deleteNewsLine: (id) => api.delete(`/v1/dashboard/new-paper-lines/${encodePathSegment(id, 'news line id')}`),
 };
 
 export default tijaraAdminApi;

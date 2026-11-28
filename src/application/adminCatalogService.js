@@ -146,6 +146,9 @@ export const adminCatalogService = {
     return offer;
   },
   updatePromotion: (id, payload, image = null) => tijaraAdminApi.updateDiscount(id, payload, image),
+  // Add or remove some products of an offer without resending its whole product list.
+  attachPromotionProducts: (id, productIds) => tijaraAdminApi.attachDiscountProducts(id, [...new Set(productIds.map(Number))]),
+  detachPromotionProducts: (id, productIds) => tijaraAdminApi.detachDiscountProducts(id, [...new Set(productIds.map(Number))]),
   togglePromotion: (id) => tijaraAdminApi.toggleDiscountStatus(id),
   deletePromotion: (id) => tijaraAdminApi.deleteDiscount(id),
   // Every order, newest first (the endpoint pages 20 at a time), to count how often the offers were used.

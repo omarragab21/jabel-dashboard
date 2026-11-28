@@ -42,12 +42,14 @@ const messages = {
         "settings_contact": "التواصل والبريد",
         "settings_location": "العنوان وساعات العمل",
         "settings_branding": "الهوية البصرية",
-        "settings_seo": "تهيئة محركات البحث (SEO) ومعاينة الروابط",
+        "settings_seo": "تهيئة محركات البحث",
         "settings_about": "من نحن",
         "settings_status": "حالة الموقع",
         "settings_preview": "معاينة الموقع",
         "settings_privacy": "سياسة الخصوصية",
-        "settings_terms": "الشروط والأحكام"
+        "settings_terms": "الشروط والأحكام",
+        "settings_newsbar": "شريط الأخبار",
+        "settings_site_images": "صور الموقع"
       },
       "profile": {
         "admin": "مدير النظام",
@@ -774,12 +776,14 @@ const messages = {
         "settings_contact": "Contact & email",
         "settings_location": "Address & working hours",
         "settings_branding": "Visual identity",
-        "settings_seo": "SEO & Link Preview",
+        "settings_seo": "Search engine optimization",
         "settings_about": "About us",
         "settings_status": "Website status",
         "settings_preview": "Site preview",
         "settings_privacy": "Privacy policy",
-        "settings_terms": "Terms & conditions"
+        "settings_terms": "Terms & conditions",
+        "settings_newsbar": "News bar",
+        "settings_site_images": "Site images"
       },
       "profile": {
         "admin": "System Admin",

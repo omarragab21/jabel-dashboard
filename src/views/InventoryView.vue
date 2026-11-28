@@ -6,6 +6,7 @@ import { useAdminText } from '../composables/useAdminText';
 import RiyalAmount from '../components/RiyalAmount.vue';
 import StockAdjustDialog from '../components/StockAdjustDialog.vue';
 import { adminInventoryService } from '../application/adminInventoryService';
+import { PRODUCT_IMAGE_PLACEHOLDER } from '../domain/catalog/adminCatalog';
 import {
   LOW_STOCK_LIMIT, MOVEMENT_TYPES, dayOf, filterInventory, inventoryStats, movementReasonText, movementTypeLabel,
   productCategoryId, stockAlerts, stockBarPercent, stockStatus, stockStatusLabel, timeOf, toCsv, toMovementQuery,
@@ -35,10 +36,10 @@ const nameOf = (item) => item?.name_i18n?.[locale.value] || item?.name_i18n?.ar 
 const categoryLabel = (product) => nameOf(product.category) || tx('غير محدد', 'Uncategorized');
 const productImage = (product) => {
   const first = Array.isArray(product.images) ? product.images[0] : product.images;
-  return first || product.image_url || '/brand/tijara-logo.png';
+  return first || product.image_url || PRODUCT_IMAGE_PLACEHOLDER;
 };
 const onImageError = (event) => {
-  if (event?.target && !event.target.src.endsWith('/brand/tijara-logo.png')) event.target.src = '/brand/tijara-logo.png';
+  if (event?.target && !event.target.src.endsWith(PRODUCT_IMAGE_PLACEHOLDER)) event.target.src = PRODUCT_IMAGE_PLACEHOLDER;
 };
 
 const stats = computed(() => inventoryStats(products.value));

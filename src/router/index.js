@@ -60,8 +60,10 @@ const routes = [
       { path: 'profile', name: 'Profile', component: () => import('../views/ProfileView.vue') },
       ...editorRoutes('sliders', 'Sliders', () => import('../views/SlidersView.vue')),
       ...editorRoutes('branches', 'Branches', () => import('../views/BranchesView.vue')),
-      ...editorRoutes('topics', 'Topics', () => import('../views/TopicsView.vue')),
-      ...editorRoutes('permissions', 'Permissions', () => import('../views/PermissionsView.vue')),
+      // DISABLED: /dashboard/topics and /dashboard/permissions/{id} are not in the Postman collection (staging answers 404).
+      // Admin permissions are edited on the admin's own page (/v1/dashboard/users). The page code is kept.
+      // ...editorRoutes('topics', 'Topics', () => import('../views/TopicsView.vue')),
+      // ...editorRoutes('permissions', 'Permissions', () => import('../views/PermissionsView.vue')),
       { path: 'financial-reports', name: 'FinancialReports', component: () => import('../views/FinancialReportsView.vue') },
       { path: 'accounts', redirect: '/admin/financial-reports' },
       // DISABLED until the backend ships this API (staging answers 404 and it is not in the Postman collection).
@@ -79,15 +81,19 @@ const routes = [
         ];
       })(),
       */
-      { path: 'activity-log', name: 'ActivityLog', component: () => import('../views/ActivityLogsView.vue') },
+      // DISABLED: /dashboard/activity-logs is not in the Postman collection (staging answers 404). The page code is kept.
+      // { path: 'activity-log', name: 'ActivityLog', component: () => import('../views/ActivityLogsView.vue') },
       { path: 'settings', redirect: '/admin/settings/general' },
       // Each settings page edits one group of settings; SettingsView reads the group from the route.
-      ...['general', 'homepage', 'producttabs', 'commerce', 'contact', 'location', 'branding', 'seo', 'newsbar', 'about', 'status', 'preview'].map((section) => ({
+      ...['general', 'homepage', 'producttabs', 'commerce', 'contact', 'location', 'branding', 'seo', 'about', 'status', 'preview'].map((section) => ({
         path: `settings/${section}`,
         name: `Settings-${section}`,
         component: () => import('../views/SettingsView.vue'),
         meta: { settingsSection: section },
       })),
+      // News bar lines (/v1/dashboard/new-paper-lines) and the uploaded site images (/v1/dashboard/site-images).
+      ...editorRoutes('settings/newsbar', 'Settings-newsbar', () => import('../views/NewsLinesView.vue')),
+      ...editorRoutes('settings/site-images', 'Settings-site-images', () => import('../views/SiteImagesView.vue')),
       // Privacy policy and terms live in Firebase until the backend exposes them.
       { path: 'settings/privacy', name: 'Settings-privacy', component: () => import('../views/LegalPageView.vue'), meta: { legalPage: 'privacy' } },
       { path: 'settings/terms', name: 'Settings-terms', component: () => import('../views/LegalPageView.vue'), meta: { legalPage: 'terms' } },

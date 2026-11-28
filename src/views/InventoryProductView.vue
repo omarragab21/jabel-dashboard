@@ -6,6 +6,7 @@ import { useAdminText } from '../composables/useAdminText';
 import RiyalAmount from '../components/RiyalAmount.vue';
 import StockAdjustDialog from '../components/StockAdjustDialog.vue';
 import { adminInventoryService } from '../application/adminInventoryService';
+import { PRODUCT_IMAGE_PLACEHOLDER } from '../domain/catalog/adminCatalog';
 import {
   MOVEMENT_TYPES, dayOf, movementReasonText, movementTypeLabel, stockBarPercent, stockStatus, stockStatusLabel, timeOf, toMovementQuery,
 } from '../domain/inventory/inventory';
@@ -27,7 +28,7 @@ const page = ref(1);
 const rangeInvalid = computed(() => toMovementQuery(filters.value) === null);
 
 const nameOf = (item) => item?.name_i18n?.[locale.value] || item?.name_i18n?.ar || item?.name_i18n?.en || item?.name || '';
-const image = computed(() => (Array.isArray(product.value?.images) && product.value.images[0]) || '/brand/tijara-logo.png');
+const image = computed(() => (Array.isArray(product.value?.images) && product.value.images[0]) || PRODUCT_IMAGE_PLACEHOLDER);
 const stock = computed(() => Number(product.value?.stock) || 0);
 const status = computed(() => stockStatus(stock.value));
 const signed = (n) => (n > 0 ? `+${n}` : String(n));
@@ -112,7 +113,7 @@ onMounted(() => { loadProduct(); loadHistory(); });
     <template v-else-if="product">
       <div class="product-header">
         <div class="product-id">
-          <img :src="image" alt="" class="product-img" @error="$event.target.src = '/brand/tijara-logo.png'" />
+          <img :src="image" alt="" class="product-img" @error="$event.target.src = PRODUCT_IMAGE_PLACEHOLDER" />
           <div>
             <h1 class="product-title" data-testid="product-title">{{ nameOf(product) }}</h1>
             <p class="product-meta">#{{ product.id }} · {{ nameOf(product.category) || tx('غير محدد', 'Uncategorized') }} · <RiyalAmount :value="product.final_price ?? product.price" /></p>

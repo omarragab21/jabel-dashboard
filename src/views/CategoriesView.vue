@@ -136,10 +136,8 @@
                   <div class="cat-image" v-if="hasImage(cat.image)">
                     <img :src="cat.image" :alt="cat.name_i18n?.ar || cat.name" @error="markImageBroken(cat.image)" />
                   </div>
-                  <div class="cat-icon-placeholder" v-else>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-                    </svg>
+                  <div class="cat-icon-placeholder" v-else data-testid="category-placeholder">
+                    <img :src="PRODUCT_IMAGE_PLACEHOLDER" alt="" />
                   </div>
                   <span>{{ localizedName(cat.name_i18n, cat.name) }}</span>
                 </div>
@@ -323,7 +321,7 @@
           <div class="cm-view-hero">
             <div class="cm-view-img">
               <img v-if="hasImage(viewCategory.image)" :src="viewCategory.image" :alt="viewCategory.name" @error="markImageBroken(viewCategory.image)" />
-              <svg v-else width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <img v-else :src="PRODUCT_IMAGE_PLACEHOLDER" alt="" data-testid="category-placeholder" />
             </div>
             <h4 class="cm-view-name">{{ localizedName(viewCategory.name_i18n, viewCategory.name) }}</h4>
           </div>
@@ -353,7 +351,7 @@
               <li v-for="child in viewChildren" :key="child.id" class="cm-child">
                 <div class="cm-child-img">
                   <img v-if="hasImage(child.image)" :src="child.image" alt="" @error="markImageBroken(child.image)" />
-                  <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  <img v-else :src="PRODUCT_IMAGE_PLACEHOLDER" alt="" data-testid="category-placeholder" />
                 </div>
                 <div class="cm-child-text">
                   <span class="cm-child-name">{{ localizedName(child.name_i18n, child.name) }}</span>
@@ -416,7 +414,7 @@ import { apiErrorMessage } from '../utils/apiMessage';
 import { ref, computed, onMounted } from 'vue';
 import { useAdminText } from '../composables/useAdminText';
 import adminCatalogService from '../application/adminCatalogService';
-import { categoryMatchesSearch, toCategoryPayload } from '../domain/catalog/adminCatalog';
+import { PRODUCT_IMAGE_PLACEHOLDER, categoryMatchesSearch, toCategoryPayload } from '../domain/catalog/adminCatalog';
 import { visibleCategories, visibleProducts } from '../utils/catalogVisibility';
 import { safeObjectUrl } from '../utils/adminSecurity';
 import ImageCropModal from '../components/ImageCropModal.vue';
@@ -674,7 +672,8 @@ const submitLabel = computed(() => {
 const nameFilled = (lang) => hasText(lang === 'ar' ? form.value.name_ar : form.value.name_en);
 const missingFields = computed(() => {
   const missing = [];
-  if (!isEdit.value && !hasImage(imagePreview.value)) missing.push(isSubForm.value ? tx('صورة القسم الفرعي', 'sub-category image') : tx('صورة القسم', 'category image'));
+  // The image is required on add and on edit alike: a category saved without one is refused.
+  if (!hasImage(imagePreview.value)) missing.push(isSubForm.value ? tx('صورة القسم الفرعي', 'sub-category image') : tx('صورة القسم', 'category image'));
   if (!nameFilled('ar')) missing.push(tx('الاسم بالعربية', 'Arabic name'));
   if (!nameFilled('en')) missing.push(tx('الاسم بالإنجليزية', 'English name'));
   return missing;
@@ -779,6 +778,11 @@ const recropCurrentImage = async () => {
 // Submit form
 const submitForm = async () => {
   if (isSubmitting.value) return;
+  if (!hasImage(imagePreview.value)) {
+    imageError.value = isSubForm.value ? tx('صورة القسم الفرعي مطلوبة', 'The sub-category image is required') : tx('صورة القسم مطلوبة', 'The category image is required');
+    triggerAlert(imageError.value, 'error');
+    return;
+  }
   if (!nameFilled('ar')) {
     bilingual.reveal();
     triggerAlert('اسم القسم بالعربي مطلوب', 'error');
@@ -1114,7 +1118,7 @@ const bulkActions = computed(() => [
   border: 1px solid #e5e7eb;
 }
 .cat-image img { width: 100%; height: 100%; object-fit: cover; }
-.cat-icon-placeholder svg { color: #9ca3af; }
+.cat-icon-placeholder img { width: 100%; height: 100%; object-fit: cover; }
 
 .status-badge {
   display: inline-block;

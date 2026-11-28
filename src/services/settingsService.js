@@ -67,6 +67,10 @@ export const buildSettingsPayload = (settings = {}) => {
     }
   });
 
+  // WhatsApp is also kept under its older key, so the website and every older reader agree (and a cleared
+  // number stays cleared instead of coming back from whatsapp_url).
+  if (Object.hasOwn(normalized, 'whatsapp')) normalized.whatsapp_url = normalized.whatsapp;
+
   if (!Object.hasOwn(normalized, 'x_twitter') && hasValue(normalized.twitter)) {
     socialLinks.x_twitter = sanitizeSocialValue('x_twitter', normalized.twitter);
   }
@@ -136,7 +140,7 @@ export const settingsService = {
   },
 
   async getSettings(options = {}) {
-    const body = await getCached('/frontend/settings', {}, {
+    const body = await getCached('/v1/website/settings', {}, {
       ttl: options.ttl ?? API_TTL.settings,
       signal: options.signal,
       retries: options.retries ?? 2,
@@ -146,39 +150,13 @@ export const settingsService = {
   },
 
   async getSliders(params = { is_active: 1 }, options = {}) {
-    const body = await getCached('/frontend/sliders', clean(params), {
+    const body = await getCached('/v1/website/sliders', clean(params), {
       ttl: options.ttl ?? API_TTL.settings,
       signal: options.signal,
       retries: options.retries ?? 2,
       timeout: options.timeout ?? 4000,
     });
     return parseCollectionResponse(body).items;
-  },
-
-  async getCountries(options = {}) {
-    const body = await getCached('/frontend/countries', {}, { signal: options.signal, retries: 2 });
-    return parseCollectionResponse(body).items;
-  },
-
-  async getCities(countryId = null, options = {}) {
-    const params = countryId ? { country_id: countryId } : {};
-    const body = await getCached('/frontend/cities', params, { signal: options.signal, retries: 2 });
-    return parseCollectionResponse(body).items;
-  },
-
-  async getShippingRates(options = {}) {
-    const body = await getCached('/frontend/city-shipping-rates', {}, { signal: options.signal, retries: 2 });
-    return parseCollectionResponse(body).items;
-  },
-
-  async getTopics(params = { status: 'published' }, options = {}) {
-    const body = await getCached('/frontend/topics', clean(params), { signal: options.signal, retries: 2 });
-    return parseCollectionResponse(body).items;
-  },
-
-  async getTopicBySlug(slug, options = {}) {
-    const body = await getCached(`/frontend/topics/${encodeURIComponent(slug)}`, {}, { signal: options.signal, retries: 2 });
-    return parseDataResponse(body);
   },
 
   async sendContactMessage(messageData) {

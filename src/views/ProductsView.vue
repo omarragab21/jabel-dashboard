@@ -689,7 +689,7 @@ import { provideBilingualForm } from '../composables/useBilingualForm';
 import { hasText } from '../utils/bilingualText';
 import { useAdminText } from '../composables/useAdminText';
 import adminCatalogService from '../application/adminCatalogService';
-import { productCategoryName, toLines, toProductPayload, validateProductImages } from '../domain/catalog/adminCatalog';
+import { PRODUCT_IMAGE_PLACEHOLDER, productCategoryName, toLines, toProductPayload, validateProductImages } from '../domain/catalog/adminCatalog';
 import { loadSavedProductTabs } from '../services/productTabs';
 import { sourceTitle } from '../domain/productTabs';
 import { dedupeColorOptions, isColorAttribute, normalizeProductAttributes } from '../utils/productAttributes';
@@ -1032,11 +1032,11 @@ const productImage = (product, index = 0) => {
   const image = rawImage && typeof rawImage === 'object'
     ? (rawImage.image_url || rawImage.url || rawImage.image || rawImage.path)
     : rawImage;
-  return image || '/brand/tijara-logo.png';
+  return image || PRODUCT_IMAGE_PLACEHOLDER;
 };
 const handleImageError = (event) => {
-  if (event?.target?.getAttribute('src') !== '/brand/tijara-logo.png') {
-    event.target.src = '/brand/tijara-logo.png';
+  if (event?.target?.getAttribute('src') !== PRODUCT_IMAGE_PLACEHOLDER) {
+    event.target.src = PRODUCT_IMAGE_PLACEHOLDER;
   }
 };
 
@@ -1653,8 +1653,8 @@ const submitForm = async () => {
     }
   }
 
-  // Every new product needs at least one image (a copy keeps its own, so it counts too).
-  const imageError = validateProductImages(form.value, { isEdit: isEdit.value });
+  // Every product needs at least one image: on add, on duplicate, and on edit (removing the last one is refused).
+  const imageError = validateProductImages(form.value);
   if (imageError) {
     currentTab.value = 'images';
     imageMissing.value = true;

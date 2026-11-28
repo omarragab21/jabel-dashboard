@@ -288,10 +288,12 @@ export const toCategoryPayload = (form) => ({
 
 export const PRODUCT_IMAGE_REQUIRED_MESSAGE = 'أضف صورة واحدة على الأقل للمنتج';
 
-// A new product must have at least one image. Images already saved on the product (edit) and
-// freshly staged uploads (add / duplicate) both count. Returns an error message, or '' when fine.
-export const validateProductImages = (form = {}, { isEdit = false } = {}) => {
-  if (isEdit) return '';
+// Shown in place of a product or category that has no image (or whose image fails to load): the Tijara «T» mark.
+export const PRODUCT_IMAGE_PLACEHOLDER = '/brand/tijara-icon-light.svg';
+
+// Every product must keep at least one image, on add, duplicate and edit alike. Images already
+// saved on the product and freshly staged uploads both count. Returns an error message, or '' when fine.
+export const validateProductImages = (form = {}) => {
   const staged = Array.isArray(form.new_images) ? form.new_images.filter(Boolean).length : 0;
   const saved = Array.isArray(form.existing_images) ? form.existing_images.filter(Boolean).length : 0;
   return staged + saved > 0 ? '' : PRODUCT_IMAGE_REQUIRED_MESSAGE;
